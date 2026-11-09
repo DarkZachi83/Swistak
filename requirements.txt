@@ -1,0 +1,2 @@
+# Etap 0 — interfejs PDF, bez OCR i bazy danych
+PySide6>=6.8,<7
