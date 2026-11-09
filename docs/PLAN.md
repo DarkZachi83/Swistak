@@ -67,6 +67,21 @@ Bezpieczeństwo:
 
 Dokładny kontrakt JSON, walidacje i testy: [ETAP_3_OLLAMA.md](ETAP_3_OLLAMA.md).
 
+### Dobór modelu: AI Bóbr → Świstak
+
+[AI Bóbr](https://github.com/DarkZachi83/Bobr) jest **zewnętrznym narzędziem
+do oceny i porównywania lokalnych modeli**, a Świstak uruchamia wybrany model
+przez Ollamę. Dobór obejmuje zgodność z komputerem, szybkość,
+polszczyznę, format JSON oraz — po dodaniu w Bobrze — testy nauk ścisłych.
+Wybór końcowy wymaga dodatkowego testu **ekstrakcji pól z rachunków**,
+którego wyniku nie zastępuje ocena wiedzy ogólnej.
+
+Integracja ma być **luźna**: Świstak nie importuje modułów AI Bobra i
+nie wymaga uruchomionego Bobra. Docelowo może odczytać wyeksportowany
+raport z wynikami benchmarku, a listę dostępnych modeli pobierze
+bezpośrednio z lokalnej Ollamy. Szczegóły:
+[WYBOR_MODELU_AI_BOBR.md](WYBOR_MODELU_AI_BOBR.md).
+
 ## Etap 4 — historia, statystyki i kopie zapasowe
 Filtrowanie rachunków, sumy miesięczne; kopia spójnej migawki SQLite
 i oryginałów PDF z manifestem SHA-256 oraz sprawdzane przywracanie.

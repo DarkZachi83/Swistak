@@ -12,6 +12,21 @@ Zależy od etapu 2, czyli poprawnego wydobywania tekstu z PDF i OCR skanów.
 - **Dopiero gdy LLM nie odpowiada, zwraca wadliwy JSON, pomija pole lub użytkownik wykryje pomyłkę**, korzystamy z reguł wyodrębniania wartości albo ręcznego zaznaczania w PDF.
 - Lokalny model to docelowe doświadczenie użytkownika, a brak Ollamy oznacza dostępność jedynie trybu awaryjnego/manualnego. Nigdy automatyczny fallback do zewnętrznej usługi AI.
 
+## Wybór modelu z pomocą AI Bobra
+
+**AI Bóbr służy do porównania kandydatów na model bazowy Świstaka**, a nie
+do interpretowania rachunków w czasie pracy aplikacji. Porównujemy:
+zapas RAM/VRAM, czas odpowiedzi, wydajność, poprawność polszczyzny,
+JSON oraz planowane testy nauk ścisłych. Następnie wykonujemy osobny
+benchmark odczytu danych z dokumentów (kwoty, terminy, NRB/IBAN, różne
+układy rachunków). Dopiero te wyniki pozwalają wybrać ustawienia domyślne.
+
+Architektura pozostaje LLM-first: wynik AI Bobra wybiera model, ale nie
+uruchamia parsera regułowego przed analizą LLM. Import wyników benchmarku
+ma być opcjonalny; bez Bobra Świstak korzysta z lokalnie dostępnych modeli.
+
+Szczegóły: [WYBOR_MODELU_AI_BOBR.md](WYBOR_MODELU_AI_BOBR.md).
+
 ## Założenia użytkowe
 
 Przycisk: **Analizuj rachunek (Ollama)**, z wyborem lokalnie

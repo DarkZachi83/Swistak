@@ -80,6 +80,12 @@ metodą zapasową. [Specyfikacja Ollamy](docs/ETAP_3_OLLAMA.md).
 
 **Świstak jest projektowany jako aplikacja LLM-first:** Ollama i lokalny model będą głównym sposobem interpretacji rachunków. Reguły i ręczne zaznaczanie PDF to rozwiązania awaryjne, uruchamiane, gdy model nie zadziała lub pomyli dane. Pozyskanie tekstu/OCR odbywa się wcześniej wyłącznie w celu przygotowania wejścia dla LLM, a walidacja JSON i numerów kont obowiązuje zawsze.
 
+Do wyboru lokalnego modelu wykorzystamy **[AI Bobra](https://github.com/DarkZachi83/Bobr)**:
+testy sprzętu i szybkości, polszczyzny, JSON oraz planowane testy wiedzy
+z nauk ścisłych. Końcową decyzję zweryfikujemy na syntetycznych rachunkach.
+[Projekt doboru modelu](docs/WYBOR_MODELU_AI_BOBR.md).
+AI Bóbr będzie narzędziem do benchmarków, **nie obowiązkową zależnością Świstaka**.
+
 Bez Ollamy program zachowa możliwość ręcznej obsługi rachunków, ale nie pełną funkcjonalność AI. Nie wysyłamy dokumentów do chmury, nie wykonujemy przelewów ani nie dodajemy telemetrii.
 
 ## Licencja
