@@ -78,8 +78,9 @@ płatności, numer dokumentu i numer konta bankowego. Użytkownik zawsze
 sprawdza i zatwierdza wartości. Zaznaczanie fragmentów PDF pozostaje
 metodą zapasową. [Specyfikacja Ollamy](docs/ETAP_3_OLLAMA.md).
 
-Ollama jest **opcjonalna**. Nie wysyłamy dokumentów do chmury, nie
-wykonujemy przelewów ani nie dodajemy telemetrii.
+**Świstak jest projektowany jako aplikacja LLM-first:** Ollama i lokalny model będą głównym sposobem interpretacji rachunków. Reguły i ręczne zaznaczanie PDF to rozwiązania awaryjne, uruchamiane, gdy model nie zadziała lub pomyli dane. Pozyskanie tekstu/OCR odbywa się wcześniej wyłącznie w celu przygotowania wejścia dla LLM, a walidacja JSON i numerów kont obowiązuje zawsze.
+
+Bez Ollamy program zachowa możliwość ręcznej obsługi rachunków, ale nie pełną funkcjonalność AI. Nie wysyłamy dokumentów do chmury, nie wykonujemy przelewów ani nie dodajemy telemetrii.
 
 ## Licencja
 
