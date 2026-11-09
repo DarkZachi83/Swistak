@@ -54,7 +54,7 @@ Aplikacja weryfikuje sumę pliku z archiwum przy ponownym otwarciu.
 W razie błędu bazy lub dysku zatrzymujemy operację bez usuwania oryginałów.
 
 **Uwaga:** pełny mechanizm kopii zapasowej i przywracania jest zaplanowany
-na etap 3. Do tego czasu używaj danych testowych albo samodzielnie
+na etap 4. Do tego czasu używaj danych testowych albo samodzielnie
 zabezpieczaj cały katalog danych po zamknięciu Świstaka. Nie publikuj
 ani nie dodawaj tego katalogu do repozytorium.
 
@@ -71,9 +71,15 @@ zaimportuj dwa pliki, zapisz rachunek, zamknij aplikację i uruchom ponownie.
 ## Kolejne etapy
 
 Plan: [docs/PLAN.md](docs/PLAN.md).
-W etapie 2 pojawi się odczyt warstwy tekstowej PDF, OCR Tesseract
-dla skanów oraz zatwierdzanie podpowiedzianych pól. Nie wysyłamy
-dokumentów do chmury, nie ma integracji bankowych ani telemetrii.
+W etapie 2 pojawi się odczyt warstwy tekstowej PDF oraz OCR Tesseract
+dla skanów. W nowym **etapie 3** lokalny model przez **Ollamę** zaproponuje
+wypełnienie formularza jako JSON: dostawca, kwota do zapłaty, termin
+płatności, numer dokumentu i numer konta bankowego. Użytkownik zawsze
+sprawdza i zatwierdza wartości. Zaznaczanie fragmentów PDF pozostaje
+metodą zapasową. [Specyfikacja Ollamy](docs/ETAP_3_OLLAMA.md).
+
+Ollama jest **opcjonalna**. Nie wysyłamy dokumentów do chmury, nie
+wykonujemy przelewów ani nie dodajemy telemetrii.
 
 ## Licencja
 
