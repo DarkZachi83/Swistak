@@ -1,48 +1,40 @@
 # Świstak — założenia i etapy
 
 ## Zasady
+- Dane prywatne pozostają lokalnie; kod i testy na GitHubie.
+- Najpierw ręczna kontrola i zatwierdzanie, bez automatycznego księgowania.
+- PDF z warstwą tekstową obsłużymy bez OCR; skan tylko z OCR na wybranym fragmencie.
+- Oryginałów PDF nie modyfikujemy; przechowujemy kopię z SHA-256.
+- Moduły SQLite i archiwum wzorowane architektonicznie na Nornicy,
+  interfejs wizualnie inspirowany AI Bobrem.
+- Wszystkie etapy mają testy i osobne commity.
 
-- Dane użytkownika zostają lokalnie. Kod i testy są rozdzielone od magazynu danych.
-- Najpierw **ręczne zaznaczenie**, potem odczyt, korekta i zatwierdzenie.
-- PDF z warstwą tekstową odczytujemy bez OCR; skan poddajemy OCR tylko tam,
-  gdzie użytkownik wskazał obszar.
-- Oryginalnego PDF nie modyfikujemy. Archiwizujemy go z sumą SHA-256.
-- Modułowość na wzór Nornicy, estetyka AI Bobra, interfejs PySide6.
-- Testy każdej nowej reguły oraz migracje SQLite od pierwszej wersji bazy.
+## Etap 0 — wykonany
+Wielostronicowy podgląd PDF, zoom, zaznaczanie obszaru z normalizacją
+współrzędnych. Ręczne potwierdzenie działania przez użytkownika.
 
-## Etap 0 — prototyp (obecny)
+## Etap 1 — baza i archiwum (gałąź robocza)
+SQLite: `dokumenty`, `rachunki`, `pozycje_rachunku`, `kategorie`.
+Kwoty jako całkowite grosze. Wersjonowane i sprawdzane SHA-256 migracje.
+Archiwum PDF w katalogu użytkownika, deduplikacja SHA-256, ścieżki
+względne, ponowna weryfikacja przy otwieraniu.
+Import, formularz rachunku, ręczne dodawanie kategorii, lista dokumentów.
+Przed scaleniem potrzebny test GUI na docelowym komputerze.
 
-Podgląd lokalnych PDF, wiele stron, zoom i ręczne zaznaczanie obszaru.
-Prostokąt obliczany we współrzędnych względnych (0–1), niezależnie od zoomu.
-Przed przejściem dalej należy sprawdzić działanie GUI na Linuxie i Windowsie
-oraz na rzeczywistych, ale niepublikowanych rachunkach.
+## Etap 2 — odczyt zaznaczonego pola
+Tekstowa warstwa PDF (np. pdfplumber) lub Tesseract dla skanów
+(po rasteryzacji, OpenCV), wyłącznie dla wybranego obszaru.
+Podpowiedź w edytowalnym formularzu, ręczne zatwierdzanie,
+operacje OCR poza głównym wątkiem interfejsu.
 
-## Etap 1 — zapis i archiwizacja
+## Etap 3 — historia, statystyki i kopie zapasowe
+Filtrowanie rachunków, sumy miesięczne; kopia spójnej migawki SQLite
+i oryginałów PDF z manifestem SHA-256 oraz sprawdzane przywracanie.
 
-Minimalny schemat: `dokumenty`, `rachunki`, `pozycje_rachunku`, `kategorie`.
-Kwoty jako całkowita liczba groszy. Migracje z wersjonowaniem i kontrolą SHA-256.
-Oryginalne PDF-y w prywatnym katalogu danych (ścieżki względne, suma SHA-256),
-zabezpieczenie przed duplikatami. Stan dokumentu musi przetrwać restart programu.
+## Etap 4 — szablony dostawców
+Zapamiętywanie układu dokumentu, potwierdzanie odczytu,
+dopiero po sprawdzeniu dokładności odczytu z różnych rachunków.
 
-## Etap 2 — odczyt i zatwierdzanie
-
-Najpierw użycie warstwy tekstowej (np. pdfplumber). Jeśli strona/obszar jest
-skanem: rasteryzacja (Poppler), przygotowanie wycinka (OpenCV), Tesseract.
-Surowy odczyt pozostaje edytowalny. Użytkownik przypisuje pole i zatwierdza.
-Operacje OCR w wątku roboczym, bez blokowania interfejsu.
-
-## Etap 3 — pierwsza wersja użytkowa
-
-Historia rachunków z filtrowaniem, sumy miesięczne po kategorii. Kopia zapasowa
-zawiera spójną migawkę SQLite i oryginalne PDF-y, jest weryfikowana przed
-potwierdzeniem i może zostać bezpiecznie przywrócona.
-
-## Etap 4 — szablony
-
-Dopasowywanie dokumentu do dostawcy i zapamiętywanie obszarów, ale bez
-samoczynnego zatwierdzania płatności. Wdrażamy dopiero na sprawdzonych przykładach.
-
-## Poza zakresem na starcie
-
-Bankowość, konta użytkowników, chmura, telemetria, modele AI, automatyczny
-import e-mail, przypomnienia, edytor PDF i rozbudowane hierarchie kategorii.
+## Poza zakresem
+Bankowość, cloud, telemetria, AI/LLM, automatyczny e-mail,
+powiadomienia i rozbudowane hierarchie kategorii.
