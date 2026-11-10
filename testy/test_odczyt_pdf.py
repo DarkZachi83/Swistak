@@ -19,6 +19,7 @@ class TestOdczytPDF(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.plik = Path(self.tmp.name) / "syntetyczny.pdf"
         pdf = QPdfWriter(str(self.plik))
+        pdf.setResolution(72)  # współrzędne w punktach, bez nakładania wierszy
         p = QPainter(pdf)
         self.assertTrue(p.isActive())
         p.drawText(100, 150, "FAKTURA TESTOWA ZAKLAD DEMO")
@@ -44,6 +45,7 @@ class TestOdczytPDF(unittest.TestCase):
     def test_sztuczna_strona_bez_warstwy_tekstowej(self):
         pusta = Path(self.tmp.name) / "pusta.pdf"
         pdf = QPdfWriter(str(pusta))
+        pdf.setResolution(72)
         p = QPainter(pdf)
         p.drawRect(100, 100, 250, 150)
         p.end()
