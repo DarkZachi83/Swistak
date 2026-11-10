@@ -9,14 +9,17 @@ from PySide6.QtCore import Qt, QThreadPool
 from PySide6.QtWidgets import (
     QApplication, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
-    QPushButton, QScrollArea, QSplitter, QTabWidget, QTextEdit, QVBoxLayout,
+    QPushButton, QScrollArea, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem,
+    QAbstractItemView, QTextEdit, QVBoxLayout,
     QWidget, QComboBox,
 )
 
 from gui.podglad_pdf import PodgladPDF
 from gui.odczyt_worker import ZadanieOdczytu
+from gui.analiza_worker import ZadanieAnalizy
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import WynikOdczytu
+from uslugi.analiza_llm import AnalizaModelu, ETYKIETY, POLA
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 
 
@@ -27,7 +30,10 @@ class OknoGlowne(QMainWindow):
         self.aktualny_dokument_id: int | None = None
         self._wybrany_obszar: Zaznaczenie | None = None
         self._zadanie_odczytu: ZadanieOdczytu | None = None
-        self.setWindowTitle("Świstak — rachunki (etap 1)")
+        self._zadanie_ai: ZadanieAnalizy | None = None
+        self._analiza: AnalizaModelu | None = None
+        self._analiza_dokument_id: int | None = None
+        self.setWindowTitle("Świstak — rachunki i analiza AI (etap 3)")
         self.resize(1250, 820)
         self.setMinimumSize(870, 560)
 
@@ -41,7 +47,7 @@ class OknoGlowne(QMainWindow):
         tytul = QLabel("Świstak")
         tytul.setObjectName("naglowek")
         naglowek.addWidget(tytul)
-        opis = QLabel("Archiwum rachunków • etap 1")
+        opis = QLabel("Archiwum rachunków • lokalna Ollama")
         opis.setObjectName("podpowiedz")
         naglowek.addWidget(opis)
         naglowek.addStretch()
@@ -91,6 +97,7 @@ class OknoGlowne(QMainWindow):
         self.karty.addTab(self._zbuduj_formularz(), "Rachunek")
         self.karty.addTab(self._zbuduj_liste(), "Dokumenty")
         self.karty.addTab(self._zbuduj_odczyt(), "Odczyt PDF")
+        self.karty.addTab(self._zbuduj_analize(), "Analiza AI")
         dzielnik.addWidget(self.karty)
         dzielnik.setStretchFactor(0, 3)
         dzielnik.setStretchFactor(1, 2)
@@ -122,6 +129,8 @@ class OknoGlowne(QMainWindow):
 
         self.ed_dostawca = QLineEdit()
         self.ed_numer = QLineEdit()
+        self.ed_konto = QLineEdit()
+        self.ed_konto.setPlaceholderText("NRB (26 cyfr) lub IBAN — opcjonalnie")
         self.ed_kwota = QLineEdit()
         self.ed_kwota.setPlaceholderText("np. 245,80")
         self.ed_wystawiono = QLineEdit()
@@ -150,7 +159,8 @@ class OknoGlowne(QMainWindow):
 
         for etykieta, element in (
             ("Dostawca *", self.ed_dostawca),
-            ("Nr rachunku", self.ed_numer),
+            ("Numer faktury", self.ed_numer),
+            ("Konto bankowe", self.ed_konto),
             ("Kwota [zł] *", self.ed_kwota),
             ("Kategoria *", wybor_i_dodaj),
             ("Wystawiono", self.ed_wystawiono),
@@ -165,7 +175,7 @@ class OknoGlowne(QMainWindow):
         self.zapisz_przycisk = QPushButton("Zapisz rachunek")
         self.zapisz_przycisk.clicked.connect(self._zapisz_rachunek)
         uklad.addWidget(self.zapisz_przycisk)
-        komunikat = QLabel("Etap 1: pola wpisujesz ręcznie. Odczyt ze wskazanego obszaru PDF pojawi się w etapie 2.")
+        komunikat = QLabel("Dane od AI są wyłącznie propozycjami. Sprawdź PDF, popraw pola i dopiero kliknij Zapisz rachunek.")
         komunikat.setWordWrap(True)
         komunikat.setObjectName("podpowiedz")
         uklad.addWidget(komunikat)
@@ -181,7 +191,7 @@ class OknoGlowne(QMainWindow):
         uklad.setSpacing(10)
         instrukcja = QLabel(
             "Tekst pozyskany z PDF lub OCR jest tylko materiałem wejściowym. "
-            "Interpretację pól wykonamy później przez lokalny LLM (Ollama)."
+            "Po odczycie możesz uruchomić lokalny model w zakładce Analiza AI."
         )
         instrukcja.setWordWrap(True)
         instrukcja.setObjectName("podpowiedz")
@@ -211,21 +221,228 @@ class OknoGlowne(QMainWindow):
             lambda: QApplication.clipboard().setText(self.pole_odczytu.toPlainText())
         )
         uklad.addWidget(kopiuj)
+        self.btn_analizuj_z_odczytu = QPushButton("Analizuj tekst przez AI (Ollama)")
+        self.btn_analizuj_z_odczytu.clicked.connect(self._start_analizy)
+        uklad.addWidget(self.btn_analizuj_z_odczytu)
         return panel
 
+    def _zbuduj_analize(self) -> QWidget:
+        panel = QWidget()
+        uklad = QVBoxLayout(panel)
+        uklad.setContentsMargins(10, 12, 10, 12)
+        uklad.setSpacing(8)
+
+        instrukcja = QLabel(
+            "Najpierw użyj Odczyt PDF. Lokalny LLM proponuje wartości; "
+            "Świstak sprawdza format, a Ty decydujesz, co przenieść do formularza. "
+            "Nic nie jest zapisywane automatycznie."
+        )
+        instrukcja.setWordWrap(True)
+        instrukcja.setObjectName("podpowiedz")
+        uklad.addWidget(instrukcja)
+
+        model_uklad = QHBoxLayout()
+        model_uklad.addWidget(QLabel("Model Ollama:"))
+        self.ed_model = QLineEdit("gemma3:4b")
+        self.ed_model.setToolTip("Nazwa lokalnie zainstalowanego modelu (ollama list)")
+        model_uklad.addWidget(self.ed_model)
+        uklad.addLayout(model_uklad)
+
+        akcje = QHBoxLayout()
+        self.btn_analizuj = QPushButton("Analizuj rachunek przez AI")
+        self.btn_analizuj.clicked.connect(self._start_analizy)
+        akcje.addWidget(self.btn_analizuj)
+        self.btn_anuluj_ai = QPushButton("Anuluj")
+        self.btn_anuluj_ai.clicked.connect(self._anuluj_analize)
+        akcje.addWidget(self.btn_anuluj_ai)
+        uklad.addLayout(akcje)
+
+        self.info_ai = QLabel("Odczytaj PDF, aby rozpocząć analizę lokalnym modelem.")
+        self.info_ai.setWordWrap(True)
+        uklad.addWidget(self.info_ai)
+
+        self.tabela_ai = QTableWidget(len(POLA), 4)
+        self.tabela_ai.setHorizontalHeaderLabels(["Pole", "Sugestia AI", "Dowód z tekstu", "Ocena"])
+        self.tabela_ai.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabela_ai.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tabela_ai.setWordWrap(True)
+        self.tabela_ai.setColumnWidth(0, 130)
+        self.tabela_ai.setColumnWidth(1, 150)
+        self.tabela_ai.setColumnWidth(2, 210)
+        self.tabela_ai.setColumnWidth(3, 190)
+        for n, pole in enumerate(POLA):
+            self.tabela_ai.setItem(n, 0, QTableWidgetItem(ETYKIETY[pole]))
+        uklad.addWidget(self.tabela_ai, 1)
+
+        self.btn_przenies = QPushButton("Przenieś zweryfikowane pola do formularza")
+        self.btn_przenies.setToolTip("Nie zapisuje rachunku w SQLite")
+        self.btn_przenies.clicked.connect(self._przenies_sugestie)
+        uklad.addWidget(self.btn_przenies)
+        uklad.addWidget(QLabel("Następnie sprawdź wszystkie dane i użyj Zapisz rachunek w karcie Rachunek."))
+        return panel
+
+    def _wyczysc_analize(self) -> None:
+        self._analiza = None
+        self._analiza_dokument_id = None
+        for r in range(len(POLA)):
+            for c in range(1, 4):
+                self.tabela_ai.setItem(r, c, QTableWidgetItem(""))
+        self.info_ai.setText("Brak aktualnej analizy. Odczytaj PDF i uruchom Ollamę.")
+
+    def _aktualizuj_ai(self) -> None:
+        zajete = self._zadanie_ai is not None or self._zadanie_odczytu is not None
+        dokument = self.aktualny_dokument_id is not None
+        tekst = bool(self.pole_odczytu.toPlainText().strip())
+        mozna = dokument and tekst and not zajete
+        self.btn_analizuj.setEnabled(mozna)
+        self.btn_analizuj_z_odczytu.setEnabled(mozna)
+        self.btn_anuluj_ai.setEnabled(self._zadanie_ai is not None)
+        self.btn_przenies.setEnabled(
+            not zajete and self._analiza is not None
+            and self._analiza_dokument_id == self.aktualny_dokument_id
+            and any(x.poprawne for x in self._analiza.oceny.values())
+        )
+
+    def _start_analizy(self) -> None:
+        if self._zadanie_ai is not None or self._zadanie_odczytu is not None:
+            return
+        if self.aktualny_dokument_id is None:
+            QMessageBox.information(self, "Analiza AI", "Najpierw wybierz dokument PDF.")
+            return
+        tekst = self.pole_odczytu.toPlainText()
+        if not tekst.strip():
+            QMessageBox.information(
+                self, "Analiza AI", "Najpierw przejdź do Odczyt PDF i odczytaj dokument."
+            )
+            return
+        model = self.ed_model.text().strip()
+        if not model:
+            QMessageBox.warning(self, "Analiza AI", "Podaj model Ollama, np. gemma3:4b.")
+            return
+        kategorie = [wiersz["nazwa"] for wiersz in self.rejestr.kategorie()]
+        zadanie = ZadanieAnalizy(self.aktualny_dokument_id, tekst, kategorie, model)
+        self._wyczysc_analize()
+        self._zadanie_ai = zadanie
+        self.karty.setCurrentIndex(3)
+        self.info_ai.setText(f"Model {model} analizuje tekst lokalnie. Żadne dane nie są zapisywane...")
+        zadanie.sygnaly.gotowe.connect(self._analiza_gotowa)
+        zadanie.sygnaly.blad.connect(self._analiza_blad)
+        zadanie.sygnaly.anulowano.connect(self._analiza_anulowana)
+        self._aktualizuj_odczyt()
+        QThreadPool.globalInstance().start(zadanie)
+
+    def _analiza_gotowa(self, dokument_id: int, wynik: AnalizaModelu) -> None:
+        self._zadanie_ai = None
+        if dokument_id != self.aktualny_dokument_id:
+            self._aktualizuj_odczyt()
+            return
+        self._analiza = wynik
+        self._analiza_dokument_id = dokument_id
+        ile = 0
+        for r, pole in enumerate(POLA):
+            ocena = wynik.oceny[pole]
+            if ocena.poprawne:
+                ile += 1
+            tresci = (
+                ocena.wartosc if ocena.wartosc is not None else "—",
+                ocena.dowod or "—",
+                ("✓ " if ocena.poprawne else "⚠ ") + ocena.komunikat,
+            )
+            for c, napis in enumerate(tresci, 1):
+                element = QTableWidgetItem(napis)
+                element.setToolTip(napis)
+                self.tabela_ai.setItem(r, c, element)
+        self.tabela_ai.resizeRowsToContents()
+        self.info_ai.setText(
+            f"Ollama ({wynik.model}) zakończyła analizę. "
+            f"{ile}/{len(POLA)} pól przeszło kontrolę formatu i dowodów — "
+            "to NIE potwierdza ich zgodności z rachunkiem. Sprawdź PDF."
+        )
+        self._aktualizuj_odczyt()
+
+    def _analiza_blad(self, dokument_id: int, komunikat: str) -> None:
+        self._zadanie_ai = None
+        self.info_ai.setText("Analiza AI nie powiodła się; formularz można wypełnić ręcznie.")
+        self._aktualizuj_odczyt()
+        if dokument_id == self.aktualny_dokument_id:
+            QMessageBox.warning(self, "Ollama — błąd", komunikat)
+
+    def _analiza_anulowana(self, dokument_id: int) -> None:
+        self._zadanie_ai = None
+        self.info_ai.setText("Analiza anulowana — bez zmian w formularzu i bazie.")
+        self._aktualizuj_odczyt()
+
+    def _anuluj_analize(self) -> None:
+        if self._zadanie_ai is not None:
+            self._zadanie_ai.przerwij.set()
+            self.info_ai.setText(
+                "Anulowanie: oczekiwanie na zakończenie bieżącego żądania Ollamy..."
+            )
+
+    def _przenies_sugestie(self) -> None:
+        if (self._analiza is None or
+                self._analiza_dokument_id != self.aktualny_dokument_id):
+            return
+        oceny = self._analiza.oceny
+        pola_do_formularza = {
+            "dostawca": self.ed_dostawca,
+            "numer_faktury": self.ed_numer,
+            "kwota_do_zaplaty": self.ed_kwota,
+            "data_wystawienia": self.ed_wystawiono,
+            "termin_platnosci": self.ed_termin,
+            "okres_od": self.ed_od,
+            "okres_do": self.ed_do,
+            "numer_konta_bankowego": self.ed_konto,
+        }
+        do_zastosowania = [
+            p for p in pola_do_formularza if oceny[p].poprawne
+        ]
+        if oceny["kategoria_sugerowana"].poprawne:
+            do_zastosowania.append("kategoria_sugerowana")
+        if not do_zastosowania:
+            return
+        odp = QMessageBox.question(
+            self, "Przenieść propozycje AI?",
+            f"Przenieść {len(do_zastosowania)} sprawdzonych formatowo propozycji "
+            "do formularza?\n\nUwaga: istniejące wartości formularza mogą zostać "
+            "zastąpione. Zweryfikuj każde pole z oryginalnym PDF. "
+            "Ta operacja NIE zapisuje rachunku w bazie.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if odp != QMessageBox.StandardButton.Yes:
+            return
+        for pole, kontrolka in pola_do_formularza.items():
+            if oceny[pole].poprawne:
+                kontrolka.setText(oceny[pole].wartosc)
+        if oceny["kategoria_sugerowana"].poprawne:
+            id_kategorii = self.wybor_kategoria.findText(
+                oceny["kategoria_sugerowana"].wartosc, Qt.MatchFlag.MatchFixedString
+            )
+            if id_kategorii >= 0:
+                self.wybor_kategoria.setCurrentIndex(id_kategorii)
+        self._analiza = None  # nie pozwól ponownie użyć nieaktualnej propozycji
+        self._aktualizuj_odczyt()
+        self.karty.setCurrentIndex(0)
+        self.statusBar().showMessage(
+            "Sugestie AI przeniesione do formularza. Sprawdź PDF i kliknij Zapisz rachunek."
+        )
+
     def _aktualizuj_odczyt(self) -> None:
-        pracuje = self._zadanie_odczytu is not None
+        pracuje = self._zadanie_odczytu is not None or self._zadanie_ai is not None
         jest_dokument = self.aktualny_dokument_id is not None
         self.btn_odczytaj.setEnabled(jest_dokument and not pracuje)
         self.btn_odczytaj_obszar.setEnabled(
             jest_dokument and self._wybrany_obszar is not None and not pracuje
         )
-        self.btn_anuluj.setEnabled(pracuje)
+        self.btn_anuluj.setEnabled(self._zadanie_odczytu is not None)
         self.otworz_przycisk.setEnabled(not pracuje)
         self.lista_dokumentow.setEnabled(not pracuje)
+        self._aktualizuj_ai()
 
     def _start_odczytu(self, tylko_obszar: bool) -> None:
-        if self.aktualny_dokument_id is None or self._zadanie_odczytu is not None:
+        if (self.aktualny_dokument_id is None or self._zadanie_odczytu is not None
+                or self._zadanie_ai is not None):
             return
         obszar = self._wybrany_obszar if tylko_obszar else None
         if tylko_obszar and obszar is None:
@@ -236,6 +453,7 @@ class OknoGlowne(QMainWindow):
             QMessageBox.warning(self, "Odczyt PDF", str(blad))
             return
         zadanie = ZadanieOdczytu(sciezka, obszar)
+        self._wyczysc_analize()
         self._zadanie_odczytu = zadanie
         self._aktualizuj_odczyt()
         self.pole_odczytu.clear()
@@ -250,6 +468,7 @@ class OknoGlowne(QMainWindow):
         self._zadanie_odczytu = None
         self._aktualizuj_odczyt()
         self.pole_odczytu.setPlainText(wynik.tekst_dla_llm)
+        self._aktualizuj_odczyt()
         if wynik.czy_pusty:
             self.info_odczytu.setText(
                 "Nie wykryto tekstu w dokumencie. Sprawdź jakość skanu."
@@ -283,6 +502,8 @@ class OknoGlowne(QMainWindow):
     def closeEvent(self, event) -> None:
         if self._zadanie_odczytu is not None:
             self._zadanie_odczytu.przerwij.set()
+        if self._zadanie_ai is not None:
+            self._zadanie_ai.przerwij.set()
         super().closeEvent(event)
 
     def _zbuduj_liste(self) -> QWidget:
@@ -302,6 +523,7 @@ class OknoGlowne(QMainWindow):
 
     def _odswiez_kategorie(self, wybrana: int | None = None) -> None:
         self.wybor_kategoria.clear()
+        self.wybor_kategoria.addItem("— wybierz kategorię —", None)
         for wiersz in self.rejestr.kategorie():
             self.wybor_kategoria.addItem(wiersz["nazwa"], int(wiersz["id"]))
         if wybrana is not None:
@@ -335,7 +557,7 @@ class OknoGlowne(QMainWindow):
 
     def _wyczysc_formularz(self) -> None:
         self.nazwa_dokumentu.setText("Najpierw zaimportuj dokument PDF.")
-        for pole in (self.ed_dostawca, self.ed_numer, self.ed_kwota, self.ed_wystawiono,
+        for pole in (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota, self.ed_wystawiono,
                      self.ed_termin, self.ed_od, self.ed_do):
             pole.clear()
         self.ed_uwagi.clear()
@@ -345,6 +567,7 @@ class OknoGlowne(QMainWindow):
 
     def _wyswietl_dokument(self, dokument_id: int) -> None:
         self._wybrany_obszar = None
+        self._wyczysc_analize()
         self.pole_odczytu.clear()
         self.info_odczytu.setText("Dokument otwarty. Wybierz odczyt całego PDF lub fragmentu.")
         sciezka = self.rejestr.sciezka_pdf(dokument_id)
@@ -362,6 +585,7 @@ class OknoGlowne(QMainWindow):
         if zapis is not None:
             self.ed_dostawca.setText(zapis["dostawca"])
             self.ed_numer.setText(zapis["numer"])
+            self.ed_konto.setText(zapis["numer_konta"])
             self.ed_kwota.setText(grosze_na_kwote(zapis["kwota_grosze"]))
             self.ed_wystawiono.setText(zapis["data_wystawienia"] or "")
             self.ed_termin.setText(zapis["termin_platnosci"] or "")
@@ -415,6 +639,7 @@ class OknoGlowne(QMainWindow):
                 dokument_id=self.aktualny_dokument_id,
                 dostawca=self.ed_dostawca.text(),
                 numer=self.ed_numer.text(),
+                numer_konta=self.ed_konto.text(),
                 kwota=self.ed_kwota.text(),
                 kategoria_id=self.wybor_kategoria.currentData(),
                 data_wystawienia=self.ed_wystawiono.text(),

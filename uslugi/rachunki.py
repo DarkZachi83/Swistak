@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import os
+import tempfile
+import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,6 +16,7 @@ from baza.migracje import zastosuj_migracje
 from baza.polaczenie import polacz, transakcja
 from konfiguracja import katalog_danych
 from uslugi.archiwum import MagazynDokumentow
+from uslugi.walidacja import zweryfikuj_numer_konta
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,7 @@ class DaneRachunku:
     okres_do: str = ""
     status: str = "do_zaplaty"
     uwagi: str = ""
+    numer_konta: str = ""
 
 
 def kwota_na_grosze(tekst: str) -> int:
@@ -58,13 +63,52 @@ class RejestrRachunkow:
     def __init__(self, katalog: Path | None = None):
         self.katalog = Path(katalog if katalog is not None else katalog_danych()).resolve()
         self.katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.db = polacz(self.katalog / "swistak.sqlite3")
+        sciezka_bazy = self.katalog / "swistak.sqlite3"
+        byla_baza = sciezka_bazy.is_file() and sciezka_bazy.stat().st_size > 0
+        self.db = polacz(sciezka_bazy)
         try:
+            # Przed zmianą istniejącego schematu twórz snapshot samej bazy.
+            # Pełny backup (baza + PDF-y) pozostaje oddzielnym etapem.
+            if byla_baza and self.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='migracje'"
+            ).fetchone() and not self.db.execute(
+                "SELECT 1 FROM migracje WHERE nazwa='002_numer_konta.sql'"
+            ).fetchone():
+                self._kopia_bazy_przed_migracja()
             zastosuj_migracje(self.db)
             self.magazyn = MagazynDokumentow(self.katalog)
         except BaseException:
             self.db.close()
             raise
+
+    def _kopia_bazy_przed_migracja(self) -> Path:
+        """Spójna kopia SQLite sprzed migracji, zapisana atomowo.
+
+        Nie obejmuje plików PDF: do pełnego backupu potrzebny będzie etap 4.
+        Nie pomijaj błędu wykonania kopii przed zmianą schematu.
+        """
+        katalog = self.katalog / "kopie_migracji"
+        katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
+        nazwa = (
+            "swistak-przed-migracja-"
+            + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            + "-" + uuid.uuid4().hex[:8] + ".sqlite3"
+        )
+        cel = katalog / nazwa
+        deskryptor, tmp = tempfile.mkstemp(prefix=".przygotuj-", suffix=".tmp", dir=katalog)
+        os.close(deskryptor)
+        try:
+            kopia = sqlite3.connect(tmp)
+            try:
+                self.db.backup(kopia)
+            finally:
+                kopia.close()
+            os.replace(tmp, cel)
+            os.chmod(cel, 0o600)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+        return cel
 
     def zamknij(self) -> None:
         self.db.close()
@@ -135,6 +179,7 @@ class RejestrRachunkow:
             raise ValueError("Za długi numer rachunku lub uwagi")
         if dane.status not in ("do_zaplaty", "oplacony"):
             raise ValueError("Nieprawidłowy status rachunku")
+        numer_konta = zweryfikuj_numer_konta(dane.numer_konta)
         kwota = kwota_na_grosze(dane.kwota)
         wystawiono = _data(dane.data_wystawienia)
         termin = _data(dane.termin_platnosci)
@@ -153,21 +198,21 @@ class RejestrRachunkow:
                 "SELECT id FROM rachunki WHERE dokument_id = ?", (dane.dokument_id,)
             ).fetchone()
             wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
-                       kwota, dane.status, dane.uwagi.strip())
+                       kwota, dane.status, dane.uwagi.strip(), numer_konta)
             if istnieje:
                 rachunek_id = int(istnieje["id"])
                 self.db.execute(
                     "UPDATE rachunki SET dostawca=?, numer=?, data_wystawienia=?, "
                     "termin_platnosci=?, okres_od=?, okres_do=?, kwota_grosze=?, "
-                    "status=?, uwagi=?, zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+                    "status=?, uwagi=?, numer_konta=?, zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
                     "WHERE id=?", (*wartosci, rachunek_id)
                 )
                 self.db.execute("DELETE FROM pozycje_rachunku WHERE rachunek_id = ?", (rachunek_id,))
             else:
                 kursor = self.db.execute(
                     "INSERT INTO rachunki (dokument_id, dostawca, numer, data_wystawienia, "
-                    "termin_platnosci, okres_od, okres_do, kwota_grosze, status, uwagi) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "termin_platnosci, okres_od, okres_do, kwota_grosze, status, uwagi, numer_konta) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (dane.dokument_id, *wartosci),
                 )
                 rachunek_id = int(kursor.lastrowid)

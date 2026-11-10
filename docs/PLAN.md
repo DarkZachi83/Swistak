@@ -14,7 +14,7 @@
 Wielostronicowy podgląd PDF, zoom, zaznaczanie obszaru z normalizacją współrzędnych.
 Ręczne potwierdzenie działania przez użytkownika.
 
-## Etap 1 — baza i archiwum (gałąź robocza)
+## Etap 1 — baza i archiwum (wykonany, scalony z main)
 SQLite: `dokumenty`, `rachunki`, `pozycje_rachunku`, `kategorie`.
 Kwoty jako całkowite grosze. Wersjonowane i sprawdzane SHA-256 migracje.
 Archiwum PDF w katalogu użytkownika, deduplikacja SHA-256, ścieżki
@@ -22,7 +22,7 @@ względne, ponowna weryfikacja przy otwieraniu.
 Import, formularz rachunku, ręczne dodawanie kategorii, lista dokumentów.
 Przed scaleniem potrzebny test GUI na docelowym komputerze.
 
-## Etap 2 — pozyskanie tekstu z PDF i OCR (gałąź robocza)
+## Etap 2 — pozyskanie tekstu z PDF i OCR (wykonany, scalony z main)
 - Jeśli PDF ma warstwę tekstową, czytamy ją bez OCR.
 - Jeśli to skan: Tesseract/OCR z przygotowaniem obrazu, lokalnie.
 - Pierwsza próba obejmuje cały dokument lub sensowną część strony, bez
@@ -32,7 +32,7 @@ Przed scaleniem potrzebny test GUI na docelowym komputerze.
 - Operacje w tle, z możliwością anulowania; uzyskany tekst będzie kierowany **w pierwszej kolejności do lokalnego LLM** w etapie 3, bez wstępnego rozpoznawania znaczenia pól za pomocą reguł. Wynik ekstrakcji można obejrzeć. W etapie 2 tekst nie trafia jeszcze automatycznie do formularza.
 - Osobny eksperymentalny test CLI sprawdzi lokalnie model `gemma3:4b` na syntetycznej fakturze i zweryfikuje schemat JSON; nie zapisuje danych do SQLite.
 
-## Etap 3 — główny silnik interpretacji: lokalny LLM przez Ollamę
+## Etap 3 — główny silnik interpretacji: lokalny LLM przez Ollamę (gałąź robocza)
 **Cel:** Świstak jest aplikacją opartą na lokalnym LLM. Model jako **pierwszy** interpretuje rachunek i proponuje wypełnienie formularza na podstawie tekstu z etapu 2. Nie dokonuje żadnego automatycznego zapisu.
 
 **Kolejność interpretacji:** lokalny LLM → ocena/techniczna walidacja JSON → podgląd i potwierdzenie przez użytkownika. Dopiero przy braku Ollamy, błędzie modelu, pustym wyniku lub błędnej sugestii: prostsze reguły, ręczny wybór obszaru i wpisanie pól. Nie uruchamiamy analizy regułowej przed próbą modelu.
@@ -67,6 +67,8 @@ Bezpieczeństwo:
 - Model lokalny jest domyślnym i docelowym silnikiem programu; gdy jest niedostępny, aplikacja nadal pozwala pracować ręcznie, bez chmurowego zamiennika.
 
 Dokładny kontrakt JSON, walidacje i testy: [ETAP_3_OLLAMA.md](ETAP_3_OLLAMA.md).
+
+**Wersja testowa etapu 3:** zakładka Analiza AI, lokalne żądania do Gemmy 3 4B, osobne walidacje wartości, przenoszenie propozycji do formularza po potwierdzeniu. Migracja 002 dodaje numer konta bankowego. Automatyczny zapis bez decyzji użytkownika nie jest dopuszczony. Test na komputerze użytkownika i skany OCR są warunkami zamknięcia etapu.
 
 ### Dobór modelu: AI Bóbr → Świstak
 

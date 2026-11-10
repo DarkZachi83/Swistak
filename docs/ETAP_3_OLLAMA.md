@@ -1,6 +1,6 @@
 # Etap 3 — lokalny asystent odczytu przez Ollamę
 
-**Status: specyfikacja, niezaimplementowane.**
+**Status: prototyp w gałęzi `feature/etap-3-ollama-formularz` — wymaga testów użytkownika przed scaleniem.**
 Zależy od etapu 2, czyli poprawnego wydobywania tekstu z PDF i OCR skanów.
 
 ## Priorytet architektury — LLM-first
@@ -14,7 +14,7 @@ Zależy od etapu 2, czyli poprawnego wydobywania tekstu z PDF i OCR skanów.
 
 ## Pierwszy model testowy
 
-Na początek wykorzystujemy **lokalny `gemma3:4b`** jako model bazowy do prób JSON. Nie oznacza to wyboru modelu docelowego ani potwierdzenia dokładności na fakturach. W etapie 2 dostępny jest osobny skrypt `python -m tools.test_gemma --demo` i opcjonalny test na lokalnym PDF. Nie ma jeszcze automatycznego wpisywania wyników LLM do formularza.
+Pierwsze próby na syntetycznej fakturze przez `python -m tools.test_gemma --demo` zakończyły się sukcesem. Wersja testowa etapu 3 pozwala uruchomić lokalny `gemma3:4b` z poziomu zakładki `Analiza AI`, zobaczyć JSON w formie tabeli oraz przenieść potwierdzone propozycje do formularza. **Sam model nie zapisuje ich do SQLite.** Zmianę zatwierdza użytkownik.
 
 `gemma3:4b` obsługuje wejście tekstowe **i obrazy**. W kolejnych testach warto zestawić: (A) PDF → OCR → tekst → LLM oraz (B) wyrenderowana strona → multimodalny LLM. Obie ścieżki muszą zachować lokalność danych i ręczne zatwierdzanie wyników. Nie zakładamy z góry, że analiza obrazu jest dokładniejsza.
 
@@ -38,7 +38,7 @@ Szczegóły: [WYBOR_MODELU_AI_BOBR.md](WYBOR_MODELU_AI_BOBR.md).
 Przycisk: **Analizuj rachunek (Ollama)**, z wyborem lokalnie
 zainstalowanego modelu. Po analizie Świstak pokazuje tabelę
 **propozycja / źródłowy fragment dokumentu / wartość po korekcie**.
-Przyciski: **Zatwierdź i zapisz**, **Popraw**, **Zaznacz fragment ręcznie**.
+W aktualnym prototypie użytkownik wybiera **Przenieś zweryfikowane pola do formularza**, sprawdza i koryguje dane w zakładce **Rachunek**, a następnie osobno wybiera **Zapisz rachunek**. Ręczne zaznaczanie w PDF jest nadal możliwe w istniejącej zakładce odczytu.
 **Ollama to tryb podstawowy**. Brak odpowiedzi modelu powoduje przejście do trybu awaryjnego (reguły/ręczna obsługa), bez wysyłania rachunku do chmury.
 
 ## Wejście i wyjście
