@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Eksperyment: gemma3:4b → JSON rachunku przez lokalną Ollamę.
 
 Nie zapisuje odpowiedzi do SQLite ani na dysk. Wyłącznie test wydajności
