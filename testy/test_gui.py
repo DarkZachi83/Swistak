@@ -36,6 +36,7 @@ class TestGUI(unittest.TestCase):
                 self.assertEqual(len(rejestr.dokumenty()), 1)
                 okno.ed_dostawca.setText("Dostawca testowy")
                 okno.ed_kwota.setText("19,99")
+                okno.wybor_kategoria.setCurrentIndex(1)
                 okno._zapisz_rachunek()
                 self.assertEqual(rejestr.rachunek(dokument)["kwota_grosze"], 1999)
                 okno._wyswietl_dokument(dokument)
