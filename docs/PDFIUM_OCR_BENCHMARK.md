@@ -71,3 +71,26 @@ Wyniki są załączane do przebiegów CI jako `raport-ocr-python-*`.
 - Modele binarne PDFium mają własne obowiązki licencyjne; obowiązuje
   [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md).
 - Do komercyjnej paczki **nie** dołączamy opcjonalnego Popplera.
+
+## Bezpieczeństwo wielowątkowości i czasu życia obiektów
+
+Według dokumentacji **PDFium nie jest thread-safe**; równoległe wywołania
+nawet na różnych dokumentach mogą uszkodzić pamięć lub zakończyć proces.
+
+Moduł \`uslugi/rasteryzacja.py\` ma procesową blokadę \`RLock\` wokół
+całego wywołania PDFium: inicjalizacji, otwarcia dokumentu, renderu,
+kopiowania bitmapy do niezależnego obrazu PIL oraz zamknięcia
+bitmapy, strony i dokumentu. Obraz PIL i Tesseract działają poza blokadą.
+
+Dodany test testuje cztery symultaniczne zadania na sztucznym rendererze
+i wymaga tylko jednej aktywnej sesji PDFium naraz. To **nie zastępuje**
+testów stresowych z rzeczywistymi dokumentami.
+
+**Ważne ograniczenie:** mutex chroni tylko odwołania pypdfium2 przez
+nasz moduł; nie obejmuje innych bibliotek/instancji PDFium
+(np. ewentualnego silnika QtPdf). Przed dystrybucją należy sprawdzić
+współbieżność GUI (podgląd) i workerów OCR, a do równoległego renderingu
+PDFium rozważyć izolowane procesy zamiast wątków.
+
+Źródła: [threading](https://pypdfium2.readthedocs.io/en/stable/python_api.html#incompatibility-with-threading)
+oraz [memory management](https://pypdfium2.readthedocs.io/en/stable/python_api.html#memory-management).
