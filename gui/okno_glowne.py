@@ -368,6 +368,7 @@ class OknoGlowne(QMainWindow):
             key, values = self._status_message
             self.statusBar().showMessage(t(key, **values))
         self._aktualizuj_nawigacje(self.podglad.strona, self.podglad.liczba_stron)
+        self._odswiez_liste()
 
     def _zbuduj_formularz(self) -> QWidget:
         przewijanie = QScrollArea()
@@ -673,9 +674,12 @@ class OknoGlowne(QMainWindow):
             if oceny[pole].poprawne:
                 kontrolka.setText(oceny[pole].wartosc)
         if oceny["kategoria_sugerowana"].poprawne:
-            id_kategorii = self.wybor_kategoria.findText(
-                oceny["kategoria_sugerowana"].wartosc, Qt.MatchFlag.MatchFixedString
+            nazwa = oceny["kategoria_sugerowana"].wartosc
+            identyfikator = next(
+                (int(row["id"]) for row in self.rejestr.kategorie()
+                 if row["nazwa"] == nazwa), None
             )
+            id_kategorii = self.wybor_kategoria.findData(identyfikator)
             if id_kategorii >= 0:
                 self.wybor_kategoria.setCurrentIndex(id_kategorii)
         self._analiza = None  # nie pozwól ponownie użyć nieaktualnej propozycji
@@ -776,9 +780,10 @@ class OknoGlowne(QMainWindow):
 
     def _odswiez_kategorie(self, wybrana: int | None = None) -> None:
         self.wybor_kategoria.clear()
-        self.wybor_kategoria.addItem("— wybierz kategorię —", None)
+        self.wybor_kategoria.addItem(t("form.choose_category"), None)
         for wiersz in self.rejestr.kategorie():
             self.wybor_kategoria.addItem(wiersz["nazwa"], int(wiersz["id"]))
+        self._localize_categories()
         if wybrana is not None:
             numer = self.wybor_kategoria.findData(wybrana)
             if numer >= 0:
@@ -795,7 +800,11 @@ class OknoGlowne(QMainWindow):
             QMessageBox.warning(self, t("msg.category"), str(blad))
 
     def _odswiez_liste(self) -> None:
+        selected = self.lista_dokumentow.currentItem()
+        selected_id = (selected.data(Qt.ItemDataRole.UserRole)
+                       if selected is not None else self.aktualny_dokument_id)
         self.lista_dokumentow.clear()
+        keep_row = -1
         for wiersz in self.rejestr.dokumenty():
             opis = f"{wiersz['nazwa_zrodlowa']}"
             if wiersz["kwota_grosze"] is not None:
@@ -807,6 +816,10 @@ class OknoGlowne(QMainWindow):
             element = QListWidgetItem(opis)
             element.setData(Qt.ItemDataRole.UserRole, int(wiersz["id"]))
             self.lista_dokumentow.addItem(element)
+            if int(wiersz["id"]) == selected_id:
+                keep_row = self.lista_dokumentow.count() - 1
+        if keep_row >= 0:
+            self.lista_dokumentow.setCurrentRow(keep_row)
 
     def _wyczysc_formularz(self) -> None:
         self._message(self.nazwa_dokumentu, "doc.import_first")
