@@ -26,6 +26,32 @@ def _polecenia(sql: str):
         raise BladMigracji("Migracja zawiera niekompletne polecenie SQL")
 
 
+# Historyczne migracje 001 i 002 zostały opublikowane pierwotnie z nagłówkiem
+# GPL-3.0-only. Przy aktualizacji licencji projektu zmieniono WYŁĄCZNIE ten
+# komentarz w tych plikach, co niepotrzebnie zmieniło ich SHA-256.
+# Nie zmieniamy zapisanych sum w bazie, nie pomijamy integralności SQL.
+_STARY_NAGLOWEK = b"-- SPDX-License-Identifier: GPL-3.0-only\n"
+_NOWY_NAGLOWEK = b"-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0\n"
+_MIGRACJE_Z_HISTORYCZNYM_NAGLOWKIEM = frozenset({
+    "001_start.sql",
+    "002_numer_konta.sql",
+})
+
+
+def _zgodny_historyczny_skrot(nazwa: str, tresc: bytes, zapisany_sha: str) -> bool:
+    """Zgódź się tylko na dokładnie znaną zmianę nagłówka licencji.
+
+    To porównanie używa SHA-256 CAŁEGO poprzedniego pliku. Zmiana choćby
+    jednego znaku SQL lub komentarza poza nagłówkiem pozostanie błędem.
+    Kompatybilność obejmuje wyłącznie 001 i 002, nigdy przyszłe migracje.
+    """
+    if (nazwa not in _MIGRACJE_Z_HISTORYCZNYM_NAGLOWKIEM
+            or not tresc.startswith(_NOWY_NAGLOWEK)):
+        return False
+    poprzednia_tresc = _STARY_NAGLOWEK + tresc[len(_NOWY_NAGLOWEK):]
+    return hashlib.sha256(poprzednia_tresc).hexdigest() == zapisany_sha
+
+
 def zastosuj_migracje(db: sqlite3.Connection, katalog: Path | None = None) -> None:
     katalog = katalog or (Path(__file__).parent / "schemat")
     pliki = sorted(katalog.glob("[0-9][0-9][0-9]_*.sql"))
@@ -47,7 +73,9 @@ def zastosuj_migracje(db: sqlite3.Connection, katalog: Path | None = None) -> No
             tresc = plik.read_bytes()
             sha = hashlib.sha256(tresc).hexdigest()
             if plik.name in zapisane:
-                if zapisane[plik.name] != sha:
+                if zapisane[plik.name] != sha and not _zgodny_historyczny_skrot(
+                    plik.name, tresc, zapisane[plik.name]
+                ):
                     raise BladMigracji(f"Zmieniono wcześniej zastosowaną migrację: {plik.name}")
                 continue
             try:
