@@ -5,16 +5,18 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThreadPool
 from PySide6.QtWidgets import (
-    QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
+    QApplication, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QScrollArea, QSplitter, QTabWidget, QTextEdit, QVBoxLayout,
     QWidget, QComboBox,
 )
 
 from gui.podglad_pdf import PodgladPDF
+from gui.odczyt_worker import ZadanieOdczytu
 from uslugi.geometria import Zaznaczenie
+from uslugi.odczyt_pdf import WynikOdczytu
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 
 
@@ -23,6 +25,8 @@ class OknoGlowne(QMainWindow):
         super().__init__()
         self.rejestr = rejestr
         self.aktualny_dokument_id: int | None = None
+        self._wybrany_obszar: Zaznaczenie | None = None
+        self._zadanie_odczytu: ZadanieOdczytu | None = None
         self.setWindowTitle("Świstak — rachunki (etap 1)")
         self.resize(1250, 820)
         self.setMinimumSize(870, 560)
@@ -86,6 +90,7 @@ class OknoGlowne(QMainWindow):
         self.karty.setMinimumWidth(315)
         self.karty.addTab(self._zbuduj_formularz(), "Rachunek")
         self.karty.addTab(self._zbuduj_liste(), "Dokumenty")
+        self.karty.addTab(self._zbuduj_odczyt(), "Odczyt PDF")
         dzielnik.addWidget(self.karty)
         dzielnik.setStretchFactor(0, 3)
         dzielnik.setStretchFactor(1, 2)
@@ -99,6 +104,7 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_nawigacje(0, 0)
         self._odswiez_liste()
         self._wyczysc_formularz()
+        self._aktualizuj_odczyt()
 
     def _zbuduj_formularz(self) -> QWidget:
         przewijanie = QScrollArea()
@@ -167,6 +173,118 @@ class OknoGlowne(QMainWindow):
         przewijanie.setWidget(panel)
         return przewijanie
 
+    def _zbuduj_odczyt(self) -> QWidget:
+        """Podgląd surowego tekstu, zanim trafi do Ollamy."""
+        panel = QWidget()
+        uklad = QVBoxLayout(panel)
+        uklad.setContentsMargins(10, 12, 10, 12)
+        uklad.setSpacing(10)
+        instrukcja = QLabel(
+            "Tekst pozyskany z PDF lub OCR jest tylko materiałem wejściowym. "
+            "Interpretację pól wykonamy później przez lokalny LLM (Ollama)."
+        )
+        instrukcja.setWordWrap(True)
+        instrukcja.setObjectName("podpowiedz")
+        uklad.addWidget(instrukcja)
+        przyciski = QHBoxLayout()
+        self.btn_odczytaj = QPushButton("Odczytaj cały PDF")
+        self.btn_odczytaj.clicked.connect(lambda: self._start_odczytu(False))
+        przyciski.addWidget(self.btn_odczytaj)
+        self.btn_odczytaj_obszar = QPushButton("Odczytaj zaznaczenie")
+        self.btn_odczytaj_obszar.clicked.connect(lambda: self._start_odczytu(True))
+        przyciski.addWidget(self.btn_odczytaj_obszar)
+        uklad.addLayout(przyciski)
+        self.btn_anuluj = QPushButton("Anuluj")
+        self.btn_anuluj.clicked.connect(self._anuluj_odczyt)
+        uklad.addWidget(self.btn_anuluj)
+        self.info_odczytu = QLabel("Wybierz dokument PDF, aby odczytać jego tekst.")
+        self.info_odczytu.setWordWrap(True)
+        uklad.addWidget(self.info_odczytu)
+        self.pole_odczytu = QTextEdit()
+        self.pole_odczytu.setReadOnly(True)
+        self.pole_odczytu.setPlaceholderText(
+            "Tutaj pojawi się tekst dokumentu. Odczyt nie zmienia oryginalnego PDF."
+        )
+        uklad.addWidget(self.pole_odczytu, 1)
+        kopiuj = QPushButton("Kopiuj tekst")
+        kopiuj.clicked.connect(
+            lambda: QApplication.clipboard().setText(self.pole_odczytu.toPlainText())
+        )
+        uklad.addWidget(kopiuj)
+        return panel
+
+    def _aktualizuj_odczyt(self) -> None:
+        pracuje = self._zadanie_odczytu is not None
+        jest_dokument = self.aktualny_dokument_id is not None
+        self.btn_odczytaj.setEnabled(jest_dokument and not pracuje)
+        self.btn_odczytaj_obszar.setEnabled(
+            jest_dokument and self._wybrany_obszar is not None and not pracuje
+        )
+        self.btn_anuluj.setEnabled(pracuje)
+        self.otworz_przycisk.setEnabled(not pracuje)
+        self.lista_dokumentow.setEnabled(not pracuje)
+
+    def _start_odczytu(self, tylko_obszar: bool) -> None:
+        if self.aktualny_dokument_id is None or self._zadanie_odczytu is not None:
+            return
+        obszar = self._wybrany_obszar if tylko_obszar else None
+        if tylko_obszar and obszar is None:
+            return
+        try:
+            sciezka = self.rejestr.sciezka_pdf(self.aktualny_dokument_id)
+        except (OSError, ValueError) as blad:
+            QMessageBox.warning(self, "Odczyt PDF", str(blad))
+            return
+        zadanie = ZadanieOdczytu(sciezka, obszar)
+        self._zadanie_odczytu = zadanie
+        self._aktualizuj_odczyt()
+        self.pole_odczytu.clear()
+        self.info_odczytu.setText("Trwa odczyt (warstwa tekstowa lub lokalny Tesseract)...")
+        self.karty.setCurrentIndex(2)
+        zadanie.sygnaly.gotowe.connect(self._odczyt_gotowy)
+        zadanie.sygnaly.blad.connect(self._odczyt_blad)
+        zadanie.sygnaly.anulowano.connect(self._odczyt_anulowano)
+        QThreadPool.globalInstance().start(zadanie)
+
+    def _odczyt_gotowy(self, wynik: WynikOdczytu) -> None:
+        self._zadanie_odczytu = None
+        self._aktualizuj_odczyt()
+        self.pole_odczytu.setPlainText(wynik.tekst_dla_llm)
+        if wynik.czy_pusty:
+            self.info_odczytu.setText(
+                "Nie wykryto tekstu w dokumencie. Sprawdź jakość skanu."
+            )
+        else:
+            statystyka = ", ".join(
+                f"str. {s.strona + 1}: {s.metoda}" for s in wynik.strony
+            )
+            self.info_odczytu.setText(
+                f"Gotowe — {len(wynik.strony)} stron. {statystyka}. "
+                "To jest surowy tekst, jeszcze bez interpretacji LLM."
+            )
+        self.statusBar().showMessage("Odczyt zakończony; tekst nie został zapisany do bazy.")
+
+    def _odczyt_blad(self, komunikat: str) -> None:
+        self._zadanie_odczytu = None
+        self._aktualizuj_odczyt()
+        self.info_odczytu.setText("Błąd odczytu PDF lub OCR.")
+        QMessageBox.warning(self, "Odczyt PDF", komunikat)
+
+    def _odczyt_anulowano(self) -> None:
+        self._zadanie_odczytu = None
+        self._aktualizuj_odczyt()
+        self.info_odczytu.setText("Odczyt anulowany.")
+
+    def _anuluj_odczyt(self) -> None:
+        if self._zadanie_odczytu is not None:
+            self._zadanie_odczytu.przerwij.set()
+            self.info_odczytu.setText("Przerywanie odczytu po zakończeniu bieżącej operacji...")
+
+    def closeEvent(self, event) -> None:
+        if self._zadanie_odczytu is not None:
+            self._zadanie_odczytu.przerwij.set()
+        super().closeEvent(event)
+
     def _zbuduj_liste(self) -> QWidget:
         panel = QWidget()
         uklad = QVBoxLayout(panel)
@@ -226,6 +344,9 @@ class OknoGlowne(QMainWindow):
         self.zapisz_przycisk.setEnabled(False)
 
     def _wyswietl_dokument(self, dokument_id: int) -> None:
+        self._wybrany_obszar = None
+        self.pole_odczytu.clear()
+        self.info_odczytu.setText("Dokument otwarty. Wybierz odczyt całego PDF lub fragmentu.")
         sciezka = self.rejestr.sciezka_pdf(dokument_id)
         # Przy błędzie (np. uszkodzony plik archiwalny) nie pozwalaj zapisywać
         # pól pod niewłaściwym dokumentem.
@@ -252,6 +373,7 @@ class OknoGlowne(QMainWindow):
             if idx >= 0:
                 self.wybor_status.setCurrentIndex(idx)
         self.zapisz_przycisk.setEnabled(True)
+        self._aktualizuj_odczyt()
         self.karty.setCurrentIndex(0)
         self.statusBar().showMessage("Otworzono z prywatnego archiwum: " + dokument["nazwa_zrodlowa"])
 
@@ -320,6 +442,8 @@ class OknoGlowne(QMainWindow):
         self.nastepna.setEnabled(razem > 0 and numer + 1 < razem)
 
     def _zaznaczenie(self, pole: Zaznaczenie | None) -> None:
+        self._wybrany_obszar = pole
+        self._aktualizuj_odczyt()
         if pole is None:
             self.opis_zaznaczenia.setText("Zaznacz fragment PDF lewym przyciskiem myszy.")
             return
@@ -327,5 +451,5 @@ class OknoGlowne(QMainWindow):
             f"Strona {pole.strona + 1} | obszar względny: "
             f"lewo={pole.lewo:.4f}, góra={pole.gora:.4f}, "
             f"prawo={pole.prawo:.4f}, dół={pole.dol:.4f} "
-            "— odczyt wartości pojawi się w etapie 2."
+            "— przejdź do zakładki Odczyt PDF, aby odczytać fragment."
         )
