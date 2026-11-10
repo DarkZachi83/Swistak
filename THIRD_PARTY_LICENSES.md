@@ -30,6 +30,7 @@ na PolyForm Noncommercial 1.0.0 znajduje się w gałęzi
 | [pdfplumber](https://github.com/jsvine/pdfplumber) | `>=0.11,<1` | **MIT** | Ekstrakcja tekstu z PDF | **INFORMACYJNIE:** dołączyć wymaganą informację o prawach/licencję przy dystrybucji |
 | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | `>=5.9,<6` | **Apache-2.0 / BSD-3-Clause**, PDFium ma osobne zależności/NOTICE | Domyślna rasteryzacja skanów OCR | **DO SPRAWDZENIA:** prawa i notices binariów PDFium w konkretnym wheel |
 | [pytesseract](https://github.com/madmaze/pytesseract) | `>=0.3.13,<1` | **Apache-2.0** | Wywoływanie lokalnego silnika Tesseract | **INFORMACYJNIE:** uwzględnić notices Apache, niezależnie audytować silnik OCR |
+| [Pillow](https://python-pillow.github.io/) | `>=12.2,<14` | **MIT-CMU** | Obraz PIL przy OCR PDFium i generowanie skanów do testów | **INFORMACYJNIE:** dołączyć tekst licencji i copyright |
 
 ## 2. Zależności pośrednie / pakiety, które mogą trafić do instalatora
 
@@ -43,7 +44,7 @@ widocznych pakietów, ale **nie wydaje opinii o zgodności licencji**.
 | PySide6-Essentials, PySide6-Addons, PySide6-Pdf, shiboken6 | Qt for Python — LGPL/GPL/komercyjna zależnie od modułu | Sprawdzić **dokładne pliki wheel**. Świstak używa `QtWidgets`, `QtGui`, `QtCore` i `QtPdf`. |
 | PySide6-WebEngine (jeśli zainstalowany) | Qt WebEngine LGPL/GPL/komercyjna + **wiele licencji Chromium** | Świstak **nie importuje** WebEngine, więc **nie dołączać bez potrzeby** do instalatora. |
 | [pdfminer.six](https://github.com/pdfminer/pdfminer.six) | MIT | Parser tekstowy wykorzystywany przez pdfplumber. |
-| [Pillow](https://python-pillow.github.io/) | MIT-CMU | Wymaga własnego tekstu copyright/licencji. |
+
 | [pdf2image](https://pypi.org/project/pdf2image/) | MIT, używa Popplera | **TYLKO opcjonalne testy** `requirements-compare.txt`; nie jest zależnością produkcyjną. |
 | [charset-normalizer](https://pypi.org/project/charset-normalizer/) | MIT | Pośrednio przez pdfminer.six. |
 | [cryptography](https://pypi.org/project/cryptography/) | Apache-2.0 **OR** BSD-3-Clause | Pośrednio przez pdfminer.six; może zawierać dalsze binarne zależności. |

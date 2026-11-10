@@ -86,11 +86,11 @@
     },
     {
       "name": "Pillow",
-      "kind": "python-transitive",
+      "kind": "python-direct",
       "license": "MIT-CMU",
       "source_url": "https://pillow.readthedocs.io/en/stable/about.html",
       "status": "notice",
-      "purpose": "images"
+      "purpose": "Bezpośredni obraz PIL dla OCR i syntetycznych testów skanów"
     },
     {
       "name": "pypdfium2",
