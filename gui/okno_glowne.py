@@ -574,11 +574,7 @@ class OknoGlowne(QMainWindow):
                 element.setToolTip(napis)
                 self.tabela_ai.setItem(r, c, element)
         self.tabela_ai.resizeRowsToContents()
-        self.info_ai.setText(
-            f"Ollama ({wynik.model}) zakończyła analizę. "
-            f"{ile}/{len(POLA)} pól przeszło kontrolę formatu i dowodów — "
-            "to NIE potwierdza ich zgodności z rachunkiem. Sprawdź PDF."
-        )
+        self._message(self.info_ai, "ai.done", model=wynik.model, count=ile, total=len(POLA))
         self._aktualizuj_odczyt()
 
     def _analiza_blad(self, dokument_id: int, komunikat: str) -> None:
@@ -596,9 +592,7 @@ class OknoGlowne(QMainWindow):
     def _anuluj_analize(self) -> None:
         if self._zadanie_ai is not None:
             self._zadanie_ai.przerwij.set()
-            self.info_ai.setText(
-                "Anulowanie: oczekiwanie na zakończenie bieżącego żądania Ollamy..."
-            )
+            self._message(self.info_ai, "ai.cancelling")
 
     def _przenies_sugestie(self) -> None:
         if (self._analiza is None or
@@ -623,11 +617,8 @@ class OknoGlowne(QMainWindow):
         if not do_zastosowania:
             return
         odp = QMessageBox.question(
-            self, "Przenieść propozycje AI?",
-            f"Przenieść {len(do_zastosowania)} sprawdzonych formatowo propozycji "
-            "do formularza?\n\nUwaga: istniejące wartości formularza mogą zostać "
-            "zastąpione. Zweryfikuj każde pole z oryginalnym PDF. "
-            "Ta operacja NIE zapisuje rachunku w bazie.",
+            self, t("ai.confirm_title"),
+            t("ai.confirm_body", count=len(do_zastosowania)),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -645,9 +636,7 @@ class OknoGlowne(QMainWindow):
         self._analiza = None  # nie pozwól ponownie użyć nieaktualnej propozycji
         self._aktualizuj_odczyt()
         self.karty.setCurrentIndex(0)
-        self.statusBar().showMessage(
-            "Sugestie AI przeniesione do formularza. Sprawdź PDF i kliknij Zapisz rachunek."
-        )
+        self._status("ai.saved_hint")
 
     def _aktualizuj_odczyt(self) -> None:
         pracuje = self._zadanie_odczytu is not None or self._zadanie_ai is not None
@@ -691,17 +680,13 @@ class OknoGlowne(QMainWindow):
         self.pole_odczytu.setPlainText(wynik.tekst_dla_llm)
         self._aktualizuj_odczyt()
         if wynik.czy_pusty:
-            self.info_odczytu.setText(
-                "Nie wykryto tekstu w dokumencie. Sprawdź jakość skanu."
-            )
+            self._message(self.info_odczytu, "read.missing")
         else:
             statystyka = ", ".join(
-                f"str. {s.strona + 1}: {s.metoda}" for s in wynik.strony
+                t("read.page_method", page=p.strona + 1, method=t("read.method_" + p.metoda))
+                for p in wynik.strony
             )
-            self.info_odczytu.setText(
-                f"Gotowe — {len(wynik.strony)} stron. {statystyka}. "
-                "To jest surowy tekst, jeszcze bez interpretacji LLM."
-            )
+            self._message(self.info_odczytu, "read.done", count=len(wynik.strony), details=statystyka)
         self._status("msg.read_status")
 
     def _odczyt_blad(self, komunikat: str) -> None:
@@ -718,7 +703,7 @@ class OknoGlowne(QMainWindow):
     def _anuluj_odczyt(self) -> None:
         if self._zadanie_odczytu is not None:
             self._zadanie_odczytu.przerwij.set()
-            self.info_odczytu.setText("Przerywanie odczytu po zakończeniu bieżącej operacji...")
+            self._message(self.info_odczytu, "msg.read_cancelling")
 
     def closeEvent(self, event) -> None:
         if self._zadanie_odczytu is not None:
@@ -895,9 +880,7 @@ class OknoGlowne(QMainWindow):
         if pole is None:
             self._message(self.opis_zaznaczenia, "doc.selection_hint")
             return
-        self.opis_zaznaczenia.setText(
-            f"Strona {pole.strona + 1} | obszar względny: "
-            f"lewo={pole.lewo:.4f}, góra={pole.gora:.4f}, "
-            f"prawo={pole.prawo:.4f}, dół={pole.dol:.4f} "
-            "— przejdź do zakładki Odczyt PDF, aby odczytać fragment."
+        self._message(
+            self.opis_zaznaczenia, "doc.selection", page=pole.strona + 1,
+            left=pole.lewo, top=pole.gora, right=pole.prawo, bottom=pole.dol
         )
