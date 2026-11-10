@@ -148,5 +148,14 @@
   "validation.invoice_account": "Invoice number matches bank account",
   "validation.account_invoice": "Bank account matches invoice number",
   "validation.supplier_length": "Supplier name too long",
-  "validation.invoice_length": "Invoice number too long"
+  "validation.invoice_length": "Invoice number too long",
+  "about.subtitle": "Local bill manager • development version",
+  "about.tagline": "Was this bill extracted and completed correctly?",
+  "about.author": "Rafał Zacharski with Atos",
+  "about.license": "PolyForm Noncommercial 1.0.0 License",
+  "about.privacy": "Your bills stay on your computer. AI analysis runs locally.",
+  "about.star_hint": "☆ Enjoying the app? Star it on GitHub to support further development.",
+  "about.star_button": "☆ Star on GitHub",
+  "about.close": "Close",
+  "about.image_missing": "Świstak illustration — add assets/about/swistak-o-programie.webp"
 }
