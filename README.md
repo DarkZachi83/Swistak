@@ -4,10 +4,10 @@
 Kod jest publiczny, ale **dokumenty finansowe oraz baza są prywatne i nie
 są przechowywane w repozytorium GitHub**.
 
-> **Etap 2 (gałąź robocza)**: dotychczasowe archiwum i formularz z Etapu 1,
-> a dodatkowo pozyskiwanie tekstu z PDF i lokalny OCR skanów. Jest nowa karta
-> **Odczyt PDF** oraz osobny test Ollamy z domyślnym modelem `gemma3:4b`.
-> **Model nie wypełnia jeszcze formularza automatycznie** — to cel Etapu 3.
+> **Etap 3 (gałąź robocza)**: analiza odczytanego PDF przez lokalną Ollamę
+> (`gemma3:4b`), propozycje JSON, podgląd dowodów i ostrzeżeń, przenoszenie
+> wybranych przez użytkownika sugestii do formularza oraz osobny zapis.
+> Numer konta bankowego jest przechowywany oddzielnie od numeru faktury.
 
 ## Instalacja i uruchomienie
 
@@ -16,7 +16,7 @@ Python 3.11+; Linux lub Windows z dostępem do PySide6.
 ```bash
 git clone https://github.com/DarkZachi83/Swistak.git
 cd Swistak
-git switch feature/etap-2-tekst-ocr
+git switch feature/etap-3-ollama-formularz
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -46,6 +46,52 @@ wykorzystując OCR tylko tam, gdzie warstwa tekstowa jest pusta albo
 bardzo krótka. **Odczytaj zaznaczenie** czyta fragment wskazany myszą.
 Operacja działa w tle i można ją anulować. Tekst jest pokazywany na
 ekranie, **nie jest zapisywany do bazy**.
+
+## Analiza rachunku przez lokalną Ollamę (Etap 3)
+
+Świstak nie korzysta z chmurowego API. Uruchom lokalną Ollamę i upewnij
+się, że model jest już pobrany:
+
+```bash
+ollama list
+```
+
+Model testowy: `gemma3:4b`. Możesz wpisać nazwę innego zainstalowanego
+modelu w zakładce **Analiza AI**.
+
+**Wykonaj kolejno:**
+
+1. **Importuj PDF** i otwórz zakładkę **Odczyt PDF**.
+2. Kliknij **Odczytaj cały PDF**. Dla skanów potrzebne są Poppler i Tesseract.
+3. Kliknij **Analizuj tekst przez AI (Ollama)** lub przejdź do **Analiza AI**
+   i wybierz **Analizuj rachunek przez AI**.
+4. Obejrzyj propozycje i fragmenty źródłowe. Świstak sprawdza
+   składnię JSON, powiązanie z fragmentami tekstu, kwoty, daty,
+   konto NRB/IBAN i kategorie. **To nie gwarantuje trafności modelu.**
+5. Kliknij **Przenieś zweryfikowane pola do formularza** i potwierdź
+   operację. Pola niepewne i brakujące nie są automatycznie przenoszone.
+6. W zakładce **Rachunek** porównaj dane z oryginałem, popraw je
+   i dopiero wtedy kliknij **Zapisz rachunek**.
+
+Ważne: **analiza i przeniesienie sugestii nie zapisują rachunku do bazy.**
+Kwoty z LLM mogą trafić do formularza dopiero po potwierdzeniu PLN.
+Niepoprawnego konta bankowego nie przenosimy ani nie zapisujemy.
+Ollama działa na żądanie w wątku roboczym; **Anuluj** zatrzymuje
+wykorzystanie wyniku po zakończeniu żądania sieciowego, ale nie przerywa
+natychmiast obliczeń modelu.
+
+Przed uruchomieniem nowej gałęzi na istniejącej bazie **zrób kopię
+katalogu danych Świstaka po zamknięciu aplikacji**. Przy pierwszym
+uruchomieniu etapu 3 wykonywana jest migracja `002_numer_konta.sql`.
+Nie zmienia ani nie kasuje istniejących rachunków czy oryginałów PDF.
+Na początek polecam testy na osobnej bazie, np.:
+
+```bash
+SWISTAK_DATA_DIR=/tmp/swistak-test-ai python main.py
+```
+
+To jest wersja testowa; nie uznawaj zweryfikowanej składni JSON za
+potwierdzenie prawidłowego numeru rachunku lub kwoty.
 
 ## Pierwsze kroki
 
@@ -115,12 +161,11 @@ To wstępny eksperyment z formatem JSON, nie ukończona integracja.
 ## Kolejne etapy
 
 Plan: [docs/PLAN.md](docs/PLAN.md).
-W etapie 2 pojawi się odczyt warstwy tekstowej PDF oraz OCR Tesseract
-dla skanów. W nowym **etapie 3** lokalny model przez **Ollamę** zaproponuje
-wypełnienie formularza jako JSON: dostawca, kwota do zapłaty, termin
-płatności, numer dokumentu i numer konta bankowego. Użytkownik zawsze
-sprawdza i zatwierdza wartości. Zaznaczanie fragmentów PDF pozostaje
-metodą zapasową. [Specyfikacja Ollamy](docs/ETAP_3_OLLAMA.md).
+Etapy 0–2 zostały scalone z `main`. Etap 3 jest testowany w osobnej gałęzi:
+model Ollama interpretuje tekst PDF i proponuje wartości do formularza.
+Użytkownik sprawdza i zatwierdza każdą zmianę przed zapisem. Ręczne
+zaznaczanie fragmentów i edycja danych pozostają dostępne.
+[Specyfikacja Ollamy](docs/ETAP_3_OLLAMA.md).
 
 **Świstak jest projektowany jako aplikacja LLM-first:** Ollama i lokalny model będą głównym sposobem interpretacji rachunków. Reguły i ręczne zaznaczanie PDF to rozwiązania awaryjne, uruchamiane, gdy model nie zadziała lub pomyli dane. Pozyskanie tekstu/OCR odbywa się wcześniej wyłącznie w celu przygotowania wejścia dla LLM, a walidacja JSON i numerów kont obowiązuje zawsze.
 
