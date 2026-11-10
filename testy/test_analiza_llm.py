@@ -167,6 +167,9 @@ class TestMigracjaBank(unittest.TestCase):
                 self.assertEqual(wiersz["kwota_grosze"], 999)
                 self.assertEqual(wiersz["numer_konta"], "")
                 self.assertEqual(len(rejestr.db.execute("SELECT * FROM migracje").fetchall()), 2)
+                kopie = list((katalog / "kopie_migracji").glob("*.sqlite3"))
+                self.assertEqual(len(kopie), 1)
+                self.assertTrue(kopie[0].stat().st_size > 0)
             finally:
                 rejestr.zamknij()
 

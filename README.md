@@ -83,6 +83,8 @@ natychmiast obliczeń modelu.
 Przed uruchomieniem nowej gałęzi na istniejącej bazie **zrób kopię
 katalogu danych Świstaka po zamknięciu aplikacji**. Przy pierwszym
 uruchomieniu etapu 3 wykonywana jest migracja `002_numer_konta.sql`.
+Dodatkowo program wykonuje wtedy automatycznie **kopię samej bazy SQLite**
+do prywatnego katalogu `kopie_migracji/` (bez PDF-ów), zanim zmieni schemat.
 Nie zmienia ani nie kasuje istniejących rachunków czy oryginałów PDF.
 Na początek polecam testy na osobnej bazie, np.:
 

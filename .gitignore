@@ -37,6 +37,7 @@ dist/
 /kopie/
 /logi/
 /backups/
+/kopie_migracji/
 
 # Pliki systemowe / IDE
 .DS_Store

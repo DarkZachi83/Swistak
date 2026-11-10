@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import os
+import tempfile
+import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -60,13 +63,52 @@ class RejestrRachunkow:
     def __init__(self, katalog: Path | None = None):
         self.katalog = Path(katalog if katalog is not None else katalog_danych()).resolve()
         self.katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.db = polacz(self.katalog / "swistak.sqlite3")
+        sciezka_bazy = self.katalog / "swistak.sqlite3"
+        byla_baza = sciezka_bazy.is_file() and sciezka_bazy.stat().st_size > 0
+        self.db = polacz(sciezka_bazy)
         try:
+            # Przed zmianą istniejącego schematu twórz snapshot samej bazy.
+            # Pełny backup (baza + PDF-y) pozostaje oddzielnym etapem.
+            if byla_baza and self.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='migracje'"
+            ).fetchone() and not self.db.execute(
+                "SELECT 1 FROM migracje WHERE nazwa='002_numer_konta.sql'"
+            ).fetchone():
+                self._kopia_bazy_przed_migracja()
             zastosuj_migracje(self.db)
             self.magazyn = MagazynDokumentow(self.katalog)
         except BaseException:
             self.db.close()
             raise
+
+    def _kopia_bazy_przed_migracja(self) -> Path:
+        """Spójna kopia SQLite sprzed migracji, zapisana atomowo.
+
+        Nie obejmuje plików PDF: do pełnego backupu potrzebny będzie etap 4.
+        Nie pomijaj błędu wykonania kopii przed zmianą schematu.
+        """
+        katalog = self.katalog / "kopie_migracji"
+        katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
+        nazwa = (
+            "swistak-przed-migracja-"
+            + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            + "-" + uuid.uuid4().hex[:8] + ".sqlite3"
+        )
+        cel = katalog / nazwa
+        deskryptor, tmp = tempfile.mkstemp(prefix=".przygotuj-", suffix=".tmp", dir=katalog)
+        os.close(deskryptor)
+        try:
+            kopia = sqlite3.connect(tmp)
+            try:
+                self.db.backup(kopia)
+            finally:
+                kopia.close()
+            os.replace(tmp, cel)
+            os.chmod(cel, 0o600)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+        return cel
 
     def zamknij(self) -> None:
         self.db.close()
