@@ -108,6 +108,40 @@ a nie polegać jedynie na etykiecie pypdfium2.
 
 [Dziennik eksperymentu](docs/PDFIUM_OCR_BENCHMARK.md).
 
+### B.1 Licencje binariów PDFium i identyfikowalność wydań
+
+Zgodnie z dokumentacją producenta, sam wrapper pypdfium2 ma warianty
+**Apache-2.0 / BSD-3-Clause**, ale PDFium ma licencję typu BSD oraz
+**wiele licencji dołączonych zależności**. Nie należy utożsamiać
+licencji wrappera z uprawnieniami do dystrybuowania całego wheel.
+
+- Do wydania dołączyć teksty licencji PDFium i zależności dostarczone
+  w `BUILD_LICENSES/` (lub w odpowiednich katalogach wheel).
+- Dla każdej platformy sprawdzić **konkretny build i konfigurację**,
+  nie tylko numer wersji pakietu. Niektóre kompilacje mogą używać
+  runtime `libgcc` z odrębnymi obowiązkami licencyjnymi.
+- Dokumentacja i przykłady **pypdfium2** są na **CC-BY-4.0**;
+  dołączanie ich do paczki ma inne obowiązki niż samo używanie
+  biblioteki.
+- Narzędzie `python -m tools.sprawdz_pdfium` wypisuje nazwy plików
+  licencyjnych i binarnych z zainstalowanego wheel. To **nie jest**
+  potwierdzenie ich kompletności.
+- Wydanie należy przygotować z zablokowanymi wersjami i hashami
+  artefaktów; kontrolować zależności i nie wprowadzać automatycznie
+  nowej wersji biblioteki w dniu wydania.
+- PDFium nie jest bezpieczny w równoległych wątkach. Nasze funkcje
+  PDFium muszą współdzielić blokadę, a wszystkie obiekty PDFium
+  zwalniać jawnie jeszcze przed jej zwolnieniem.
+- Nie generować automatycznych zgłoszeń i PR-ów do upstream
+  **pypdfium2**: autorzy wyraźnie zakazują AI-generated issues/PRs.
+  Jeśli kiedyś pojawi się rzeczywisty błąd, powinien zostać
+  samodzielnie odtworzony i sprawdzony przez człowieka, zgodnie
+  z zasadami projektu.
+
+Dokumentacja upstream:
+[pypdfium2 Licensing](https://pypdfium2-team.github.io/pypdfium2/readme.html#licensing)
+i [threading](https://pypdfium2.readthedocs.io/en/stable/python_api.html#incompatibility-with-threading).
+
 ### C. Gemma 3 — nie mylić silnika z modelem
 
 Ollama ma licencję MIT, ale **wagi Gemma 3 nie są MIT**.

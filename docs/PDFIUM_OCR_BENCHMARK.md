@@ -77,7 +77,7 @@ Wyniki są załączane do przebiegów CI jako `raport-ocr-python-*`.
 Według dokumentacji **PDFium nie jest thread-safe**; równoległe wywołania
 nawet na różnych dokumentach mogą uszkodzić pamięć lub zakończyć proces.
 
-Moduł \`uslugi/rasteryzacja.py\` ma procesową blokadę \`RLock\` wokół
+Moduł `uslugi/rasteryzacja.py` ma procesową blokadę `RLock` wokół
 całego wywołania PDFium: inicjalizacji, otwarcia dokumentu, renderu,
 kopiowania bitmapy do niezależnego obrazu PIL oraz zamknięcia
 bitmapy, strony i dokumentu. Obraz PIL i Tesseract działają poza blokadą.
