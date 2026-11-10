@@ -97,7 +97,7 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(okno.ed_model.text(), "custom:4b")
                     self.assertEqual(okno.karty.tabText(0), "Bill")
                     self.assertEqual(okno.prefs["language"], "en")
-                    self.assertEqual(okno._lang_actions["en"].isChecked())
+                    self.assertTrue(okno._lang_actions["en"].isChecked())
                     okno.close()
             finally:
                 db.zamknij()
