@@ -1,0 +1,3 @@
+# Opcjonalne porównanie z Popplerem (nie instaluj w produkcji)
+-r requirements.txt
+pdf2image>=1.17,<2

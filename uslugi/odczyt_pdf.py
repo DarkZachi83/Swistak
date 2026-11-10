@@ -13,6 +13,7 @@ from pathlib import Path
 import pdfplumber
 
 from uslugi.geometria import Zaznaczenie
+from uslugi.rasteryzacja import SilnikRasteryzacji, rasteryzuj_strone
 
 
 class BladOdczytu(RuntimeError):
@@ -65,21 +66,14 @@ def _bbox(page, region: Zaznaczenie) -> tuple[float, float, float, float]:
     )
 
 
-def _uruchom_ocr(sciezka: Path, numer_strony: int,
-                  region: Zaznaczenie | None, dpi: int, jezyk: str) -> str:
-    """Poppler → PIL → Tesseract. Jeden obraz na raz, bez zapisywania skanu."""
+def _uruchom_ocr(
+    sciezka: Path, numer_strony: int, region: Zaznaczenie | None,
+    dpi: int, jezyk: str, silnik: SilnikRasteryzacji = "pdfium",
+) -> str:
+    """Wybrany rasteryzator → obraz PIL → lokalny Tesseract."""
     try:
-        from pdf2image import convert_from_path
         import pytesseract
-
-        obrazy = convert_from_path(
-            str(sciezka), dpi=dpi,
-            first_page=numer_strony + 1, last_page=numer_strony + 1,
-            thread_count=1,
-        )
-        if not obrazy:
-            raise BladOdczytu(f"Nie udało się wyrenderować strony {numer_strony + 1}")
-        with obrazy[0] as obraz:
+        with rasteryzuj_strone(sciezka, numer_strony, dpi, silnik) as obraz:
             if region is not None:
                 szer, wys = obraz.size
                 ramka = (
@@ -88,19 +82,20 @@ def _uruchom_ocr(sciezka: Path, numer_strony: int,
                 )
                 if ramka[2] <= ramka[0] or ramka[3] <= ramka[1]:
                     raise BladOdczytu("Zaznaczony obszar ma zerowy rozmiar")
-                obraz = obraz.crop(ramka)
+                with obraz.crop(ramka) as wycinek:
+                    return pytesseract.image_to_string(
+                        wycinek, lang=jezyk, config="--psm 6", timeout=90,
+                    ).strip()
             return pytesseract.image_to_string(
-                obraz, lang=jezyk, config="--psm 6" if region else "--psm 3",
-                timeout=90,
+                obraz, lang=jezyk, config="--psm 3", timeout=90,
             ).strip()
-    except OdczytAnulowany:
-        raise
-    except BladOdczytu:
+    except (OdczytAnulowany, BladOdczytu):
         raise
     except Exception as blad:
         raise BladOdczytu(
-            "OCR nie powiódł się. Sprawdź instalację Popplera, Tesseract "
-            f"i polskich danych językowych (pol). Szczegóły: {blad}"
+            "OCR nie powiódł się. Sprawdź PDFium, Tesseract i dane językowe "
+            f"(pol+eng). Dla opcjonalnego Popplera wymagane są "
+            f"requirements-compare.txt i pdftoppm. Szczegóły: {blad}"
         ) from blad
 
 
@@ -113,6 +108,7 @@ def odczytaj_pdf(
     jezyk: str = "pol+eng",
     przerwij: threading.Event | None = None,
     maks_stron: int = 50,
+    silnik_rasteryzacji: SilnikRasteryzacji = "pdfium",
 ) -> WynikOdczytu:
     """Pozyskaj tekst z warstwy PDF, a dla stron bez tekstu uruchom OCR.
 
@@ -127,6 +123,8 @@ def odczytaj_pdf(
         raise ValueError("DPI OCR musi być w zakresie 100–400")
     if maks_stron < 1:
         raise ValueError("Limit stron musi być dodatni")
+    if silnik_rasteryzacji not in ("pdfium", "poppler"):
+        raise ValueError("Nieznany silnik rasteryzacji")
     _sprawdz_anulowanie(przerwij)
     wynik: list[TekstStrony] = []
     try:
@@ -158,7 +156,9 @@ def odczytaj_pdf(
                 metoda = "tekst" if len(tekst) >= prog else "brak"
                 if metoda == "brak" and z_ocr:
                     _sprawdz_anulowanie(przerwij)
-                    tekst_ocr = _uruchom_ocr(plik, numer, obszar, dpi, jezyk)
+                    tekst_ocr = _uruchom_ocr(
+                        plik, numer, obszar, dpi, jezyk, silnik_rasteryzacji
+                    )
                     _sprawdz_anulowanie(przerwij)
                     if tekst_ocr:
                         tekst, metoda = tekst_ocr, "ocr"
