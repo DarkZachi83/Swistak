@@ -12,6 +12,12 @@ Zależy od etapu 2, czyli poprawnego wydobywania tekstu z PDF i OCR skanów.
 - **Dopiero gdy LLM nie odpowiada, zwraca wadliwy JSON, pomija pole lub użytkownik wykryje pomyłkę**, korzystamy z reguł wyodrębniania wartości albo ręcznego zaznaczania w PDF.
 - Lokalny model to docelowe doświadczenie użytkownika, a brak Ollamy oznacza dostępność jedynie trybu awaryjnego/manualnego. Nigdy automatyczny fallback do zewnętrznej usługi AI.
 
+## Pierwszy model testowy
+
+Na początek wykorzystujemy **lokalny `gemma3:4b`** jako model bazowy do prób JSON. Nie oznacza to wyboru modelu docelowego ani potwierdzenia dokładności na fakturach. W etapie 2 dostępny jest osobny skrypt `python -m tools.test_gemma --demo` i opcjonalny test na lokalnym PDF. Nie ma jeszcze automatycznego wpisywania wyników LLM do formularza.
+
+`gemma3:4b` obsługuje wejście tekstowe **i obrazy**. W kolejnych testach warto zestawić: (A) PDF → OCR → tekst → LLM oraz (B) wyrenderowana strona → multimodalny LLM. Obie ścieżki muszą zachować lokalność danych i ręczne zatwierdzanie wyników. Nie zakładamy z góry, że analiza obrazu jest dokładniejsza.
+
 ## Wybór modelu z pomocą AI Bobra
 
 **AI Bóbr służy do porównania kandydatów na model bazowy Świstaka**, a nie

@@ -4,10 +4,10 @@
 Kod jest publiczny, ale **dokumenty finansowe oraz baza są prywatne i nie
 są przechowywane w repozytorium GitHub**.
 
-> **Etap 1 (gałąź robocza)**: import oryginalnych PDF-ów do prywatnego katalogu
-> danych, lokalna SQLite, kategorie, ręczny formularz rachunku, lista dokumentów.
-> Wyświetlanie wielostronicowych PDF-ów, zoom i zaznaczanie obszaru działa
-> już od etapu 0. **OCR i automatyczne wypełnianie pól nie są jeszcze dostępne.**
+> **Etap 2 (gałąź robocza)**: dotychczasowe archiwum i formularz z Etapu 1,
+> a dodatkowo pozyskiwanie tekstu z PDF i lokalny OCR skanów. Jest nowa karta
+> **Odczyt PDF** oraz osobny test Ollamy z domyślnym modelem `gemma3:4b`.
+> **Model nie wypełnia jeszcze formularza automatycznie** — to cel Etapu 3.
 
 ## Instalacja i uruchomienie
 
@@ -16,7 +16,7 @@ Python 3.11+; Linux lub Windows z dostępem do PySide6.
 ```bash
 git clone https://github.com/DarkZachi83/Swistak.git
 cd Swistak
-git switch feature/etap-1-baza-i-archiwum
+git switch feature/etap-2-tekst-ocr
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -25,6 +25,27 @@ python main.py
 
 Windows: aktywacja środowiska przez `.venv\Scripts\activate`.
 Można otworzyć wskazany PDF od razu: `python main.py /sciezka/do/rachunku.pdf`.
+
+### Lokalne narzędzia OCR (Etap 2)
+
+Python instaluje biblioteki `pdfplumber`, `pdf2image` i `pytesseract`,
+ale skany wymagają dodatkowo **Popplera** i **Tesseract OCR** z językiem
+`pol` (oraz opcjonalnie `eng`). Na Ubuntu/Debian:
+
+```bash
+sudo apt install poppler-utils tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng
+```
+
+W innych dystrybucjach zainstaluj odpowiednie pakiety systemowe.
+Windows: doinstaluj Poppler i Tesseract oraz udostępnij ich programy
+w zmiennej `PATH`.
+
+Po imporcie dokumentu wybierz zakładkę **Odczyt PDF**. Przycisk
+**Odczytaj cały PDF** pobiera tekst ze wszystkich stron (do 50),
+wykorzystując OCR tylko tam, gdzie warstwa tekstowa jest pusta albo
+bardzo krótka. **Odczytaj zaznaczenie** czyta fragment wskazany myszą.
+Operacja działa w tle i można ją anulować. Tekst jest pokazywany na
+ekranie, **nie jest zapisywany do bazy**.
 
 ## Pierwsze kroki
 
@@ -67,6 +88,29 @@ python -m compileall -q main.py baza gui uslugi testy
 
 Testy modułów danych nie wymagają PySide6. Wykonaj również ręczny test GUI:
 zaimportuj dwa pliki, zapisz rachunek, zamknij aplikację i uruchom ponownie.
+
+## Test lokalnej Gemmy 3 4B (bez zapisu rachunków)
+
+Przy uruchomionej Ollamie i zainstalowanym modelem `gemma3:4b`:
+
+```bash
+ollama list
+python -m tools.test_gemma --demo
+```
+
+To jest **syntetyczna faktura testowa**, bez prywatnych danych. Aby
+sprawdzić własny PDF **lokalnie** (tekst z PDF/OCR → LLM → JSON):
+
+```bash
+python -m tools.test_gemma --pdf "/ścieżka/do/rachunku.pdf"
+```
+
+Skrypt wysyła tekst **wyłącznie do `127.0.0.1:11434`**.
+Nie zapisuje odpowiedzi w SQLite ani w pliku. Uwaga: terminal może
+pokazać prywatne dane finansowe, dlatego **nie publikuj wyników
+rzeczywistych rachunków**. Model może podać błędną kwotę lub konto;
+każdą propozycję trzeba zweryfikować przed użyciem.
+To wstępny eksperyment z formatem JSON, nie ukończona integracja.
 
 ## Kolejne etapy
 

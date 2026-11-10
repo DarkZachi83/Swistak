@@ -22,14 +22,15 @@ względne, ponowna weryfikacja przy otwieraniu.
 Import, formularz rachunku, ręczne dodawanie kategorii, lista dokumentów.
 Przed scaleniem potrzebny test GUI na docelowym komputerze.
 
-## Etap 2 — pozyskanie tekstu z PDF i OCR
+## Etap 2 — pozyskanie tekstu z PDF i OCR (gałąź robocza)
 - Jeśli PDF ma warstwę tekstową, czytamy ją bez OCR.
 - Jeśli to skan: Tesseract/OCR z przygotowaniem obrazu, lokalnie.
 - Pierwsza próba obejmuje cały dokument lub sensowną część strony, bez
   konieczności ręcznego zaznaczania każdego pola.
 - Użytkownik może zaznaczyć fragment myszą i odczytać go ponownie, gdy
   automatyczna ekstrakcja zawiedzie lub będzie niejednoznaczna.
-- Operacje w tle, z możliwością anulowania; uzyskany tekst trafia **w pierwszej kolejności do lokalnego LLM** w etapie 3, bez wstępnego rozpoznawania znaczenia pól za pomocą reguł. Wynik ekstrakcji można obejrzeć i poprawić.
+- Operacje w tle, z możliwością anulowania; uzyskany tekst będzie kierowany **w pierwszej kolejności do lokalnego LLM** w etapie 3, bez wstępnego rozpoznawania znaczenia pól za pomocą reguł. Wynik ekstrakcji można obejrzeć. W etapie 2 tekst nie trafia jeszcze automatycznie do formularza.
+- Osobny eksperymentalny test CLI sprawdzi lokalnie model `gemma3:4b` na syntetycznej fakturze i zweryfikuje schemat JSON; nie zapisuje danych do SQLite.
 
 ## Etap 3 — główny silnik interpretacji: lokalny LLM przez Ollamę
 **Cel:** Świstak jest aplikacją opartą na lokalnym LLM. Model jako **pierwszy** interpretuje rachunek i proponuje wypełnienie formularza na podstawie tekstu z etapu 2. Nie dokonuje żadnego automatycznego zapisu.

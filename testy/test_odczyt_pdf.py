@@ -76,5 +76,5 @@ class TestOdczytPDF(unittest.TestCase):
     def test_limity(self):
         with self.assertRaises(ValueError):
             odczytaj_pdf(self.plik, dpi=20)
-        with self.assertRaises(BladOdczytu):
-            odczytaj_pdf(self.plik, maks_stron=0 + 0)  # błąd parametrów przed odczytem
+        with self.assertRaises(ValueError):
+            odczytaj_pdf(self.plik, maks_stron=0)

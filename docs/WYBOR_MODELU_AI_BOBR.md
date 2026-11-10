@@ -50,6 +50,10 @@ rozszerzenie, nie jako istniejący już wynik. Testy gramatyczne i
 ogólnej wiedzy pomagają porównać modele, ale same nie potwierdzają
 poprawności ekstrakcji pól finansowych.
 
+## Model bazowy do pierwszego testu
+
+**`gemma3:4b`**, wybrany jako lokalny model testowy. Jego wynik na rachunkach syntetycznych stanie się punktem odniesienia dla kolejnych modeli. Docelowo wyniki zbierzemy wraz z identyfikatorem modelu, kwantyzacją i ustawieniami; nie kopiujemy rzeczywistych rachunków do AI Bobra.
+
 ## Wskaźniki potrzebne Świstakowi
 
 1. **Możliwość uruchomienia:** model mieści się w pamięci z zapasem;
