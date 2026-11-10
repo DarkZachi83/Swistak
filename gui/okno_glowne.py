@@ -122,6 +122,9 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_nawigacje(0, 0)
         self._odswiez_liste()
         self._wyczysc_formularz()
+        self._message(self.info_odczytu, "read.start")
+        self._message(self.info_ai, "ai.start")
+        self._message(self.opis_zaznaczenia, "doc.selection_hint")
         self._aktualizuj_odczyt()
         self._build_menu()
         self._retranslate_ui()
@@ -505,7 +508,7 @@ class OknoGlowne(QMainWindow):
         for r in range(len(POLA)):
             for c in range(1, 4):
                 self.tabela_ai.setItem(r, c, QTableWidgetItem(""))
-        self.info_ai.setText("Brak aktualnej analizy. Odczytaj PDF i uruchom Ollamę.")
+        self._message(self.info_ai, "ai.none")
 
     def _aktualizuj_ai(self) -> None:
         zajete = self._zadanie_ai is not None or self._zadanie_odczytu is not None
@@ -525,24 +528,24 @@ class OknoGlowne(QMainWindow):
         if self._zadanie_ai is not None or self._zadanie_odczytu is not None:
             return
         if self.aktualny_dokument_id is None:
-            QMessageBox.information(self, "Analiza AI", "Najpierw wybierz dokument PDF.")
+            QMessageBox.information(self, t("tab.ai"), t("msg.no_pdf"))
             return
         tekst = self.pole_odczytu.toPlainText()
         if not tekst.strip():
             QMessageBox.information(
-                self, "Analiza AI", "Najpierw przejdź do Odczyt PDF i odczytaj dokument."
+                self, t("tab.ai"), t("msg.read_before_ai")
             )
             return
         model = self.ed_model.text().strip()
         if not model:
-            QMessageBox.warning(self, "Analiza AI", "Podaj model Ollama, np. gemma3:4b.")
+            QMessageBox.warning(self, t("tab.ai"), t("msg.model_required"))
             return
         kategorie = [wiersz["nazwa"] for wiersz in self.rejestr.kategorie()]
         zadanie = ZadanieAnalizy(self.aktualny_dokument_id, tekst, kategorie, model)
         self._wyczysc_analize()
         self._zadanie_ai = zadanie
         self.karty.setCurrentIndex(3)
-        self.info_ai.setText(f"Model {model} analizuje tekst lokalnie. Żadne dane nie są zapisywane...")
+        self._message(self.info_ai, "ai.working", model=model)
         zadanie.sygnaly.gotowe.connect(self._analiza_gotowa)
         zadanie.sygnaly.blad.connect(self._analiza_blad)
         zadanie.sygnaly.anulowano.connect(self._analiza_anulowana)
@@ -580,14 +583,14 @@ class OknoGlowne(QMainWindow):
 
     def _analiza_blad(self, dokument_id: int, komunikat: str) -> None:
         self._zadanie_ai = None
-        self.info_ai.setText("Analiza AI nie powiodła się; formularz można wypełnić ręcznie.")
+        self._message(self.info_ai, "ai.failed")
         self._aktualizuj_odczyt()
         if dokument_id == self.aktualny_dokument_id:
-            QMessageBox.warning(self, "Ollama — błąd", komunikat)
+            QMessageBox.warning(self, t("msg.ai_error"), komunikat)
 
     def _analiza_anulowana(self, dokument_id: int) -> None:
         self._zadanie_ai = None
-        self.info_ai.setText("Analiza anulowana — bez zmian w formularzu i bazie.")
+        self._message(self.info_ai, "ai.cancelled")
         self._aktualizuj_odczyt()
 
     def _anuluj_analize(self) -> None:
@@ -668,14 +671,14 @@ class OknoGlowne(QMainWindow):
         try:
             sciezka = self.rejestr.sciezka_pdf(self.aktualny_dokument_id)
         except (OSError, ValueError) as blad:
-            QMessageBox.warning(self, "Odczyt PDF", str(blad))
+            QMessageBox.warning(self, t("msg.pdf"), str(blad))
             return
         zadanie = ZadanieOdczytu(sciezka, obszar)
         self._wyczysc_analize()
         self._zadanie_odczytu = zadanie
         self._aktualizuj_odczyt()
         self.pole_odczytu.clear()
-        self.info_odczytu.setText("Trwa odczyt (warstwa tekstowa lub lokalny Tesseract)...")
+        self._message(self.info_odczytu, "read.running")
         self.karty.setCurrentIndex(2)
         zadanie.sygnaly.gotowe.connect(self._odczyt_gotowy)
         zadanie.sygnaly.blad.connect(self._odczyt_blad)
@@ -699,18 +702,18 @@ class OknoGlowne(QMainWindow):
                 f"Gotowe — {len(wynik.strony)} stron. {statystyka}. "
                 "To jest surowy tekst, jeszcze bez interpretacji LLM."
             )
-        self.statusBar().showMessage("Odczyt zakończony; tekst nie został zapisany do bazy.")
+        self._status("msg.read_status")
 
     def _odczyt_blad(self, komunikat: str) -> None:
         self._zadanie_odczytu = None
         self._aktualizuj_odczyt()
-        self.info_odczytu.setText("Błąd odczytu PDF lub OCR.")
-        QMessageBox.warning(self, "Odczyt PDF", komunikat)
+        self._message(self.info_odczytu, "read.error")
+        QMessageBox.warning(self, t("msg.pdf"), komunikat)
 
     def _odczyt_anulowano(self) -> None:
         self._zadanie_odczytu = None
         self._aktualizuj_odczyt()
-        self.info_odczytu.setText("Odczyt anulowany.")
+        self._message(self.info_odczytu, "read.cancelled")
 
     def _anuluj_odczyt(self) -> None:
         if self._zadanie_odczytu is not None:
@@ -752,14 +755,14 @@ class OknoGlowne(QMainWindow):
                 self.wybor_kategoria.setCurrentIndex(numer)
 
     def _dodaj_kategorie(self) -> None:
-        nazwa, zaakceptowano = QInputDialog.getText(self, "Nowa kategoria", "Nazwa kategorii:")
+        nazwa, zaakceptowano = QInputDialog.getText(self, t("msg.new_category"), t("msg.category_name"))
         if not zaakceptowano:
             return
         try:
             identyfikator = self.rejestr.dodaj_kategorie(nazwa)
             self._odswiez_kategorie(identyfikator)
         except (ValueError, sqlite3.Error) as blad:
-            QMessageBox.warning(self, "Kategoria", str(blad))
+            QMessageBox.warning(self, t("msg.category"), str(blad))
 
     def _odswiez_liste(self) -> None:
         self.lista_dokumentow.clear()
@@ -770,13 +773,13 @@ class OknoGlowne(QMainWindow):
                         f"{grosze_na_kwote(wiersz['kwota_grosze'])} zł\n"
                         f"   {wiersz['nazwa_zrodlowa']}")
             else:
-                opis = "○ Do uzupełnienia\n   " + opis
+                opis = t("list.missing") + "\n   " + opis
             element = QListWidgetItem(opis)
             element.setData(Qt.ItemDataRole.UserRole, int(wiersz["id"]))
             self.lista_dokumentow.addItem(element)
 
     def _wyczysc_formularz(self) -> None:
-        self.nazwa_dokumentu.setText("Najpierw zaimportuj dokument PDF.")
+        self._message(self.nazwa_dokumentu, "doc.import_first")
         for pole in (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota, self.ed_wystawiono,
                      self.ed_termin, self.ed_od, self.ed_do):
             pole.clear()
@@ -789,7 +792,7 @@ class OknoGlowne(QMainWindow):
         self._wybrany_obszar = None
         self._wyczysc_analize()
         self.pole_odczytu.clear()
-        self.info_odczytu.setText("Dokument otwarty. Wybierz odczyt całego PDF lub fragmentu.")
+        self._message(self.info_odczytu, "doc.opened")
         sciezka = self.rejestr.sciezka_pdf(dokument_id)
         # Przy błędzie (np. uszkodzony plik archiwalny) nie pozwalaj zapisywać
         # pól pod niewłaściwym dokumentem.
@@ -798,7 +801,7 @@ class OknoGlowne(QMainWindow):
         self.podglad.otworz(sciezka)
         dokument = self.rejestr.dokument(dokument_id)
         self.aktualny_dokument_id = dokument_id
-        self.nazwa_dokumentu.setText("Oryginał: " + dokument["nazwa_zrodlowa"])
+        self._message(self.nazwa_dokumentu, "doc.original", name=dokument["nazwa_zrodlowa"])
         zapis = self.rejestr.rachunek(dokument_id)
         self._wyczysc_formularz()
         self.nazwa_dokumentu.setText("Oryginał: " + dokument["nazwa_zrodlowa"])
@@ -819,20 +822,20 @@ class OknoGlowne(QMainWindow):
         self.zapisz_przycisk.setEnabled(True)
         self._aktualizuj_odczyt()
         self.karty.setCurrentIndex(0)
-        self.statusBar().showMessage("Otworzono z prywatnego archiwum: " + dokument["nazwa_zrodlowa"])
+        self._status("msg.opened", name=dokument["nazwa_zrodlowa"])
 
     def _wybierz_z_listy(self, element: QListWidgetItem) -> None:
         try:
             self._wyswietl_dokument(int(element.data(Qt.ItemDataRole.UserRole)))
         except (ValueError, OSError, sqlite3.Error) as blad:
-            QMessageBox.warning(self, "Nie można otworzyć dokumentu", str(blad))
+            QMessageBox.warning(self, t("msg.document_open_error"), str(blad))
 
     def podglad_dopasuj(self) -> None:
         self.podglad.dopasuj()
 
     def wybierz_plik(self) -> None:
         sciezka, _ = QFileDialog.getOpenFileName(
-            self, "Importuj rachunek", "", "Pliki PDF (*.pdf)"
+            self, t("msg.import_dialog"), "", t("msg.pdf_filter")
         )
         if sciezka:
             self.otworz_pdf(sciezka)
@@ -847,9 +850,9 @@ class OknoGlowne(QMainWindow):
             self._wyswietl_dokument(dokument_id)
             self._odswiez_liste()
             if not czy_nowy:
-                self.statusBar().showMessage("Ten PDF jest już w archiwum — otwarto istniejący dokument.")
+                self._status("msg.duplicate")
         except (OSError, ValueError, sqlite3.Error) as blad:
-            QMessageBox.warning(self, "Nie można importować PDF", str(blad))
+            QMessageBox.warning(self, t("msg.document_import_error"), str(blad))
 
     def _zapisz_rachunek(self) -> None:
         if self.aktualny_dokument_id is None:
@@ -871,18 +874,18 @@ class OknoGlowne(QMainWindow):
             )
             self.rejestr.zapisz_rachunek(dane)
             self._odswiez_liste()
-            self.statusBar().showMessage("Rachunek zapisany w lokalnej bazie SQLite.")
+            self._status("msg.saved")
         except (ValueError, OSError, sqlite3.Error) as blad:
-            QMessageBox.warning(self, "Nie można zapisać rachunku", str(blad))
+            QMessageBox.warning(self, t("msg.bill_save_error"), str(blad))
 
     def _zmien_strone(self, krok: int) -> None:
         try:
             self.podglad.pokaz_strone(self.podglad.strona + krok)
         except ValueError as blad:
-            QMessageBox.warning(self, "Błąd renderowania", str(blad))
+            QMessageBox.warning(self, t("msg.render_error"), str(blad))
 
     def _aktualizuj_nawigacje(self, numer: int, razem: int) -> None:
-        self.strony.setText(f"{numer + 1} / {razem}" if razem else "Brak dokumentu")
+        self.strony.setText(f"{numer + 1} / {razem}" if razem else t("doc.none"))
         self.poprzednia.setEnabled(razem > 0 and numer > 0)
         self.nastepna.setEnabled(razem > 0 and numer + 1 < razem)
 
@@ -890,7 +893,7 @@ class OknoGlowne(QMainWindow):
         self._wybrany_obszar = pole
         self._aktualizuj_odczyt()
         if pole is None:
-            self.opis_zaznaczenia.setText("Zaznacz fragment PDF lewym przyciskiem myszy.")
+            self._message(self.opis_zaznaczenia, "doc.selection_hint")
             return
         self.opis_zaznaczenia.setText(
             f"Strona {pole.strona + 1} | obszar względny: "
