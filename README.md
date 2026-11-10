@@ -119,6 +119,17 @@ W **Ustawienia → Konfiguruj** można zapisać domyślny model Ollamy.
 
 Zobacz [opis architektury i testów języków](docs/JEZYKI.md).
 
+## Okno „O programie” z ilustracją
+
+Górne menu **O programie → Informacje o Świstaku…** otwiera
+graficzny dialog wzorowany na AI Bobrze, z prawdziwymi widgetami Qt,
+polskim i angielskim opisem oraz przyciskiem GitHub.
+
+Obraz wyświetla się z lokalnego pliku
+`assets/about/swistak-o-programie.webp` lub rezerwowego
+`assets/branding/swistak-banner.webp`.
+[Opis implementacji](docs/OKNO_O_PROGRAMIE.md).
+
 ## Pierwsze kroki
 
 1. Kliknij **Importuj PDF** i wybierz lokalny rachunek.
