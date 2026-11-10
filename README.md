@@ -179,10 +179,48 @@ AI Bóbr będzie narzędziem do benchmarków, **nie obowiązkową zależnością
 
 Bez Ollamy program zachowa możliwość ręcznej obsługi rachunków, ale nie pełną funkcjonalność AI. Nie wysyłamy dokumentów do chmury, nie wykonujemy przelewów ani nie dodajemy telemetrii.
 
+## Rejestr licencji i zależności
+
+Wszystkie komponenty Python, Qt, PDF, OCR i LLM muszą zostać
+zinwentaryzowane **przed wydaniem instalatora**.
+Sprawdź [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) oraz
+maszynowy rejestr [licencje/rejestr.json](licencje/rejestr.json).
+Lista zawiera także **blokery dystrybucji**: Poppler (GPL),
+Qt/PySide6 (LGPL i własne obowiązki) oraz Gemma 3 (osobne warunki).
+Jest to audyt wstępny, nie zaświadczenie o zgodności.
+
+Po instalacji pakietów uruchom:
+
+```bash
+python -m tools.audyt_licencji --check
+```
+
+Skrypt sprawdza obecność bezpośrednich zależności w rejestrze
+i wyświetla metadane licencji z *aktualnie zainstalowanego środowiska*.
+Nie potwierdza zgodności instalatora z prawem; pełny audyt należy
+wykonać dla każdej opublikowanej paczki.
+
 ## Licencja
 
 Copyright (C) 2026 Rafał Zacharski.
 
-**GPL-3.0-only** — pełna treść w [LICENSE](LICENSE).
+**Propozycja dla kolejnego wydania — licencjonowanie Home/Business.**
+
+Dla nowych wydań przygotowujemy **PolyForm Noncommercial License 1.0.0**
+(`SPDX: PolyForm-Noncommercial-1.0.0`) dla zastosowań niekomercyjnych,
+w tym prywatnych. Kod pozostanie publicznie dostępny (source-available),
+z możliwością używania, modyfikowania i rozpowszechniania w zakresie
+dozwolonym przez tę licencję. Użycie komercyjne wymaga **osobnej pisemnej
+licencji od właściciela praw** — warunki i cennik nie zostały jeszcze ustalone.
+
+**Uwaga:** PolyForm Noncommercial obejmuje także określone organizacje
+niekomercyjne, edukacyjne i publiczne — nie jest to wyłącznie licencja
+„domowa”. Nie jest to również licencja open source według OSI.
+
+Wersje udostępnione wcześniej jako **GPL-3.0-only** zachowują prawa udzielone
+odbiorcom i są dostępne w historii Git. Zmiana nie działa wstecz.
+
+Szczegóły: [docs/LICENCJONOWANIE.md](docs/LICENCJONOWANIE.md),
+pełny tekst licencji proponowanej dla nowych wersji: [LICENSE](LICENSE).
 Przed dystrybucją paczek wykonywalnych zweryfikuj warunki
 licencyjne PySide6/Qt i ewentualnych dołączonych bibliotek.

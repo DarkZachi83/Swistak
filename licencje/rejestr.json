@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "updated": "2026-11-10",
+  "license_review_branch": "proposal/licencja-home-business",
+  "release_status": "NOT APPROVED FOR COMMERCIAL BUNDLE",
+  "components": [
+    {
+      "name": "PySide6",
+      "kind": "python-direct",
+      "license": "LGPL-3.0-or-later / GPL / Commercial (per Qt module)",
+      "source_url": "https://www.qt.io/development/open-source-lgpl-obligations",
+      "status": "review",
+      "purpose": "GUI"
+    },
+    {
+      "name": "pdfplumber",
+      "kind": "python-direct",
+      "license": "MIT",
+      "source_url": "https://github.com/jsvine/pdfplumber",
+      "status": "notice",
+      "purpose": "PDF text"
+    },
+    {
+      "name": "pdf2image",
+      "kind": "python-direct",
+      "license": "MIT (wrapper; Poppler separate GPL)",
+      "source_url": "https://pypi.org/project/pdf2image/",
+      "status": "high-risk",
+      "purpose": "OCR rasterization"
+    },
+    {
+      "name": "pytesseract",
+      "kind": "python-direct",
+      "license": "Apache-2.0",
+      "source_url": "https://github.com/madmaze/pytesseract",
+      "status": "notice",
+      "purpose": "OCR wrapper"
+    },
+    {
+      "name": "PySide6-Essentials",
+      "kind": "python-transitive",
+      "license": "Qt LGPL/GPL/commercial per module",
+      "source_url": "https://doc.qt.io/qt-6/licensing.html",
+      "status": "review",
+      "purpose": "Qt runtime"
+    },
+    {
+      "name": "PySide6-Addons",
+      "kind": "python-transitive",
+      "license": "Qt LGPL/GPL/commercial per module",
+      "source_url": "https://doc.qt.io/qt-6/licensing.html",
+      "status": "review",
+      "purpose": "Qt add-ons"
+    },
+    {
+      "name": "PySide6-Pdf",
+      "kind": "python-transitive",
+      "license": "Qt PDF LGPL/GPL/commercial",
+      "source_url": "https://doc.qt.io/QT-6/qtpdf-index.html",
+      "status": "review",
+      "purpose": "PDF viewer"
+    },
+    {
+      "name": "PySide6-WebEngine",
+      "kind": "python-transitive-optional",
+      "license": "Qt WebEngine/Chromium multiple licenses",
+      "source_url": "https://doc.qt.io/qtforpython-6.11/overviews/qtwebengine-licensing.html",
+      "status": "review",
+      "purpose": "possible installed package, not used"
+    },
+    {
+      "name": "shiboken6",
+      "kind": "python-transitive",
+      "license": "Qt for Python LGPL/GPL/commercial",
+      "source_url": "https://doc.qt.io/qtforpython-6.10/commercial/index.html",
+      "status": "review",
+      "purpose": "PySide6 binding"
+    },
+    {
+      "name": "pdfminer.six",
+      "kind": "python-transitive",
+      "license": "MIT",
+      "source_url": "https://github.com/pdfminer/pdfminer.six",
+      "status": "notice",
+      "purpose": "PDF text parser"
+    },
+    {
+      "name": "Pillow",
+      "kind": "python-transitive",
+      "license": "MIT-CMU",
+      "source_url": "https://pillow.readthedocs.io/en/stable/about.html",
+      "status": "notice",
+      "purpose": "images"
+    },
+    {
+      "name": "pypdfium2",
+      "kind": "python-transitive",
+      "license": "Apache-2.0/BSD-3-Clause plus PDFium dependency notices",
+      "source_url": "https://pypdfium2-team.github.io/pypdfium2/readme.html",
+      "status": "review",
+      "purpose": "PDFium raster"
+    },
+    {
+      "name": "charset-normalizer",
+      "kind": "python-transitive",
+      "license": "MIT",
+      "source_url": "https://pypi.org/project/charset-normalizer/",
+      "status": "notice",
+      "purpose": "charset"
+    },
+    {
+      "name": "cryptography",
+      "kind": "python-transitive",
+      "license": "Apache-2.0 OR BSD-3-Clause",
+      "source_url": "https://pypi.org/project/cryptography/",
+      "status": "review",
+      "purpose": "crypto"
+    },
+    {
+      "name": "cffi",
+      "kind": "python-transitive",
+      "license": "MIT-0 (current versions)",
+      "source_url": "https://pypi.org/project/cffi/",
+      "status": "notice",
+      "purpose": "binding"
+    },
+    {
+      "name": "pycparser",
+      "kind": "python-transitive",
+      "license": "BSD-3-Clause",
+      "source_url": "https://pypi.org/project/pycparser/",
+      "status": "notice",
+      "purpose": "parsing"
+    },
+    {
+      "name": "packaging",
+      "kind": "python-transitive",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "source_url": "https://pypi.org/project/packaging/",
+      "status": "notice",
+      "purpose": "version tools"
+    },
+    {
+      "name": "Poppler",
+      "kind": "system",
+      "license": "GPL-2.0-only OR GPL-3.0-only",
+      "source_url": "https://formulae.brew.sh/formula/poppler",
+      "status": "high-risk",
+      "purpose": "pdftoppm, separate installation"
+    },
+    {
+      "name": "Tesseract OCR",
+      "kind": "system",
+      "license": "Apache-2.0",
+      "source_url": "https://github.com/tesseract-ocr/tesseract",
+      "status": "notice",
+      "purpose": "OCR system engine"
+    },
+    {
+      "name": "tessdata",
+      "kind": "system",
+      "license": "Apache-2.0",
+      "source_url": "https://github.com/tesseract-ocr/tessdata",
+      "status": "notice",
+      "purpose": "OCR language models"
+    },
+    {
+      "name": "Ollama",
+      "kind": "external",
+      "license": "MIT (engine only)",
+      "source_url": "https://github.com/ollama/ollama/blob/main/LICENSE",
+      "status": "notice",
+      "purpose": "locally installed LLM runtime"
+    },
+    {
+      "name": "Gemma 3",
+      "kind": "model",
+      "license": "Gemma Terms of Use, Prohibited Use Policy",
+      "source_url": "https://ai.google.dev/gemma/terms/",
+      "status": "separate-terms",
+      "purpose": "locally downloaded weights"
+    },
+    {
+      "name": "CPython",
+      "kind": "system",
+      "license": "PSF License plus third-party notices",
+      "source_url": "https://docs.python.org/3/license.html",
+      "status": "review",
+      "purpose": "bundled interpreter only"
+    }
+  ]
+}

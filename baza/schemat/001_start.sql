@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: GPL-3.0-only
+-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -- Etap 1: dokumenty, rachunki, kategorie i pozycje.
 CREATE TABLE dokumenty (
     id INTEGER PRIMARY KEY,

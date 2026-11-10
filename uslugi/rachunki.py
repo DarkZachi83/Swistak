@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Obsługa importu PDF i formularza rachunku (bez OCR)."""
 from __future__ import annotations
 

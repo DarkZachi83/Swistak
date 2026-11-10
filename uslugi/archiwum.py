@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Nienaruszalny magazyn PDF: SHA-256, atomowe przeniesienie i bez deduplikatów."""
 from __future__ import annotations
 

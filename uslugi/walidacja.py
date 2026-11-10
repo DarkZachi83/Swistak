@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Deterministyczna kontrola IBAN/NRB, niezależna od lokalnego LLM."""
 from __future__ import annotations
 

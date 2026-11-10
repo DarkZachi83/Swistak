@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Testy archiwum i bazy: wyłącznie syntetyczne dane."""
 from __future__ import annotations
 

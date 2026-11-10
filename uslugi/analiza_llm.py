@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """LLM-first: lokalna Ollama proponuje pola; aplikacja sprawdza je przed użyciem.
 
 Bez zapisu do SQLite. Żadne żądanie nie opuszcza 127.0.0.1.
