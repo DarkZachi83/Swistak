@@ -72,6 +72,7 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(okno.podglad.liczba_stron, page_count)
                     self.assertEqual(okno.karty.currentIndex(), 3)
                     self.assertEqual(okno.wybor_kategoria.currentData(), selected)
+                    self.assertEqual(okno.wybor_kategoria.currentText(), "Gas")
                     self.assertEqual(ustawienia.load()["language"], "en")
                     self.assertTrue(okno._lang_actions["en"].isChecked())
 
@@ -79,6 +80,7 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(okno.karty.tabText(0), "Rachunek")
                     self.assertEqual(okno.menuBar().actions()[2].text(), "Języki")
                     self.assertEqual(okno.ed_kwota.text(), "123,45")
+                    self.assertEqual(okno.wybor_kategoria.currentText(), "Gaz")
                     self.assertEqual(ustawienia.load()["language"], "pl")
 
                     okno.close()
