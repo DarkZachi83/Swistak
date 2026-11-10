@@ -136,6 +136,29 @@ class OknoGlowne(QMainWindow):
         "form.category", "form.issued", "form.due", "form.period_from",
         "form.period_to", "form.status", "form.notes",
     )
+    _DEFAULT_CATEGORY_KEYS = {
+        "Energia elektryczna": "category.electricity",
+        "Gaz": "category.gas",
+        "Czynsz": "category.rent",
+        "Telefon": "category.phone",
+        "Fundusz remontowy": "category.renovation",
+        "Inne": "category.other",
+    }
+    _VALIDATION_KEYS = {
+        "Brak danych — uzupełnij ręcznie": "validation.missing",
+        "Brak potwierdzenia w tekście": "validation.evidence",
+        "Format poprawny — zweryfikuj z PDF": "validation.valid",
+        "Niepoprawny numer konta (NRB/IBAN lub suma kontrolna). Sprawdź go z oryginalnym rachunkiem.": "validation.account",
+        "Kategoria spoza listy Świstaka": "validation.category",
+        "Wymagana data RRRR-MM-DD": "validation.date",
+        "Obsługiwana waluta rachunku: PLN": "validation.currency",
+        "Waluta niepotwierdzona jako PLN": "validation.currency_missing",
+        "Początek okresu późniejszy niż koniec": "validation.period",
+        "Numer faktury identyczny z kontem": "validation.invoice_account",
+        "Numer konta identyczny z fakturą": "validation.account_invoice",
+        "Za długa nazwa dostawcy": "validation.supplier_length",
+        "Za długi numer faktury": "validation.invoice_length",
+    }
     _AI_FIELDS = {
         "dostawca": "ai.label.supplier",
         "numer_faktury": "ai.label.invoice",
@@ -148,6 +171,22 @@ class OknoGlowne(QMainWindow):
         "numer_konta_bankowego": "ai.label.account",
         "kategoria_sugerowana": "ai.label.category",
     }
+
+    def _validation_message(self, value: str) -> str:
+        key = self._VALIDATION_KEYS.get(value)
+        return t(key) if key else value
+
+    def _localize_categories(self) -> None:
+        # Only display labels change. IDs and DB names remain untouched.
+        by_id = {int(row["id"]): row["nazwa"] for row in self.rejestr.kategorie()}
+        for i in range(1, self.wybor_kategoria.count()):
+            category_id = self.wybor_kategoria.itemData(i)
+            original_name = by_id.get(category_id)
+            if original_name is not None:
+                key = self._DEFAULT_CATEGORY_KEYS.get(original_name)
+                self.wybor_kategoria.setItemText(
+                    i, t(key) if key else original_name
+                )
 
     def _build_menu(self) -> None:
         menu = self.menuBar()
@@ -289,6 +328,7 @@ class OknoGlowne(QMainWindow):
         self.wybor_status.setItemText(0, t("form.status_due"))
         self.wybor_status.setItemText(1, t("form.status_paid"))
         self.wybor_kategoria.setItemText(0, t("form.choose_category"))
+        self._localize_categories()
         for index, key in enumerate(("tab.bill", "tab.documents", "tab.read", "tab.ai")):
             self.karty.setTabText(index, t(key))
 
@@ -315,6 +355,11 @@ class OknoGlowne(QMainWindow):
         ])
         for row, field in enumerate(POLA):
             self.tabela_ai.setItem(row, 0, QTableWidgetItem(t(self._AI_FIELDS[field])))
+            if self._analiza is not None and field in self._analiza.oceny:
+                verdict = self._analiza.oceny[field]
+                value = ("✓ " if verdict.poprawne else "⚠ ") + self._validation_message(verdict.komunikat)
+                if self.tabela_ai.item(row, 3) is not None:
+                    self.tabela_ai.item(row, 3).setText(value)
         # Refresh dynamically displayed messages from keys, without clearing
         # OCR text, form data, selections or analysis rows.
         for widget, (key, values) in list(self._messages.items()):
@@ -567,7 +612,7 @@ class OknoGlowne(QMainWindow):
             tresci = (
                 ocena.wartosc if ocena.wartosc is not None else "—",
                 ocena.dowod or "—",
-                ("✓ " if ocena.poprawne else "⚠ ") + ocena.komunikat,
+                ("✓ " if ocena.poprawne else "⚠ ") + self._validation_message(ocena.komunikat),
             )
             for c, napis in enumerate(tresci, 1):
                 element = QTableWidgetItem(napis)
