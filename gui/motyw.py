@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Spójna ciemna paleta inspirowana interfejsem AI Bobra."""
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
