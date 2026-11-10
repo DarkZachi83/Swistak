@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Podgląd PDF, zoom i zaznaczanie prostokąta bez odczytu OCR (etap 0)."""
 from __future__ import annotations
 

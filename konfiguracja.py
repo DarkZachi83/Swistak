@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Lokalizacja prywatnych danych, niezależna od katalogu kodu."""
 from __future__ import annotations
 

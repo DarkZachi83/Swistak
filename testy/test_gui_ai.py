@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Test Qt offscreen: LLM może sugerować pola, lecz nie zapisuje rachunku."""
 from __future__ import annotations
 
