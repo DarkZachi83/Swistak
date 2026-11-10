@@ -183,6 +183,23 @@ Bez Ollamy program zachowa możliwość ręcznej obsługi rachunków, ale nie pe
 
 Copyright (C) 2026 Rafał Zacharski.
 
-**GPL-3.0-only** — pełna treść w [LICENSE](LICENSE).
+**Propozycja dla kolejnego wydania — licencjonowanie Home/Business.**
+
+Dla nowych wydań przygotowujemy **PolyForm Noncommercial License 1.0.0**
+(`SPDX: PolyForm-Noncommercial-1.0.0`) dla zastosowań niekomercyjnych,
+w tym prywatnych. Kod pozostanie publicznie dostępny (source-available),
+z możliwością używania, modyfikowania i rozpowszechniania w zakresie
+dozwolonym przez tę licencję. Użycie komercyjne wymaga **osobnej pisemnej
+licencji od właściciela praw** — warunki i cennik nie zostały jeszcze ustalone.
+
+**Uwaga:** PolyForm Noncommercial obejmuje także określone organizacje
+niekomercyjne, edukacyjne i publiczne — nie jest to wyłącznie licencja
+„domowa”. Nie jest to również licencja open source według OSI.
+
+Wersje udostępnione wcześniej jako **GPL-3.0-only** zachowują prawa udzielone
+odbiorcom i są dostępne w historii Git. Zmiana nie działa wstecz.
+
+Szczegóły: [docs/LICENCJONOWANIE.md](docs/LICENCJONOWANIE.md),
+pełny tekst licencji proponowanej dla nowych wersji: [LICENSE](LICENSE).
 Przed dystrybucją paczek wykonywalnych zweryfikuj warunki
 licencyjne PySide6/Qt i ewentualnych dołączonych bibliotek.
