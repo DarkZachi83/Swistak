@@ -51,7 +51,11 @@ class TestQtJezyki(unittest.TestCase):
                     okno.ed_kwota.setText("123,45")
                     okno.ed_uwagi.setPlainText("Nie zapisano")
                     okno.pole_odczytu.setPlainText("syntetyczny OCR\ntekst")
-                    okno.wybor_kategoria.setCurrentIndex(2)
+                    gaz_id = next(int(row["id"]) for row in db.kategorie()
+                                  if row["nazwa"] == "Gaz")
+                    okno.wybor_kategoria.setCurrentIndex(
+                        okno.wybor_kategoria.findData(gaz_id)
+                    )
                     selected = okno.wybor_kategoria.currentData()
                     okno.karty.setCurrentIndex(3)
                     okno.tabela_ai.item(0, 1).setText("TESTOWA SUGESTIA")
