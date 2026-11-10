@@ -1,5 +1,6 @@
-# Świstak — podgląd PDF, lokalna baza, odczyt tekstu i OCR
+# Świstak: lokalny PDF/OCR; Poppler nie jest wymagany
 PySide6>=6.8,<7
 pdfplumber>=0.11,<1
-pdf2image>=1.17,<2
+pypdfium2>=5.9,<6
 pytesseract>=0.3.13,<1
+Pillow>=12.2,<14

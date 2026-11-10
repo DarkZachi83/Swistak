@@ -16,7 +16,7 @@ Python 3.11+; Linux lub Windows z dostępem do PySide6.
 ```bash
 git clone https://github.com/DarkZachi83/Swistak.git
 cd Swistak
-git switch feature/etap-3-ollama-formularz
+git switch experiment/pdfium-ocr
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -28,17 +28,28 @@ Można otworzyć wskazany PDF od razu: `python main.py /sciezka/do/rachunku.pdf`
 
 ### Lokalne narzędzia OCR (Etap 2)
 
-Python instaluje biblioteki `pdfplumber`, `pdf2image` i `pytesseract`,
-ale skany wymagają dodatkowo **Popplera** i **Tesseract OCR** z językiem
-`pol` (oraz opcjonalnie `eng`). Na Ubuntu/Debian:
+Python instaluje biblioteki `pdfplumber`, `pypdfium2` i `pytesseract`.
+**Domyślny OCR nie wymaga już Popplera.** Nadal wymagany jest zewnętrzny
+Tesseract z językiem `pol` (oraz `eng`). Na Ubuntu/Debian:
 
 ```bash
-sudo apt install poppler-utils tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng
+sudo apt install tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng
 ```
 
 W innych dystrybucjach zainstaluj odpowiednie pakiety systemowe.
-Windows: doinstaluj Poppler i Tesseract oraz udostępnij ich programy
-w zmiennej `PATH`.
+Windows: doinstaluj Tesseract z polskimi danymi językowymi i udostępnij
+program w `PATH`. PDFium jest dostarczany przez pakiet Python.
+
+Porównanie PDFium i starej ścieżki Poppler jest dostępne oddzielnie:
+
+```bash
+python -m pip install -r requirements-compare.txt
+# Linux: sudo apt install poppler-utils
+python -m tools.porownaj_ocr --json raport_ocr.json
+```
+
+Raport zawiera wyłącznie metryki ze **sztucznych rachunków**.
+[Opis eksperymentu](docs/PDFIUM_OCR_BENCHMARK.md).
 
 Po imporcie dokumentu wybierz zakładkę **Odczyt PDF**. Przycisk
 **Odczytaj cały PDF** pobiera tekst ze wszystkich stron (do 50),
@@ -62,7 +73,7 @@ modelu w zakładce **Analiza AI**.
 **Wykonaj kolejno:**
 
 1. **Importuj PDF** i otwórz zakładkę **Odczyt PDF**.
-2. Kliknij **Odczytaj cały PDF**. Dla skanów potrzebne są Poppler i Tesseract.
+2. Kliknij **Odczytaj cały PDF**. Dla skanów potrzebny jest Tesseract (PDFium jest zależnością Pythona).
 3. Kliknij **Analizuj tekst przez AI (Ollama)** lub przejdź do **Analiza AI**
    i wybierz **Analizuj rachunek przez AI**.
 4. Obejrzyj propozycje i fragmenty źródłowe. Świstak sprawdza
@@ -198,8 +209,9 @@ Wszystkie komponenty Python, Qt, PDF, OCR i LLM muszą zostać
 zinwentaryzowane **przed wydaniem instalatora**.
 Sprawdź [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) oraz
 maszynowy rejestr [licencje/rejestr.json](licencje/rejestr.json).
-Lista zawiera także **blokery dystrybucji**: Poppler (GPL),
-Qt/PySide6 (LGPL i własne obowiązki) oraz Gemma 3 (osobne warunki).
+Lista zawiera istotne obowiązki dystrybucyjne: Qt/PySide6 (LGPL),
+PDFium (licencje binarne) i Gemma 3 (odrębne warunki). Poppler
+jest obecnie wyłącznie opcjonalną zależnością porównania OCR.
 Jest to audyt wstępny, nie zaświadczenie o zgodności.
 
 Po instalacji pakietów uruchom:

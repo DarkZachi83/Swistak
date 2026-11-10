@@ -68,9 +68,12 @@ wyłączności praw do wszystkich fragmentów kodu**.
 
 Wstępny audyt: [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md),
 maszynowy rejestr: [licencje/rejestr.json](../licencje/rejestr.json).
-**Blokery przed dystrybucją komercyjną: Poppler (GPL), warunki Qt LGPL
-oraz odrębna licencja wag Gemma 3.** Oznacza to konieczność oceny
-konkretnego sposobu pakowania, a nie automatyczny zakaz użycia.
+**Obszary wymagające przeglądu przed dystrybucją komercyjną: Qt LGPL,
+PDFium (licencje binarne) oraz odrębne warunki wag Gemma 3.**
+Poppler (GPL) został usunięty z domyślnej ścieżki OCR i pozostaje
+opcjonalną zależnością porównania; nie należy dołączać go do
+instalatora bez oddzielnej analizy. To nie oznacza automatycznej
+zgody na dystrybucję pozostałych składników.
 
 Świstak korzysta m.in. z PySide6/QtPdf, pakietów Python,
 Tesseract, Poppler oraz lokalnej Ollamy (opcjonalnie).

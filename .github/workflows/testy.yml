@@ -15,15 +15,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Biblioteki systemowe Qt i OCR
+      - name: Biblioteki Qt, Tesseract i opcjonalny Poppler do porównania
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon-x11-0 poppler-utils tesseract-ocr tesseract-ocr-pol
-      - name: Zależności Python
-        run: pip install -r requirements.txt
+          sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon-x11-0 tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng poppler-utils fonts-dejavu-core
+      - name: Zależności Python + testowa ścieżka Poppler
+        run: pip install -r requirements-compare.txt
       - name: Audyt deklarowanych zależności i ich rejestru
         run: python -m tools.audyt_licencji --check
-      - name: Testy bazy i interfejsu
+      - name: Wykaz plików licencyjnych i binarnych PDFium
+        run: python -m tools.sprawdz_pdfium --json raport_licencje_pdfium.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licencje-pdfium-python-${{ matrix.python-version }}
+          path: raport_licencje_pdfium.json
+      - name: Testy bazy, OCR i interfejsu
         run: timeout 180s python -m unittest discover -s testy -v
+      - name: Porównanie OCR PDFium vs Poppler — tylko syntetyczne PDF
+        run: timeout 120s python -m tools.porownaj_ocr --json raport_ocr.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raport-ocr-python-${{ matrix.python-version }}
+          path: raport_ocr.json
       - name: Sprawdzenie składni
         run: python -m compileall -q main.py baza gui uslugi testy konfiguracja.py tools

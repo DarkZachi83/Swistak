@@ -22,11 +22,11 @@
     },
     {
       "name": "pdf2image",
-      "kind": "python-direct",
+      "kind": "python-test",
       "license": "MIT (wrapper; Poppler separate GPL)",
       "source_url": "https://pypi.org/project/pdf2image/",
-      "status": "high-risk",
-      "purpose": "OCR rasterization"
+      "status": "review",
+      "purpose": "Opcjonalna rasteryzacja Poppler wyłącznie do benchmarków OCR"
     },
     {
       "name": "pytesseract",
@@ -86,19 +86,19 @@
     },
     {
       "name": "Pillow",
-      "kind": "python-transitive",
+      "kind": "python-direct",
       "license": "MIT-CMU",
       "source_url": "https://pillow.readthedocs.io/en/stable/about.html",
       "status": "notice",
-      "purpose": "images"
+      "purpose": "Bezpośredni obraz PIL dla OCR i syntetycznych testów skanów"
     },
     {
       "name": "pypdfium2",
-      "kind": "python-transitive",
+      "kind": "python-direct",
       "license": "Apache-2.0/BSD-3-Clause plus PDFium dependency notices",
       "source_url": "https://pypdfium2-team.github.io/pypdfium2/readme.html",
       "status": "review",
-      "purpose": "PDFium raster"
+      "purpose": "Domyślna rasteryzacja skanów PDF dla Tesseract, w aplikacji"
     },
     {
       "name": "charset-normalizer",
@@ -146,7 +146,7 @@
       "license": "GPL-2.0-only OR GPL-3.0-only",
       "source_url": "https://formulae.brew.sh/formula/poppler",
       "status": "high-risk",
-      "purpose": "pdftoppm, separate installation"
+      "purpose": "Opcjonalny zewnętrzny program do porównania OCR, nie wymagany w produkcji"
     },
     {
       "name": "Tesseract OCR",

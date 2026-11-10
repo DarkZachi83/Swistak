@@ -24,7 +24,8 @@
 - [ ] **Qt/PySide6:** lista dokładnie użytych modułów, LGPLv3, sposób linkowania, notices i prawa do wymiany bibliotek.
 - [ ] **Poppler:** osobna instalacja lub pełny przegląd GPL przed dołączeniem binariów.
 - [ ] **Tesseract:** komplet licencji silnika OCR i modeli językowych `pol/eng`.
-- [ ] **PDFium/pypdfium2:** notices bibliotek wewnątrz wheel.
+- [ ] **PDFium/pypdfium2:** osobny manifest z `python -m tools.sprawdz_pdfium` dla Linux/Windows, komplet `BUILD_LICENSES/`, kontrola powiązanych binariów i ewentualnego `libgcc`.
+- [ ] **PDFium:** test wielowątkowy i stresowy podglądu QtPdf z równoległym OCR, bez ryzyka użycia zwolnionych obiektów.
 - [ ] **Ollama:** oddzielny instalator lub zgodna redystrybucja na MIT.
 - [ ] **Gemma 3:** odrębna kontrola warunków Google i sposobu dostarczenia wag.
 - [ ] **Python:** wersja interpretera i licencje komponentów dołączanych w runtime.
