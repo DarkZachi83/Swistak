@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget, QComboBox,
 )
 
+from gui.okno_o_programie import OknoOProgramie
 from gui.podglad_pdf import PodgladPDF
 from gui.odczyt_worker import ZadanieOdczytu
 from gui.analiza_worker import ZadanieAnalizy
@@ -275,7 +276,7 @@ class OknoGlowne(QMainWindow):
         self.ed_model.setText(name)
 
     def _about(self) -> None:
-        QMessageBox.about(self, t("about.title"), t("about.body"))
+        OknoOProgramie(self).exec()
 
     def _message(self, widget: QLabel, key: str, **values) -> None:
         self._messages[widget] = (key, values)

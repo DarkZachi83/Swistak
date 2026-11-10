@@ -148,5 +148,14 @@
   "validation.invoice_account": "Numer faktury identyczny z kontem",
   "validation.account_invoice": "Numer konta identyczny z fakturą",
   "validation.supplier_length": "Za długa nazwa dostawcy",
-  "validation.invoice_length": "Za długi numer faktury"
+  "validation.invoice_length": "Za długi numer faktury",
+  "about.subtitle": "Lokalny rejestr rachunków • wersja rozwojowa",
+  "about.tagline": "Czy ten rachunek został dobrze odczytany i poprawnie uzupełniony?",
+  "about.author": "Rafał Zacharski razem z Atosem",
+  "about.license": "Licencja PolyForm Noncommercial 1.0.0",
+  "about.privacy": "Twoje rachunki pozostają na Twoim komputerze. Analiza AI działa lokalnie.",
+  "about.star_hint": "☆ Podoba się program? Zostaw gwiazdkę na GitHubie — to pomaga w dalszym rozwoju.",
+  "about.star_button": "☆ Zostaw gwiazdkę na GitHubie",
+  "about.close": "Zamknij",
+  "about.image_missing": "Ilustracja Świstaka — dodaj plik assets/about/swistak-o-programie.webp"
 }
