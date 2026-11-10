@@ -24,7 +24,7 @@ from pathlib import Path
 KATALOG = Path(__file__).resolve().parents[1]
 DOZWOLONE_STATUSY = {"review", "high-risk", "notice", "separate-terms"}
 DOZWOLONE_RODZAJE = {
-    "python-direct", "python-transitive", "python-transitive-optional",
+    "python-direct", "python-transitive", "python-transitive-optional", "python-test",
     "system", "external", "model",
 }
 

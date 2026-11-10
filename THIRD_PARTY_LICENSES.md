@@ -28,7 +28,7 @@ na PolyForm Noncommercial 1.0.0 znajduje się w gałęzi
 |---|---|---|---|---|
 | [PySide6](https://pypi.org/project/PySide6/) | `>=6.8,<7` | Qt for Python: **LGPL-3.0 / GPL-3.0 / licencja komercyjna**; dokładne warunki zależą od modułu | GUI i Qt PDF | **DO SPRAWDZENIA:** obowiązki LGPLv3 (informacje prawne, prawa dotyczące bibliotek, wymiana bibliotek, brak blokowania dozwolonego reverse engineeringu) i lista spakowanych modułów |
 | [pdfplumber](https://github.com/jsvine/pdfplumber) | `>=0.11,<1` | **MIT** | Ekstrakcja tekstu z PDF | **INFORMACYJNIE:** dołączyć wymaganą informację o prawach/licencję przy dystrybucji |
-| [pdf2image](https://pypi.org/project/pdf2image/) | `>=1.17,<2` | **MIT**, ALE używa zewnętrznych programów **Poppler** | Rasteryzacja skanu dla OCR | **WYSOKIE RYZYKO:** licencja samego wrappera nie rozwiązuje kwestii Popplera |
+| [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | `>=5.9,<6` | **Apache-2.0 / BSD-3-Clause**, PDFium ma osobne zależności/NOTICE | Domyślna rasteryzacja skanów OCR | **DO SPRAWDZENIA:** prawa i notices binariów PDFium w konkretnym wheel |
 | [pytesseract](https://github.com/madmaze/pytesseract) | `>=0.3.13,<1` | **Apache-2.0** | Wywoływanie lokalnego silnika Tesseract | **INFORMACYJNIE:** uwzględnić notices Apache, niezależnie audytować silnik OCR |
 
 ## 2. Zależności pośrednie / pakiety, które mogą trafić do instalatora
@@ -44,7 +44,7 @@ widocznych pakietów, ale **nie wydaje opinii o zgodności licencji**.
 | PySide6-WebEngine (jeśli zainstalowany) | Qt WebEngine LGPL/GPL/komercyjna + **wiele licencji Chromium** | Świstak **nie importuje** WebEngine, więc **nie dołączać bez potrzeby** do instalatora. |
 | [pdfminer.six](https://github.com/pdfminer/pdfminer.six) | MIT | Parser tekstowy wykorzystywany przez pdfplumber. |
 | [Pillow](https://python-pillow.github.io/) | MIT-CMU | Wymaga własnego tekstu copyright/licencji. |
-| [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | Apache-2.0 / BSD-3-Clause + PDFium: BSD i zależności | Końcowe koła mogą zawierać binarny PDFium i licencje jego komponentów; sprawdzić `BUILD_LICENSES/`. **Kandydat do zastąpienia Popplera dla OCR**. |
+| [pdf2image](https://pypi.org/project/pdf2image/) | MIT, używa Popplera | **TYLKO opcjonalne testy** `requirements-compare.txt`; nie jest zależnością produkcyjną. |
 | [charset-normalizer](https://pypi.org/project/charset-normalizer/) | MIT | Pośrednio przez pdfminer.six. |
 | [cryptography](https://pypi.org/project/cryptography/) | Apache-2.0 **OR** BSD-3-Clause | Pośrednio przez pdfminer.six; może zawierać dalsze binarne zależności. |
 | [cffi](https://pypi.org/project/cffi/) | MIT-0 (dla obecnych wersji; sprawdzić konkretny wheel) | Zależność cryptography. |
@@ -60,7 +60,7 @@ zebrania licencji z faktycznie zbudowanych pakietów.
 
 | Składnik | Dystrybucja na dziś | Licencja / warunki | Ocena i czynność |
 |---|---|---|---|
-| [Poppler](https://poppler.freedesktop.org/) — m.in. `pdftoppm` | **System użytkownika**, wywoływany przez pdf2image | GPL-2.0-only OR GPL-3.0-only (dobór wersji i plików do weryfikacji) | **WYSOKIE RYZYKO** dla zamkniętej lub noncommercial dystrybucji. Nie dołączać do instalatora bez osobnego przeglądu skutków GPL; rozważyć przejście na pypdfium2. Wywołanie osobnego procesu nie przesądza samo o kompatybilności. |
+| [Poppler](https://poppler.freedesktop.org/) — `pdftoppm` | **Tylko osobny test porównawczy** `requirements-compare.txt` | GPL-2.0-only OR GPL-3.0-only (zależnie od plików) | **NIE jest wymagany** przy normalnym OCR na PDFium; nie dołączać do instalatora bez oddzielnego przeglądu GPL. |
 | [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) | System użytkownika | Apache-2.0 | Można rozważyć bundling, ale trzeba uwzględnić licencję i komponenty binarne oraz notices. |
 | [tessdata](https://github.com/tesseract-ocr/tessdata) `pol`, `eng` | System użytkownika | Apache-2.0 dla repozytorium tessdata | Przy dystrybucji modeli językowych dołączyć odpowiednie notices i upewnić się, z jakiego pakietu pochodzą. |
 | [Ollama](https://github.com/ollama/ollama/blob/main/LICENSE) | Instalowana **osobno** przez użytkownika | MIT (sam silnik) | Aplikacja korzysta z lokalnego API `127.0.0.1:11434`, nie sprzedaje Ollamy jako części własnego produktu. Przyszły bundling wymaga notices i przeglądu licencji składników. |
@@ -84,24 +84,28 @@ prawach odbiorcy do bibliotek. Niektóre moduły Qt są tylko na GPL;
 - https://doc.qt.io/QT-6/qtpdf-index.html  
 - https://doc.qt.io/qtforpython-6.10/commercial/index.html
 
-### B. Poppler i pakowanie OCR — priorytet
+### B. PDFium jest domyślny, Poppler tylko do porównania — eksperyment
 
-Aktualna ścieżka skanu to:
-`pdf2image → (program Popplera pdftoppm) → obraz → pytesseract`.
+Nowa domyślna ścieżka skanu to
+`pypdfium2 → PDFium → obraz PIL → pytesseract`.
+Aplikacja **nie wymaga teraz Popplera** ani pakietu `pdf2image` podczas
+normalnej pracy. Wyświetlanie PDF nadal wykorzystuje QtPdf, a odczyt
+warstwy tekstowej — pdfplumber.
 
-**To główny punkt ryzyka** dla planowanego modelu
-PolyForm Noncommercial + płatna licencja biznesowa. Na etapie
-testów użytkownik instaluje Popplera oddzielnie.
-Przed przygotowaniem instalatora:
-1. Porównać OCR z rasteryzacją przez `pypdfium2` (już jest zależnością
-   pośrednią pdfplumber) lub przez odpowiednio licencjonowany Qt PDF.
-2. Przetestować różne formaty skanów i wydajność w Windows/Linux.
-3. Jeśli pozostanie Poppler — uzyskać profesjonalną analizę skutków
-   GPL dla konkretnego modelu pakowania i integracji.
+Poprzednią ścieżkę
+`pdf2image → Poppler (pdftoppm) → PIL → pytesseract`
+zachowano jedynie jako **opcjonalne porównanie** po instalacji
+`requirements-compare.txt` i systemowego Popplera.
+W `tools/porownaj_ocr.py` oba silniki otrzymują dokładnie takie same
+syntetyczne skany i ustawienia Tesseract.
 
-**Źródła:**  
-- https://formulae.brew.sh/formula/poppler  
-- https://pypdfium2-team.github.io/pypdfium2/readme.html
+**Zmniejszyło to zależność produkcyjną od komponentów GPL**,
+ale nie usuwa obowiązków LGPL Qt/PySide6 ani licencji
+składników binarnych PDFium i modeli Gemma. Przed instalatorem
+trzeba zweryfikować licencje PDFium (również jego NOTICE),
+a nie polegać jedynie na etykiecie pypdfium2.
+
+[Dziennik eksperymentu](docs/PDFIUM_OCR_BENCHMARK.md).
 
 ### C. Gemma 3 — nie mylić silnika z modelem
 
