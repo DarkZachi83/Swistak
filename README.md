@@ -95,6 +95,19 @@ SWISTAK_DATA_DIR=/tmp/swistak-test-ai python main.py
 To jest wersja testowa; nie uznawaj zweryfikowanej składni JSON za
 potwierdzenie prawidłowego numeru rachunku lub kwoty.
 
+## Menu oraz aktywna zmiana języka
+
+Świstak ma górne menu: **Plik | Ustawienia | Języki | O programie**.
+
+W **Języki** wybierz **Język systemu**, **Polski** lub **English**.
+Wszystkie etykiety interfejsu, menu, formularz i komunikaty podstawowe
+zmieniają język **natychmiast, bez restartu i bez czyszczenia**
+otwartego rachunku, dokumentu PDF ani wyników analizy AI.
+Wybór jest pamiętany w prywatnym pliku ustawień (osobnym od SQLite).
+W **Ustawienia → Konfiguruj** można zapisać domyślny model Ollamy.
+
+Zobacz [opis architektury i testów języków](docs/JEZYKI.md).
+
 ## Pierwsze kroki
 
 1. Kliknij **Importuj PDF** i wybierz lokalny rachunek.

@@ -38,4 +38,15 @@ def ustaw_motyw(aplikacja: QApplication) -> None:
         QGraphicsView { background: #171b1f; border: 1px solid #45484b;
                         border-radius: 8px; }
         QStatusBar { background: #2b3035; }
+        QMenuBar { background: #2b3035; color: #e9ecef;
+                   padding: 2px 5px; border-bottom: 1px solid #45484b; }
+        QMenuBar::item { padding: 5px 13px; border-radius: 4px; }
+        QMenuBar::item:selected { background: #414a51; }
+        QMenu { background: #2b3035; color: #e9ecef;
+                border: 1px solid #45484b; padding: 5px; }
+        QMenu::item { padding: 7px 28px 7px 18px; }
+        QMenu::item:selected { background: #414a51; }
+        QMenu::separator { background: #45484b; height: 1px; margin: 4px; }
+        QDialog { background: #212529; }
+
     """)
