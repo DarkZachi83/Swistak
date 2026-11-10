@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/branding/swistak-banner.webp" alt="Świstak — lokalny rejestr rachunków z OCR i Ollamą" width="620">
+  <img src="assets/branding/swistak-banner.jpg" alt="Świstak — lokalny rejestr rachunków z OCR i Ollamą" width="620">
 </div>
 
 # Świstak
