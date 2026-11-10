@@ -13,6 +13,7 @@ from baza.migracje import zastosuj_migracje
 from baza.polaczenie import polacz, transakcja
 from konfiguracja import katalog_danych
 from uslugi.archiwum import MagazynDokumentow
+from uslugi.walidacja import zweryfikuj_numer_konta
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class DaneRachunku:
     okres_do: str = ""
     status: str = "do_zaplaty"
     uwagi: str = ""
+    numer_konta: str = ""
 
 
 def kwota_na_grosze(tekst: str) -> int:
@@ -135,6 +137,7 @@ class RejestrRachunkow:
             raise ValueError("Za długi numer rachunku lub uwagi")
         if dane.status not in ("do_zaplaty", "oplacony"):
             raise ValueError("Nieprawidłowy status rachunku")
+        numer_konta = zweryfikuj_numer_konta(dane.numer_konta)
         kwota = kwota_na_grosze(dane.kwota)
         wystawiono = _data(dane.data_wystawienia)
         termin = _data(dane.termin_platnosci)
@@ -153,21 +156,21 @@ class RejestrRachunkow:
                 "SELECT id FROM rachunki WHERE dokument_id = ?", (dane.dokument_id,)
             ).fetchone()
             wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
-                       kwota, dane.status, dane.uwagi.strip())
+                       kwota, dane.status, dane.uwagi.strip(), numer_konta)
             if istnieje:
                 rachunek_id = int(istnieje["id"])
                 self.db.execute(
                     "UPDATE rachunki SET dostawca=?, numer=?, data_wystawienia=?, "
                     "termin_platnosci=?, okres_od=?, okres_do=?, kwota_grosze=?, "
-                    "status=?, uwagi=?, zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+                    "status=?, uwagi=?, numer_konta=?, zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
                     "WHERE id=?", (*wartosci, rachunek_id)
                 )
                 self.db.execute("DELETE FROM pozycje_rachunku WHERE rachunek_id = ?", (rachunek_id,))
             else:
                 kursor = self.db.execute(
                     "INSERT INTO rachunki (dokument_id, dostawca, numer, data_wystawienia, "
-                    "termin_platnosci, okres_od, okres_do, kwota_grosze, status, uwagi) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "termin_platnosci, okres_od, okres_do, kwota_grosze, status, uwagi, numer_konta) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (dane.dokument_id, *wartosci),
                 )
                 rachunek_id = int(kursor.lastrowid)
