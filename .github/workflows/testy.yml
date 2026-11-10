@@ -21,6 +21,8 @@ jobs:
           sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon-x11-0 poppler-utils tesseract-ocr tesseract-ocr-pol
       - name: Zależności Python
         run: pip install -r requirements.txt
+      - name: Audyt deklarowanych zależności i ich rejestru
+        run: python -m tools.audyt_licencji --check
       - name: Testy bazy i interfejsu
         run: timeout 180s python -m unittest discover -s testy -v
       - name: Sprawdzenie składni

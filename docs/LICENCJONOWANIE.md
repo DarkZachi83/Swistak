@@ -66,6 +66,12 @@ wyłączności praw do wszystkich fragmentów kodu**.
 
 ## Zależności i warunki wydania
 
+Wstępny audyt: [THIRD_PARTY_LICENSES.md](../THIRD_PARTY_LICENSES.md),
+maszynowy rejestr: [licencje/rejestr.json](../licencje/rejestr.json).
+**Blokery przed dystrybucją komercyjną: Poppler (GPL), warunki Qt LGPL
+oraz odrębna licencja wag Gemma 3.** Oznacza to konieczność oceny
+konkretnego sposobu pakowania, a nie automatyczny zakaz użycia.
+
 Świstak korzysta m.in. z PySide6/QtPdf, pakietów Python,
 Tesseract, Poppler oraz lokalnej Ollamy (opcjonalnie).
 Licencja Świstaka **nie zastępuje licencji tych komponentów**.

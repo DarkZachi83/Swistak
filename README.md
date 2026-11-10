@@ -179,6 +179,27 @@ AI Bóbr będzie narzędziem do benchmarków, **nie obowiązkową zależnością
 
 Bez Ollamy program zachowa możliwość ręcznej obsługi rachunków, ale nie pełną funkcjonalność AI. Nie wysyłamy dokumentów do chmury, nie wykonujemy przelewów ani nie dodajemy telemetrii.
 
+## Rejestr licencji i zależności
+
+Wszystkie komponenty Python, Qt, PDF, OCR i LLM muszą zostać
+zinwentaryzowane **przed wydaniem instalatora**.
+Sprawdź [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) oraz
+maszynowy rejestr [licencje/rejestr.json](licencje/rejestr.json).
+Lista zawiera także **blokery dystrybucji**: Poppler (GPL),
+Qt/PySide6 (LGPL i własne obowiązki) oraz Gemma 3 (osobne warunki).
+Jest to audyt wstępny, nie zaświadczenie o zgodności.
+
+Po instalacji pakietów uruchom:
+
+```bash
+python -m tools.audyt_licencji --check
+```
+
+Skrypt sprawdza obecność bezpośrednich zależności w rejestrze
+i wyświetla metadane licencji z *aktualnie zainstalowanego środowiska*.
+Nie potwierdza zgodności instalatora z prawem; pełny audyt należy
+wykonać dla każdej opublikowanej paczki.
+
 ## Licencja
 
 Copyright (C) 2026 Rafał Zacharski.
