@@ -3,13 +3,43 @@
 **Status: specyfikacja, niezaimplementowane.**
 Zależy od etapu 2, czyli poprawnego wydobywania tekstu z PDF i OCR skanów.
 
+## Priorytet architektury — LLM-first
+
+**Świstak opieramy na lokalnym LLM jako głównym mechanizmie interpretacji rachunków.**
+- Najpierw technicznie pozyskujemy tekst (warstwa PDF lub OCR skanu); to nie jest analiza pól regułami.
+- Następnie **najpierw wywołujemy model przez Ollamę** i odbieramy sugestie JSON.
+- Zawsze przeprowadzamy deterministyczną **walidację** kwot, dat, numerów kont i dozwolonych kategorii. Walidacja nie jest alternatywnym parserem.
+- **Dopiero gdy LLM nie odpowiada, zwraca wadliwy JSON, pomija pole lub użytkownik wykryje pomyłkę**, korzystamy z reguł wyodrębniania wartości albo ręcznego zaznaczania w PDF.
+- Lokalny model to docelowe doświadczenie użytkownika, a brak Ollamy oznacza dostępność jedynie trybu awaryjnego/manualnego. Nigdy automatyczny fallback do zewnętrznej usługi AI.
+
+## Pierwszy model testowy
+
+Na początek wykorzystujemy **lokalny `gemma3:4b`** jako model bazowy do prób JSON. Nie oznacza to wyboru modelu docelowego ani potwierdzenia dokładności na fakturach. W etapie 2 dostępny jest osobny skrypt `python -m tools.test_gemma --demo` i opcjonalny test na lokalnym PDF. Nie ma jeszcze automatycznego wpisywania wyników LLM do formularza.
+
+`gemma3:4b` obsługuje wejście tekstowe **i obrazy**. W kolejnych testach warto zestawić: (A) PDF → OCR → tekst → LLM oraz (B) wyrenderowana strona → multimodalny LLM. Obie ścieżki muszą zachować lokalność danych i ręczne zatwierdzanie wyników. Nie zakładamy z góry, że analiza obrazu jest dokładniejsza.
+
+## Wybór modelu z pomocą AI Bobra
+
+**AI Bóbr służy do porównania kandydatów na model bazowy Świstaka**, a nie
+do interpretowania rachunków w czasie pracy aplikacji. Porównujemy:
+zapas RAM/VRAM, czas odpowiedzi, wydajność, poprawność polszczyzny,
+JSON oraz planowane testy nauk ścisłych. Następnie wykonujemy osobny
+benchmark odczytu danych z dokumentów (kwoty, terminy, NRB/IBAN, różne
+układy rachunków). Dopiero te wyniki pozwalają wybrać ustawienia domyślne.
+
+Architektura pozostaje LLM-first: wynik AI Bobra wybiera model, ale nie
+uruchamia parsera regułowego przed analizą LLM. Import wyników benchmarku
+ma być opcjonalny; bez Bobra Świstak korzysta z lokalnie dostępnych modeli.
+
+Szczegóły: [WYBOR_MODELU_AI_BOBR.md](WYBOR_MODELU_AI_BOBR.md).
+
 ## Założenia użytkowe
 
 Przycisk: **Analizuj rachunek (Ollama)**, z wyborem lokalnie
 zainstalowanego modelu. Po analizie Świstak pokazuje tabelę
 **propozycja / źródłowy fragment dokumentu / wartość po korekcie**.
 Przyciski: **Zatwierdź i zapisz**, **Popraw**, **Zaznacz fragment ręcznie**.
-Brak odpowiedzi Ollamy nigdy nie uniemożliwia manualnej obsługi dokumentu.
+**Ollama to tryb podstawowy**. Brak odpowiedzi modelu powoduje przejście do trybu awaryjnego (reguły/ręczna obsługa), bez wysyłania rachunku do chmury.
 
 ## Wejście i wyjście
 
@@ -67,7 +97,7 @@ i typów; nie wolno ufać samemu formatowi odpowiedzi modelu.
 1. Tekstowy PDF i skan po OCR dają sugestie w tym samym schemacie.
 2. Numer faktury nie jest mylony z numerem konta — przypadki testowe.
 3. Brak kwoty/terminu/konta pozostawia pole puste (`null`).
-4. Błędny JSON, brak Ollamy lub timeout => bezpieczny powrót do formularza.
+4. Błędny JSON, brak Ollamy lub timeout => przejście do awaryjnych reguł lub formularza, bez automatycznego zapisu.
 5. Wymagana jawna akceptacja użytkownika przed każdym zapisem.
 6. Ani tekst PDF, ani wyniki modelu nie są wysyłane do usług chmurowych.
 7. W testach i repozytorium występują tylko rachunki syntetyczne.
@@ -76,7 +106,7 @@ i typów; nie wolno ufać samemu formatowi odpowiedzi modelu.
 
 ## Zakres implementacji
 
-Odseparować klienta Ollama od parsera/validatora danych i okna GUI.
+Odseparować klienta Ollama od **awaryjnego parsera regułowego**, walidatora wyników i okna GUI. W ścieżce podstawowej parser regułowy nie wykonuje interpretacji przed LLM.
 Wywołanie wykonać w wątku roboczym z timeoutem i anulowaniem.
 Nowe kolumny SQLite wprowadzać wyłącznie nowymi migracjami.
 Wybór modelu i jego zachowanie sprawdzić na kilku rzeczywistych typach
