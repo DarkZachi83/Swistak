@@ -1,2 +1,5 @@
-# Etap 0 — interfejs PDF, bez OCR i bazy danych
+# Świstak — podgląd PDF, lokalna baza, odczyt tekstu i OCR
 PySide6>=6.8,<7
+pdfplumber>=0.11,<1
+pdf2image>=1.17,<2
+pytesseract>=0.3.13,<1
