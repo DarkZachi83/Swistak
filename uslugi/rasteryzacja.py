@@ -8,11 +8,16 @@ Ten moduł nie rozpoznaje żadnych pól rachunku.
 from __future__ import annotations
 
 from pathlib import Path
+from threading import RLock
 from typing import Literal
 
 from PIL import Image
 
 SilnikRasteryzacji = Literal["pdfium", "poppler"]
+
+# PDFium NIE jest thread-safe, nawet dla różnych dokumentów.
+# Wszelkie operacje pypdfium2 powinny korzystać z tej blokady.
+_BLOKADA_PDFIUM = RLock()
 
 
 def rasteryzuj_strone(
@@ -35,23 +40,25 @@ def rasteryzuj_strone(
         raise FileNotFoundError(f"Nie znaleziono PDF: {plik}")
 
     if silnik == "pdfium":
-        import pypdfium2 as pdfium
-        # Pamięć obrazu PIL może wskazywać na bufor PdfBitmap,
-        # dlatego jawnie wykonujemy .copy() PRZED zamknięciem bitmapy.
-        with pdfium.PdfDocument(str(plik)) as pdf:
-            if numer_strony >= len(pdf):
-                raise ValueError(f"PDF nie ma strony {numer_strony + 1}")
-            strona = pdf[numer_strony]
-            try:
-                bitmapa = strona.render(
-                    scale=dpi / 72.0, fill_color=(255, 255, 255, 255),
-                )
+        # Bez mutexu równoległe zadania QRunnable/CLI mogą naruszyć pamięć.
+        # Tworzenie, kopiowanie i zamknięcie obiektów PDFium są atomowe.
+        with _BLOKADA_PDFIUM:
+            import pypdfium2 as pdfium
+            with pdfium.PdfDocument(str(plik)) as pdf:
+                if numer_strony >= len(pdf):
+                    raise ValueError(f"PDF nie ma strony {numer_strony + 1}")
+                strona = pdf[numer_strony]
                 try:
-                    obraz = bitmapa.to_pil().copy()
+                    bitmapa = strona.render(
+                        scale=dpi / 72.0, fill_color=(255, 255, 255, 255),
+                    )
+                    try:
+                        obraz = bitmapa.to_pil().copy()
+                    finally:
+                        bitmapa.close()
                 finally:
-                    bitmapa.close()
-            finally:
-                strona.close()
+                    strona.close()
+        # Obraz jest samodzielną kopią PIL; tutaj nie korzystamy z PDFium.
         if obraz.mode != "RGB":
             rgb = obraz.convert("RGB")
             obraz.close()
