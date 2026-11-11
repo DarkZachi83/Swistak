@@ -38,4 +38,13 @@ jobs:
           name: raport-ocr-python-${{ matrix.python-version }}
           path: raport_ocr.json
       - name: Sprawdzenie składni
-        run: python -m compileall -q main.py baza gui uslugi testy konfiguracja.py tools
+        run: python -m compileall -q main.py baza gui uslugi testy konfiguracja.py tools wersja.py
+      - name: Zbudowanie źródłowej paczki Świstak Linux Beta
+        if: matrix.python-version == '3.11'
+        run: python -m tools.build_linux_beta
+      - uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.11'
+        with:
+          name: swistak-linux-beta-source
+          path: dist/swistak-linux-*-source.tar.gz
+          if-no-files-found: error

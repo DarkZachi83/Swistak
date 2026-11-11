@@ -9,11 +9,13 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from gui.motyw import ustaw_motyw
 from gui.okno_glowne import OknoGlowne
 from uslugi.rachunki import RejestrRachunkow
+from wersja import __version__
 
 
 def main() -> int:
     aplikacja = QApplication(sys.argv)
     aplikacja.setApplicationName("Świstak")
+    aplikacja.setApplicationVersion(__version__)
     ustaw_motyw(aplikacja)
     try:
         rejestr = RejestrRachunkow()

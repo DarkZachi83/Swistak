@@ -149,7 +149,7 @@
   "validation.account_invoice": "Numer konta identyczny z fakturą",
   "validation.supplier_length": "Za długa nazwa dostawcy",
   "validation.invoice_length": "Za długi numer faktury",
-  "about.subtitle": "Lokalny rejestr rachunków • wersja rozwojowa",
+  "about.subtitle": "Lokalny rejestr rachunków • {version}",
   "about.tagline": "Czy ten rachunek został dobrze odczytany i poprawnie uzupełniony?",
   "about.author": "Rafał Zacharski razem z Atosem",
   "about.license": "Licencja PolyForm Noncommercial 1.0.0",

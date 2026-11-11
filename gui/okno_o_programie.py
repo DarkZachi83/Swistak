@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from i18n import t
+from wersja import DISPLAY_VERSION
 
 
 GITHUB = "https://github.com/DarkZachi83/Swistak"
@@ -91,7 +92,7 @@ class OknoOProgramie(QDialog):
         self.title.setStyleSheet("font-size: 27px; font-weight: 750; margin-top: 7px;")
         content_layout.addWidget(self.title)
 
-        self.subtitle = self._centered(t("about.subtitle"))
+        self.subtitle = self._centered(t("about.subtitle", version=DISPLAY_VERSION))
         self.subtitle.setStyleSheet("font-size: 15px; color: #dce2e6;")
         content_layout.addWidget(self.subtitle)
 

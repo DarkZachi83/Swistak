@@ -9,6 +9,10 @@
 
 ---
 
+> **W przygotowaniu: [Świstak Linux Beta 0.1.0 Beta 1](docs/LINUX_BETA.md).**
+> Pakiet źródłowy (tar.gz) z instalatorem zależności i lokalnym startem.
+> Nie jest to jeszcze niezależny od Pythona instalator systemowy.
+
 > **Status: wersja rozwojowa.** Rejestr, import PDF, odczyt OCR, analiza przez lokalną Ollamę oraz języki PL/EN są już dostępne w kodzie. Nie ma jeszcze instalatora przeznaczonego dla użytkowników końcowych. Przed przetwarzaniem ważnych dokumentów zadbaj o kopię zapasową.
 
 ## Najważniejsze możliwości
