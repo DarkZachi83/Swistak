@@ -1435,7 +1435,25 @@ class OknoGlowne(QMainWindow):
                 status=self.wybor_status.currentData(),
                 uwagi=self.ed_uwagi.toPlainText(),
             )
-            self.rejestr.zapisz_rachunek(dane)
+            istniejaca = self.rejestr.znajdz_duplikat(dane)
+            nadpisz_id = None
+            if istniejaca is not None:
+                odpowiedz = QMessageBox.question(
+                    self, t("invoice.duplicate_title"),
+                    t(
+                        "invoice.duplicate_confirm",
+                        supplier=istniejaca["dostawca"],
+                        number=istniejaca["numer"] or t("invoice.missing_number"),
+                        filename=istniejaca["nazwa_zrodlowa"],
+                    ),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if odpowiedz != QMessageBox.StandardButton.Yes:
+                    self._status("invoice.overwrite_cancelled")
+                    return
+                nadpisz_id = int(istniejaca["id"])
+            self.rejestr.zapisz_rachunek(dane, nadpisz_id=nadpisz_id)
             self._odswiez_liste()
             self._aktualizuj_podsumowanie()
             self.btn_proponuj_wzorzec.show()

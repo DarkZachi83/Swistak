@@ -238,5 +238,9 @@
   "patterns.manage_no_history": "Ten wzorzec nie ma jeszcze wcześniejszych rewizji.",
   "patterns.manage_which_revision": "Wybierz numer wcześniejszej rewizji:",
   "patterns.manage_restore_confirm": "Przywrócić wzorzec „{name}” z rewizji {revision}? Obecny stan zostanie zachowany w historii.",
-  "patterns.form.no_format": "— bez wymuszonego formatu —"
+  "patterns.form.no_format": "— bez wymuszonego formatu —",
+  "invoice.duplicate_title": "Faktura jest już w bazie",
+  "invoice.duplicate_confirm": "Faktura dostawcy „{supplier}” (nr: {number}) jest już w bazie.\nZapisany dokument: {filename}\n\nCzy nadpisać istniejącą fakturę?\n\nZostaną zastąpione jej dane i, w razie potrzeby, powiązanie z dokumentem PDF. Wybierz „Nie”, aby zachować dotychczasowy zapis.",
+  "invoice.missing_number": "brak numeru",
+  "invoice.overwrite_cancelled": "Nie nadpisano faktury. Dotychczasowe dane pozostały bez zmian."
 }

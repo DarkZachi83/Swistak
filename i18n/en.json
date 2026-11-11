@@ -238,5 +238,9 @@
   "patterns.manage_no_history": "This template has no earlier revisions.",
   "patterns.manage_which_revision": "Select an earlier revision:",
   "patterns.manage_restore_confirm": "Restore “{name}” from revision {revision}? The current state will be preserved in history.",
-  "patterns.form.no_format": "— no enforced format —"
+  "patterns.form.no_format": "— no enforced format —",
+  "invoice.duplicate_title": "Invoice already exists",
+  "invoice.duplicate_confirm": "The invoice from “{supplier}” (number: {number}) is already in the database.\nSaved document: {filename}\n\nOverwrite the existing invoice?\n\nThis will replace its data and, if needed, link to the PDF document. Choose “No” to preserve the current entry.",
+  "invoice.missing_number": "no invoice number",
+  "invoice.overwrite_cancelled": "Invoice was not overwritten. Existing data is unchanged."
 }
