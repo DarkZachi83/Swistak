@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtGui import QImage, QImageReader, QPixmap
+from PySide6.QtGui import QColor, QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog
 
 import gui.okno_o_programie as about_module
@@ -64,7 +64,7 @@ class TestOknoOProgramie(unittest.TestCase):
 
     def test_wysoka_rozdzielczosc_na_hidpi(self):
         original = QPixmap(2400, 1400)
-        original.fill(0xffae6937)
+        original.fill(QColor("#ae6937"))
         scaled = OknoOProgramie._scaled_for_hidpi(original, 605, 320, 2.0)
         self.assertEqual(scaled.devicePixelRatio(), 2.0)
         self.assertGreater(scaled.width(), 605)
