@@ -17,7 +17,7 @@
   "button.import": "Import PDF",
   "button.previous": "◀ Previous",
   "button.next": "Next ▶",
-  "button.fit": "Fit",
+  "button.fit": "Full page",
   "button.save": "Save bill",
   "button.add_category_tip": "Add a new category",
   "button.read_all": "Read entire PDF",
@@ -157,5 +157,6 @@
   "about.star_hint": "☆ Enjoying the app? Star it on GitHub to support further development.",
   "about.star_button": "☆ Star on GitHub",
   "about.close": "Close",
-  "about.image_missing": "Świstak illustration — add assets/about/swistak-o-programie.jpeg"
+  "about.image_missing": "Świstak illustration — add assets/about/swistak-o-programie.jpeg",
+  "button.fit_width": "Fit width"
 }
