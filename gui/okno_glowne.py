@@ -10,8 +10,8 @@ from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
-    QPushButton, QScrollArea, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem,
-    QAbstractItemView, QTextEdit, QVBoxLayout,
+    QPushButton, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QTextEdit, QVBoxLayout,
     QWidget, QComboBox,
 )
 
@@ -28,6 +28,15 @@ import ustawienia
 
 
 class OknoGlowne(QMainWindow):
+    """Etapy pracy: OCR → AI → korekta → faktura → archiwum."""
+
+    ETAP_ODCZYT = 0
+    ETAP_ANALIZA = 1
+    ETAP_EDYCJA = 2
+    ETAP_FAKTURA = 3
+    ETAP_DOKUMENTY = 4
+    ETAPY = ("tab.read", "tab.ai", "tab.edit", "tab.bill", "tab.documents")
+
     def __init__(self, rejestr: RejestrRachunkow):
         super().__init__()
         self.rejestr = rejestr
@@ -42,8 +51,8 @@ class OknoGlowne(QMainWindow):
         self._analiza: AnalizaModelu | None = None
         self._analiza_dokument_id: int | None = None
         self.setWindowTitle("Świstak — rachunki i analiza AI (etap 3)")
-        self.resize(1250, 820)
-        self.setMinimumSize(870, 560)
+        self.resize(1450, 860)
+        self.setMinimumSize(990, 570)
 
         centrum = QWidget()
         self.setCentralWidget(centrum)
@@ -101,23 +110,63 @@ class OknoGlowne(QMainWindow):
             przyciski.addWidget(przycisk)
         pion.addWidget(pasek)
 
+        obszar_pracy = QHBoxLayout()
+        obszar_pracy.setSpacing(10)
+
+        # Stała, pionowa nawigacja z etykietami poziomo (jak w menedżerach PDF).
+        pasek_etapow = QFrame()
+        pasek_etapow.setObjectName("etapyPanel")
+        pasek_etapow.setFixedWidth(182)
+        pasek_etapow.setStyleSheet("""
+            QFrame#etapyPanel { background: #292e33; border-radius: 8px; }
+            QListWidget#etapyMenu { background: transparent; border: none;
+                                   outline: 0; color: #e4e7e9; }
+            QListWidget#etapyMenu::item { padding: 13px 8px; margin: 2px;
+                                         border-radius: 5px; }
+            QListWidget#etapyMenu::item:selected { background: #305643;
+                                                    color: #f0fff5; }
+            QListWidget#etapyMenu::item:hover { background: #3a4248; }
+        """)
+        uklad_etapow = QVBoxLayout(pasek_etapow)
+        uklad_etapow.setContentsMargins(7, 12, 7, 12)
+        self.tytul_etapow = QLabel()
+        self.tytul_etapow.setObjectName("podpowiedz")
+        uklad_etapow.addWidget(self.tytul_etapow)
+        self.nawigacja = QListWidget()
+        self.nawigacja.setObjectName("etapyMenu")
+        self.nawigacja.setSpacing(3)
+        self.nawigacja.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        for _ in self.ETAPY:
+            self.nawigacja.addItem("")
+        uklad_etapow.addWidget(self.nawigacja, 1)
+        obszar_pracy.addWidget(pasek_etapow)
+
         dzielnik = QSplitter(Qt.Orientation.Horizontal)
+        self.dzielnik = dzielnik
         self.podglad = PodgladPDF()
+        self.podglad.setMinimumWidth(270)
         self.podglad.zaznaczono.connect(self._zaznaczenie)
         self.podglad.zmiana_strony.connect(self._aktualizuj_nawigacje)
         dzielnik.addWidget(self.podglad)
 
-        self.karty = QTabWidget()
-        self.karty.setMinimumWidth(315)
-        self.karty.addTab(self._zbuduj_formularz(), "Rachunek")
-        self.karty.addTab(self._zbuduj_liste(), "Dokumenty")
-        self.karty.addTab(self._zbuduj_odczyt(), "Odczyt PDF")
-        self.karty.addTab(self._zbuduj_analize(), "Analiza AI")
+        self.karty = QStackedWidget()
+        self.karty.setMinimumWidth(420)
+        self.karty.addWidget(self._zbuduj_odczyt())
+        self.karty.addWidget(self._zbuduj_analize())
+        self.karty.addWidget(self._zbuduj_formularz())
+        self.karty.addWidget(self._zbuduj_fakture())
+        self.karty.addWidget(self._zbuduj_liste())
+        self.nawigacja.currentRowChanged.connect(self.karty.setCurrentIndex)
+        self.karty.currentChanged.connect(self.nawigacja.setCurrentRow)
+        self.karty.currentChanged.connect(self._zmieniony_etap)
+        self.nawigacja.setCurrentRow(self.ETAP_ODCZYT)
         dzielnik.addWidget(self.karty)
-        dzielnik.setStretchFactor(0, 3)
-        dzielnik.setStretchFactor(1, 2)
-        dzielnik.setSizes([800, 410])
-        pion.addWidget(dzielnik, 1)
+        dzielnik.setChildrenCollapsible(False)
+        dzielnik.setStretchFactor(0, 1)
+        dzielnik.setStretchFactor(1, 1)
+        dzielnik.setSizes([610, 750])
+        obszar_pracy.addWidget(dzielnik, 1)
+        pion.addLayout(obszar_pracy, 1)
 
         self.opis_zaznaczenia = QLabel("Zaznacz fragment PDF lewym przyciskiem myszy.")
         self.opis_zaznaczenia.setObjectName("podpowiedz")
@@ -334,8 +383,16 @@ class OknoGlowne(QMainWindow):
         self.wybor_status.setItemText(1, t("form.status_paid"))
         self.wybor_kategoria.setItemText(0, t("form.choose_category"))
         self._localize_categories()
-        for index, key in enumerate(("tab.bill", "tab.documents", "tab.read", "tab.ai")):
-            self.karty.setTabText(index, t(key))
+        self.tytul_etapow.setText(t("workflow.title"))
+        for index, key in enumerate(self.ETAPY):
+            self.nawigacja.item(index).setText(t(key))
+            self.nawigacja.item(index).setToolTip(t(key))
+        self.btn_przejdz_faktura.setText(t("button.review_invoice"))
+        self.btn_powrot_edycja.setText(t("button.back_to_edit"))
+        self.tytul_faktury.setText(t("invoice.title"))
+        for key, label in self.podsumowanie_etykiety.items():
+            label.setText(t(key))
+        self._aktualizuj_podsumowanie()
 
         self.hint_listy.setText(t("list.hint"))
         self.btn_odswiez.setText(t("button.refresh"))
@@ -437,9 +494,11 @@ class OknoGlowne(QMainWindow):
             forma.addRow(etykieta, element)
             self._form_labels.append(forma.labelForField(element))
         uklad.addLayout(forma)
-        self.zapisz_przycisk = QPushButton("Zapisz rachunek")
-        self.zapisz_przycisk.clicked.connect(self._zapisz_rachunek)
-        uklad.addWidget(self.zapisz_przycisk)
+        self.btn_przejdz_faktura = QPushButton()
+        self.btn_przejdz_faktura.clicked.connect(
+            lambda: self.karty.setCurrentIndex(self.ETAP_FAKTURA)
+        )
+        uklad.addWidget(self.btn_przejdz_faktura)
         komunikat = QLabel("Dane od AI są wyłącznie propozycjami. Sprawdź PDF, popraw pola i dopiero kliknij Zapisz rachunek.")
         self.tekst_ostrzezenia_form = komunikat
         komunikat.setWordWrap(True)
@@ -448,6 +507,85 @@ class OknoGlowne(QMainWindow):
         uklad.addStretch()
         przewijanie.setWidget(panel)
         return przewijanie
+
+    def _zbuduj_fakture(self) -> QWidget:
+        """Podsumowanie faktury — osobny, świadomy etap zapisu do SQLite."""
+        przewijanie = QScrollArea()
+        przewijanie.setWidgetResizable(True)
+        przewijanie.setFrameShape(QFrame.Shape.NoFrame)
+        panel = QWidget()
+        uklad = QVBoxLayout(panel)
+        uklad.setContentsMargins(14, 16, 14, 14)
+        uklad.setSpacing(12)
+        self.tytul_faktury = QLabel()
+        self.tytul_faktury.setStyleSheet("font-size: 20px; font-weight: 700;")
+        uklad.addWidget(self.tytul_faktury)
+        self.info_faktury = QLabel()
+        self.info_faktury.setWordWrap(True)
+        self.info_faktury.setObjectName("podpowiedz")
+        uklad.addWidget(self.info_faktury)
+
+        podsumowanie = QFormLayout()
+        podsumowanie.setSpacing(12)
+        self.podsumowanie_wartosci = {}
+        self.podsumowanie_etykiety = {}
+        pola = (
+            ("form.supplier", "dostawca"), ("form.invoice", "numer"),
+            ("form.account", "konto"), ("form.amount", "kwota"),
+            ("form.category", "kategoria"), ("form.issued", "wystawiono"),
+            ("form.due", "termin"), ("form.period_from", "od"),
+            ("form.period_to", "do"), ("form.status", "status"),
+            ("form.notes", "uwagi"),
+        )
+        for klucz, pole in pola:
+            wartosc = QLabel("—")
+            wartosc.setWordWrap(True)
+            wartosc.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            podsumowanie.addRow("", wartosc)
+            self.podsumowanie_wartosci[pole] = wartosc
+            self.podsumowanie_etykiety[klucz] = podsumowanie.labelForField(wartosc)
+        uklad.addLayout(podsumowanie)
+
+        self.btn_powrot_edycja = QPushButton()
+        self.btn_powrot_edycja.clicked.connect(
+            lambda: self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+        )
+        uklad.addWidget(self.btn_powrot_edycja)
+
+        self.zapisz_przycisk = QPushButton("Zapisz fakturę")
+        self.zapisz_przycisk.setObjectName("zapiszFakture")
+        self.zapisz_przycisk.clicked.connect(self._zapisz_rachunek)
+        uklad.addWidget(self.zapisz_przycisk)
+        uklad.addStretch()
+        przewijanie.setWidget(panel)
+        return przewijanie
+
+    def _zmieniony_etap(self, indeks: int) -> None:
+        if indeks == self.ETAP_FAKTURA:
+            self._aktualizuj_podsumowanie()
+
+    def _aktualizuj_podsumowanie(self) -> None:
+        """Wartości po korekcie, bez odczytu/zapisu bazy przy zmianie widoku."""
+        wartosci = {
+            "dostawca": self.ed_dostawca.text(),
+            "numer": self.ed_numer.text(),
+            "konto": self.ed_konto.text(),
+            "kwota": self.ed_kwota.text(),
+            "kategoria": self.wybor_kategoria.currentText()
+            if self.wybor_kategoria.currentData() is not None else "",
+            "wystawiono": self.ed_wystawiono.text(),
+            "termin": self.ed_termin.text(),
+            "od": self.ed_od.text(),
+            "do": self.ed_do.text(),
+            "status": self.wybor_status.currentText(),
+            "uwagi": self.ed_uwagi.toPlainText(),
+        }
+        for pole, wartosc in wartosci.items():
+            self.podsumowanie_wartosci[pole].setText(wartosc.strip() or "—")
+        self.info_faktury.setText(t(
+            "invoice.review" if self.aktualny_dokument_id is not None
+            else "invoice.no_document"
+        ))
 
     def _zbuduj_odczyt(self) -> QWidget:
         """Podgląd surowego tekstu, zanim trafi do Ollamy."""
@@ -536,10 +674,14 @@ class OknoGlowne(QMainWindow):
         self.tabela_ai.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabela_ai.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tabela_ai.setWordWrap(True)
-        self.tabela_ai.setColumnWidth(0, 130)
-        self.tabela_ai.setColumnWidth(1, 150)
-        self.tabela_ai.setColumnWidth(2, 210)
-        self.tabela_ai.setColumnWidth(3, 190)
+        self.tabela_ai.setAlternatingRowColors(True)
+        self.tabela_ai.verticalHeader().setVisible(False)
+        self.tabela_ai.setColumnWidth(0, 128)
+        self.tabela_ai.setColumnWidth(1, 155)
+        self.tabela_ai.setColumnWidth(3, 175)
+        self.tabela_ai.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.ResizeMode.Stretch
+        )
         for n, pole in enumerate(POLA):
             self.tabela_ai.setItem(n, 0, QTableWidgetItem(ETYKIETY[pole]))
         uklad.addWidget(self.tabela_ai, 1)
@@ -595,7 +737,7 @@ class OknoGlowne(QMainWindow):
         zadanie = ZadanieAnalizy(self.aktualny_dokument_id, tekst, kategorie, model)
         self._wyczysc_analize()
         self._zadanie_ai = zadanie
-        self.karty.setCurrentIndex(3)
+        self.karty.setCurrentIndex(self.ETAP_ANALIZA)
         self._message(self.info_ai, "ai.working", model=model)
         zadanie.sygnaly.gotowe.connect(self._analiza_gotowa)
         zadanie.sygnaly.blad.connect(self._analiza_blad)
@@ -689,7 +831,7 @@ class OknoGlowne(QMainWindow):
                 self.wybor_kategoria.setCurrentIndex(id_kategorii)
         self._analiza = None  # nie pozwól ponownie użyć nieaktualnej propozycji
         self._aktualizuj_odczyt()
-        self.karty.setCurrentIndex(0)
+        self.karty.setCurrentIndex(self.ETAP_EDYCJA)
         self._status("ai.saved_hint")
 
     def _aktualizuj_odczyt(self) -> None:
@@ -722,7 +864,7 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_odczyt()
         self.pole_odczytu.clear()
         self._message(self.info_odczytu, "read.running")
-        self.karty.setCurrentIndex(2)
+        self.karty.setCurrentIndex(self.ETAP_ODCZYT)
         zadanie.sygnaly.gotowe.connect(self._odczyt_gotowy)
         zadanie.sygnaly.blad.connect(self._odczyt_blad)
         zadanie.sygnaly.anulowano.connect(self._odczyt_anulowano)
@@ -869,7 +1011,9 @@ class OknoGlowne(QMainWindow):
                 self.wybor_status.setCurrentIndex(idx)
         self.zapisz_przycisk.setEnabled(True)
         self._aktualizuj_odczyt()
-        self.karty.setCurrentIndex(0)
+        self.karty.setCurrentIndex(
+            self.ETAP_FAKTURA if zapis is not None else self.ETAP_ODCZYT
+        )
         self._status("msg.opened", name=dokument["nazwa_zrodlowa"])
 
     def _wybierz_z_listy(self, element: QListWidgetItem) -> None:
@@ -922,6 +1066,8 @@ class OknoGlowne(QMainWindow):
             )
             self.rejestr.zapisz_rachunek(dane)
             self._odswiez_liste()
+            self._aktualizuj_podsumowanie()
+            self.info_faktury.setText(t("invoice.saved"))
             self._status("msg.saved")
         except (ValueError, OSError, sqlite3.Error) as blad:
             QMessageBox.warning(self, t("msg.bill_save_error"), str(blad))
