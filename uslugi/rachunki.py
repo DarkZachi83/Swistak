@@ -35,6 +35,19 @@ class DaneRachunku:
     numer_konta: str = ""
 
 
+class FakturaJuzIstnieje(ValueError):
+    """Zapis wymaga osobnej zgody na nadpisanie już istniejącej faktury."""
+
+    def __init__(self, rachunek_id: int):
+        self.rachunek_id = rachunek_id
+        super().__init__("Faktura jest już w bazie — wymagane potwierdzenie nadpisania")
+
+
+def _klucz_faktury(wartosc: str) -> str:
+    """Ujednolica spacje i wielkość liter bez modyfikowania numeru w SQLite."""
+    return " ".join(wartosc.split()).casefold()
+
+
 def kwota_na_grosze(tekst: str) -> int:
     znormalizowana = tekst.strip().replace("\u00a0", "").replace(" ", "")
     if not re.fullmatch(r"\d{1,12}(?:[,.]\d{1,2})?", znormalizowana):
@@ -171,7 +184,40 @@ class RejestrRachunkow:
             "WHERE r.dokument_id = ? ORDER BY p.id LIMIT 1", (dokument_id,)
         ).fetchone()
 
-    def zapisz_rachunek(self, dane: DaneRachunku) -> int:
+    def _pasujace_faktury(self, dane: DaneRachunku) -> list[sqlite3.Row]:
+        """Rozpoznaje ten sam PDF lub dostawcę + numer faktury.
+
+        Sam dostawca bez numeru nie wystarcza — miesięczne faktury tego
+        samego operatora nie mogą być uznane za duplikaty.
+        """
+        firma = _klucz_faktury(dane.dostawca)
+        numer = _klucz_faktury(dane.numer)
+        rows = self.db.execute(
+            "SELECT r.id, r.dokument_id, r.dostawca, r.numer, "
+            "d.nazwa_zrodlowa FROM rachunki r "
+            "JOIN dokumenty d ON d.id = r.dokument_id ORDER BY r.id"
+        ).fetchall()
+        return [
+            row for row in rows
+            if row["dokument_id"] == dane.dokument_id
+            or (firma and numer and
+                _klucz_faktury(row["dostawca"]) == firma and
+                _klucz_faktury(row["numer"]) == numer)
+        ]
+
+    def znajdz_duplikat(self, dane: DaneRachunku) -> sqlite3.Row | None:
+        """Do wyświetlenia potwierdzenia; metoda nie zmienia bazy."""
+        rows = self._pasujace_faktury(dane)
+        if len(rows) > 1:
+            raise ValueError(
+                "Znaleziono kilka pasujących zapisów. "
+                "Rozstrzygnij duplikaty przed nadpisaniem faktury."
+            )
+        return rows[0] if rows else None
+
+    def zapisz_rachunek(self, dane: DaneRachunku, *,
+                        nadpisz_id: int | None = None) -> int:
+        """Nowy zapis bez zgody; zastąpienie tylko wskazanego ID po potwierdzeniu."""
         dostawca = " ".join(dane.dostawca.split())
         if not dostawca or len(dostawca) > 200:
             raise ValueError("Dostawca jest wymagany (maks. 200 znaków)")
@@ -194,18 +240,34 @@ class RejestrRachunkow:
                 "SELECT 1 FROM kategorie WHERE id = ? AND aktywna = 1", (dane.kategoria_id,)
             ).fetchone():
                 raise ValueError("Wybierz istniejącą kategorię")
-            istnieje = self.db.execute(
-                "SELECT id FROM rachunki WHERE dokument_id = ?", (dane.dokument_id,)
-            ).fetchone()
+            # Sprawdź identyfikację ponownie W TRANSAKCJI, aby warstwa
+            # GUI lub inny kod nie mógł zapisać duplikatu bez zgody.
+            dopasowania = self._pasujace_faktury(dane)
+            if len(dopasowania) > 1:
+                raise ValueError(
+                    "Znaleziono kilka pasujących faktur. "
+                    "Nie można bezpiecznie zdecydować, którą nadpisać."
+                )
+            istnieje = dopasowania[0] if dopasowania else None
+            if istnieje and nadpisz_id is None:
+                raise FakturaJuzIstnieje(int(istnieje["id"]))
+            if nadpisz_id is not None and (
+                type(nadpisz_id) is not int or not istnieje
+                or int(istnieje["id"]) != nadpisz_id
+            ):
+                raise ValueError(
+                    "Potwierdzenie dotyczy innej faktury. "
+                    "Odśwież dane przed zapisem."
+                )
             wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
                        kwota, dane.status, dane.uwagi.strip(), numer_konta)
             if istnieje:
                 rachunek_id = int(istnieje["id"])
                 self.db.execute(
-                    "UPDATE rachunki SET dostawca=?, numer=?, data_wystawienia=?, "
+                    "UPDATE rachunki SET dokument_id=?, dostawca=?, numer=?, data_wystawienia=?, "
                     "termin_platnosci=?, okres_od=?, okres_do=?, kwota_grosze=?, "
                     "status=?, uwagi=?, numer_konta=?, zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
-                    "WHERE id=?", (*wartosci, rachunek_id)
+                    "WHERE id=?", (dane.dokument_id, *wartosci, rachunek_id)
                 )
                 self.db.execute("DELETE FROM pozycje_rachunku WHERE rachunek_id = ?", (rachunek_id,))
             else:
