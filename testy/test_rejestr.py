@@ -120,9 +120,13 @@ class TestRejestr(unittest.TestCase):
     def test_edycja_nie_duplikuje_pozycji(self):
         dokument_id, _ = self.rejestr.importuj_pdf(self.zrodlo)
         pierwszy = self.rejestr.zapisz_rachunek(self.dane(dokument_id))
+        with self.assertRaises(ValueError):  # bez zgody brak nadpisania
+            self.rejestr.zapisz_rachunek(self.dane(
+                dokument_id, kwota="12,34", status="oplacony",
+            ))
         drugi = self.rejestr.zapisz_rachunek(self.dane(
             dokument_id, kwota="12,34", status="oplacony",
-        ))
+        ), nadpisz_id=pierwszy)
         self.assertEqual(pierwszy, drugi)
         self.assertEqual(self.rejestr.rachunek(dokument_id)["kwota_grosze"], 1234)
         self.assertEqual(self.rejestr.rachunek(dokument_id)["status"], "oplacony")
@@ -165,7 +169,10 @@ class TestRejestr(unittest.TestCase):
             "BEGIN SELECT RAISE(ABORT, 'test rollback'); END"
         )
         with self.assertRaises(sqlite3.IntegrityError):
-            self.rejestr.zapisz_rachunek(self.dane(dokument_id, kwota="5"))
+            self.rejestr.zapisz_rachunek(
+                self.dane(dokument_id, kwota="5"),
+                nadpisz_id=int(self.rejestr.rachunek(dokument_id)["id"]),
+            )
         self.assertEqual(self.rejestr.rachunek(dokument_id)["kwota_grosze"], 123456)
 
     def test_dodaj_kategorie_i_odrzuc_powtorke(self):
