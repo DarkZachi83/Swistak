@@ -153,8 +153,9 @@ graficzny dialog wzorowany na AI Bobrze, z prawdziwymi widgetami Qt,
 polskim i angielskim opisem oraz przyciskiem GitHub.
 
 Obraz wyświetla się z lokalnego pliku
-`assets/about/swistak-o-programie.webp` lub rezerwowego
-`assets/branding/swistak-banner.webp`.
+`assets/about/swistak-o-programie.jpeg` (gdy jest dostępny) lub domyślnie
+`assets/branding/swistak-banner.jpeg`. Obrazy są w formacie JPEG; okno
+zachowuje ostrość również na ekranach HiDPI.
 [Opis implementacji](docs/OKNO_O_PROGRAMIE.md).
 
 ## Pierwsze kroki

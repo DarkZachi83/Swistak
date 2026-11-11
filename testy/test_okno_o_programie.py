@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog
 
 import gui.okno_o_programie as about_module
@@ -38,7 +38,7 @@ class TestOknoOProgramie(unittest.TestCase):
 
     def test_obraz_i_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
-            pic = Path(tmp) / "test.png"
+            pic = Path(tmp) / "test.jpeg"
             img = QImage(450, 200, QImage.Format.Format_RGB32)
             img.fill(0xffb57b44)
             self.assertTrue(img.save(str(pic)))
@@ -46,10 +46,30 @@ class TestOknoOProgramie(unittest.TestCase):
                 win = OknoOProgramie()
                 self.assertFalse(win.hero.pixmap().isNull())
                 win.close()
-            with patch.object(about_module, "ILLUSTRATIONS", (Path(tmp) / "missing.webp",)):
+            with patch.object(about_module, "ILLUSTRATIONS", (Path(tmp) / "missing.jpeg",)):
                 win = OknoOProgramie()
                 self.assertIn("assets/about", win.hero.text())
                 win.close()
+
+    def test_repo_korzysta_wylacznie_z_jpeg(self):
+        self.assertTrue(about_module.ILLUSTRATIONS)
+        self.assertTrue(all(path.suffix == ".jpeg"
+                            for path in about_module.ILLUSTRATIONS))
+        source = about_module.ILLUSTRATIONS[-1]
+        self.assertTrue(source.is_file(), source)
+        dimensions = QImageReader(str(source)).size()
+        self.assertGreaterEqual(dimensions.width(), 1000)
+        self.assertGreaterEqual(dimensions.height(), 600)
+        self.assertFalse(OknoOProgramie._find_illustration().isNull())
+
+    def test_wysoka_rozdzielczosc_na_hidpi(self):
+        original = QPixmap(2400, 1400)
+        original.fill(0xffae6937)
+        scaled = OknoOProgramie._scaled_for_hidpi(original, 605, 320, 2.0)
+        self.assertEqual(scaled.devicePixelRatio(), 2.0)
+        self.assertGreater(scaled.width(), 605)
+        self.assertLessEqual(scaled.width(), 1210)
+        self.assertLessEqual(scaled.height(), 640)
 
     def test_github_tylko_po_kliknieciu(self):
         with patch.object(about_module.QDesktopServices, "openUrl") as opening:
