@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 """Graficzne okno O programie — odrębne od bazy i ustawień rachunków.
 
-Obraz to ilustracja użyta wcześniej w materiałach Świstaka, przycięta
-do części artystycznej. Teksty i przyciski są PRAWDZIWYMI widgetami Qt,
+Zdjęcie w pełnej rozdzielczości JPEG jest ładowane z lokalnych zasobów.
+Teksty i przyciski są PRAWDZIWYMI widgetami Qt,
 a nie napisami wypalonymi w obrazku.
 """
 from __future__ import annotations
@@ -22,8 +22,8 @@ from i18n import t
 GITHUB = "https://github.com/DarkZachi83/Swistak"
 ROOT = Path(__file__).resolve().parents[1]
 ILLUSTRATIONS = (
-    ROOT / "assets" / "about" / "swistak-o-programie.webp",
-    ROOT / "assets" / "branding" / "swistak-banner.webp",
+    ROOT / "assets" / "about" / "swistak-o-programie.jpeg",
+    ROOT / "assets" / "branding" / "swistak-banner.jpeg",
 )
 
 
@@ -80,13 +80,10 @@ class OknoOProgramie(QDialog):
             screen = self.screen()
             if screen:
                 max_width = min(max_width, max(340, screen.availableGeometry().width() - 105))
-            scaled = pixmap.scaled(
-                max_width, 320,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
+            ratio = max(1.0, self.devicePixelRatioF())
+            scaled = self._scaled_for_hidpi(pixmap, max_width, 320, ratio)
             self.hero.setPixmap(scaled)
-            self.hero.setFixedHeight(scaled.height())
+            self.hero.setFixedHeight(round(scaled.height() / ratio))
         content_layout.addWidget(self.hero)
 
         self.title = QLabel("Świstak")
@@ -143,6 +140,19 @@ class OknoOProgramie(QDialog):
         label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         label.setWordWrap(True)
         return label
+
+    @staticmethod
+    def _scaled_for_hidpi(pixmap: QPixmap, width: int, height: int,
+                          ratio: float) -> QPixmap:
+        """Skalowanie do fizycznych pikseli ekranu, bez rozmywania na HiDPI."""
+        ratio = max(1.0, ratio)
+        scaled = pixmap.scaled(
+            round(width * ratio), round(height * ratio),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        scaled.setDevicePixelRatio(ratio)
+        return scaled
 
     @staticmethod
     def _find_illustration() -> QPixmap | None:
