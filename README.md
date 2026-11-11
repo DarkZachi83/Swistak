@@ -28,6 +28,10 @@
 
 **Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · Ollama.
 
+> **W testach: [Świstak Linux Beta — samodzielny pakiet binarny](docs/LINUX_BINARY_BETA.md).**
+> To eksperymentalny pakiet PyInstaller dla Linuxa, uruchamiany bez
+> instalowania Pythona i `.venv`. Nie jest jeszcze oficjalnym wydaniem;
+> do publicznej dystrybucji wymagany jest przegląd licencji binarnych.
 ## Szybki start
 
 Wymagania: **Python 3.11+**, Git oraz zależności z [requirements.txt](requirements.txt). Świstak jest obecnie uruchamiany z kodu źródłowego.
