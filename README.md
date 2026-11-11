@@ -1,21 +1,42 @@
 <div align="center">
-  <img src="assets/branding/swistak-banner.jpeg" alt="Świstak — lokalny rejestr rachunków z OCR i Ollamą" width="620">
+  <img src="assets/branding/swistak-banner.jpeg" alt="Świstak — lokalny rejestr rachunków z OCR i AI" width="960">
+
+  <h1>Świstak</h1>
+  <p><strong>Twoje rachunki. Twój komputer. Twoja kontrola.</strong></p>
+  <p>Lokalna aplikacja do porządkowania rachunków, odczytu dokumentów PDF i skanów oraz analizy danych przez AI uruchamianą na własnym komputerze.</p>
+  <p><a href="#najważniejsze-możliwości">Możliwości</a> · <a href="#szybki-start">Instalacja</a> · <a href="#jak-to-działa">Obsługa</a> · <a href="#prywatność-i-bezpieczeństwo">Prywatność</a> · <a href="#licencja">Licencja</a></p>
 </div>
 
-# Świstak
+---
 
-**Świstak** — lokalna aplikacja do prowadzenia rejestru domowych rachunków.
-Kod jest publiczny, ale **dokumenty finansowe oraz baza są prywatne i nie
-są przechowywane w repozytorium GitHub**.
+> **Status: wersja rozwojowa.** Rejestr, import PDF, odczyt OCR, analiza przez lokalną Ollamę oraz języki PL/EN są już dostępne w kodzie. Nie ma jeszcze instalatora przeznaczonego dla użytkowników końcowych. Przed przetwarzaniem ważnych dokumentów zadbaj o kopię zapasową.
 
-> **Etap 3 (gałąź robocza)**: analiza odczytanego PDF przez lokalną Ollamę
-> (`gemma3:4b`), propozycje JSON, podgląd dowodów i ostrzeżeń, przenoszenie
-> wybranych przez użytkownika sugestii do formularza oraz osobny zapis.
-> Numer konta bankowego jest przechowywany oddzielnie od numeru faktury.
+## Najważniejsze możliwości
 
-## Instalacja i uruchomienie
+| Obszar | Co potrafi Świstak? |
+| --- | --- |
+| **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. |
+| **Archiwum PDF** | Przechowuje niezmienione oryginały, używa **SHA-256** do kontroli integralności i wykrywa ponowny import identycznego dokumentu. |
+| **PDF i OCR** | Odczytuje warstwę tekstową PDF albo rozpoznaje skany przez **Tesseract**. Pozwala również zaznaczać i odczytywać fragment dokumentu. |
+| **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
+| **Kontrola użytkownika** | Waliduje strukturę odpowiedzi AI i wybrane pola. **Dopiero człowiek zatwierdza dane i zapisuje rachunek.** |
+| **Interfejs** | PySide6 / Qt, ciemny motyw, języki **polski i angielski** przełączane bez restartu, graficzne okno „O programie”. |
 
-Python 3.11+; Linux lub Windows z dostępem do PySide6.
+**Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · Ollama.
+
+## Szybki start
+
+Wymagania: **Python 3.11+**, Git oraz zależności z [requirements.txt](requirements.txt). Świstak jest obecnie uruchamiany z kodu źródłowego.
+
+### Linux
+
+Na Ubuntu/Debian zainstaluj Tesseract z językami polskim i angielskim:
+
+```bash
+sudo apt install tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng
+```
+
+Następnie:
 
 ```bash
 git clone https://github.com/DarkZachi83/Swistak.git
@@ -25,132 +46,38 @@ python3 -m venv .venv
 ./uruchom.sh
 ```
 
-Windows: aktywacja środowiska przez `.venv\Scripts\activate`, a następnie
-uruchomienie `python main.py`. Skrypt `uruchom.sh` jest przeznaczony do
-Linuxa i innych systemów z Bash.
+Na innych dystrybucjach skorzystaj z własnego menedżera pakietów. **Poppler nie jest wymagany** do standardowego odczytu OCR.
 
-### Testowanie osobnego katalogu `git worktree` (Linux)
+### Windows
 
-Każda kopia `git worktree` ma własne pliki projektu, ale zwykle **nie ma
-własnego `.venv`**. Skrypt `uruchom.sh` automatycznie szuka Pythona w
-bieżącym katalogu, a następnie w głównym drzewie repozytorium.
+Zainstaluj Python, Git i Tesseract OCR z polskimi danymi językowymi. Tesseract musi być dostępny w `PATH`. W PowerShell:
 
-```bash
-# Uruchom z osobną bazą testową dla aktualnej gałęzi Git
-./uruchom.sh --test
-
-# Opcjonalnie: otwórz syntetyczny dokument PDF
-./uruchom.sh --test /sciezka/do/przykladowego.pdf
+```powershell
+git clone https://github.com/DarkZachi83/Swistak.git
+cd Swistak
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe main.py
 ```
 
-Tryb `--test` zapisuje dane w oddzielnym katalogu o nazwie
-`Swistak-Test-<nazwa-gałęzi>`, pod `XDG_DATA_HOME` lub
-`~/.local/share/`. Nie kasuje ani nie nadpisuje zwykłej bazy Świstaka.
-Uruchomienie **bez** `--test` korzysta z domyślnej bazy użytkownika.
+### Lokalny model AI — opcjonalny
 
-Skrypt nie pobiera ani nie instaluje automatycznie zależności.
-Gdy wymagania Pythona różnią się pomiędzy gałęziami, należy utworzyć
-osobne `.venv` w danym `worktree`.
-
-
-### Lokalne narzędzia OCR (Etap 2)
-
-Python instaluje biblioteki `pdfplumber`, `pypdfium2` i `pytesseract`.
-**Domyślny OCR nie wymaga już Popplera.** Nadal wymagany jest zewnętrzny
-Tesseract z językiem `pol` (oraz `eng`). Na Ubuntu/Debian:
+Do ręcznej obsługi rachunków **nie trzeba uruchamiać Ollamy**. Aby używać zakładki **Analiza AI**, zainstaluj ją osobno, pobierz lokalny model i sprawdź jego dostępność:
 
 ```bash
-sudo apt install tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng
-```
-
-W innych dystrybucjach zainstaluj odpowiednie pakiety systemowe.
-Windows: doinstaluj Tesseract z polskimi danymi językowymi i udostępnij
-program w `PATH`. PDFium jest dostarczany przez pakiet Python.
-
-Porównanie PDFium i starej ścieżki Poppler jest dostępne oddzielnie:
-
-```bash
-python -m pip install -r requirements-compare.txt
-# Linux: sudo apt install poppler-utils
-python -m tools.porownaj_ocr --json raport_ocr.json
-```
-
-Raport zawiera wyłącznie metryki ze **sztucznych rachunków**.
-[Opis eksperymentu](docs/PDFIUM_OCR_BENCHMARK.md).
-
-Po imporcie dokumentu wybierz zakładkę **Odczyt PDF**. Przycisk
-**Odczytaj cały PDF** pobiera tekst ze wszystkich stron (do 50),
-wykorzystując OCR tylko tam, gdzie warstwa tekstowa jest pusta albo
-bardzo krótka. **Odczytaj zaznaczenie** czyta fragment wskazany myszą.
-Operacja działa w tle i można ją anulować. Tekst jest pokazywany na
-ekranie, **nie jest zapisywany do bazy**.
-
-## Analiza rachunku przez lokalną Ollamę (Etap 3)
-
-Świstak nie korzysta z chmurowego API. Uruchom lokalną Ollamę i upewnij
-się, że model jest już pobrany:
-
-```bash
+ollama pull gemma3:4b
 ollama list
 ```
 
-Model testowy: `gemma3:4b`. Możesz wpisać nazwę innego zainstalowanego
-modelu w zakładce **Analiza AI**.
+Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działania zależą od komputera. Domyślny model można skonfigurować w menu **Ustawienia**.
 
-**Wykonaj kolejno:**
+## Jak to działa
 
-1. **Importuj PDF** i otwórz zakładkę **Odczyt PDF**.
-2. Kliknij **Odczytaj cały PDF**. Dla skanów potrzebny jest Tesseract (PDFium jest zależnością Pythona).
-3. Kliknij **Analizuj tekst przez AI (Ollama)** lub przejdź do **Analiza AI**
-   i wybierz **Analizuj rachunek przez AI**.
-4. Obejrzyj propozycje i fragmenty źródłowe. Świstak sprawdza
-   składnię JSON, powiązanie z fragmentami tekstu, kwoty, daty,
-   konto NRB/IBAN i kategorie. **To nie gwarantuje trafności modelu.**
-5. Kliknij **Przenieś zweryfikowane pola do formularza** i potwierdź
-   operację. Pola niepewne i brakujące nie są automatycznie przenoszone.
-6. W zakładce **Rachunek** porównaj dane z oryginałem, popraw je
-   i dopiero wtedy kliknij **Zapisz rachunek**.
-
-Ważne: **analiza i przeniesienie sugestii nie zapisują rachunku do bazy.**
-Kwoty z LLM mogą trafić do formularza dopiero po potwierdzeniu PLN.
-Niepoprawnego konta bankowego nie przenosimy ani nie zapisujemy.
-Ollama działa na żądanie w wątku roboczym; **Anuluj** zatrzymuje
-wykorzystanie wyniku po zakończeniu żądania sieciowego, ale nie przerywa
-natychmiast obliczeń modelu.
-
-Przed uruchomieniem nowej gałęzi na istniejącej bazie **zrób kopię
-katalogu danych Świstaka po zamknięciu aplikacji**. Przy pierwszym
-uruchomieniu etapu 3 wykonywana jest migracja `002_numer_konta.sql`.
-Dodatkowo program wykonuje wtedy automatycznie **kopię samej bazy SQLite**
-do prywatnego katalogu `kopie_migracji/` (bez PDF-ów), zanim zmieni schemat.
-Nie zmienia ani nie kasuje istniejących rachunków czy oryginałów PDF.
-Na początek polecam testy na osobnej bazie, np.:
-
-```bash
-SWISTAK_DATA_DIR=/tmp/swistak-test-ai python main.py
-```
-
-To jest wersja testowa; nie uznawaj zweryfikowanej składni JSON za
-potwierdzenie prawidłowego numeru rachunku lub kwoty.
-
-## Menu oraz aktywna zmiana języka
-
-Świstak ma górne menu: **Plik | Ustawienia | Języki | O programie**.
-
-W **Języki** wybierz **Język systemu**, **Polski** lub **English**.
-Wszystkie etykiety interfejsu, menu, formularz i komunikaty podstawowe
-zmieniają język **natychmiast, bez restartu i bez czyszczenia**
-otwartego rachunku, dokumentu PDF ani wyników analizy AI.
-Wybór jest pamiętany w prywatnym pliku ustawień (osobnym od SQLite).
-W **Ustawienia → Konfiguruj** można zapisać domyślny model Ollamy.
-
-Zobacz [opis architektury i testów języków](docs/JEZYKI.md).
-
-## Okno „O programie” z ilustracją
-
-Górne menu **O programie → Informacje o Świstaku…** otwiera
-graficzny dialog wzorowany na AI Bobrze, z prawdziwymi widgetami Qt,
-polskim i angielskim opisem oraz przyciskiem GitHub.
+1. **Importuj PDF** — dokument trafia do prywatnego archiwum, a Świstak pokazuje jego podgląd.
+2. **Odczytaj dokument** — w zakładce **Odczyt PDF** uruchom odczyt całego dokumentu albo zaznaczonego fragmentu.
+3. **Uruchom lokalną analizę AI** — w zakładce **Analiza AI** poproś Ollamę o propozycje pól rachunku.
+4. **Sprawdź sugestie** — porównaj je z oryginałem i przenieś wybrane wartości do formularza. Brakujące informacje możesz wpisać ręcznie.
+5. **Zapisz rachunek** — sprawdź kwotę, daty i numer konta, a następnie zatwierdź zapis. Wróć do dokumentu z zakładki **Dokumenty**.
 
 Obraz wyświetla się z lokalnego pliku
 `assets/about/swistak-o-programie.jpeg` (gdy jest dostępny) lub domyślnie
@@ -158,133 +85,50 @@ Obraz wyświetla się z lokalnego pliku
 zachowuje ostrość również na ekranach HiDPI.
 [Opis implementacji](docs/OKNO_O_PROGRAMIE.md).
 
-## Pierwsze kroki
+Więcej informacji: [analiza przez Ollamę](docs/ETAP_3_OLLAMA.md) · [PDFium i OCR](docs/PDFIUM_OCR_BENCHMARK.md) · [języki](docs/JEZYKI.md).
 
-1. Kliknij **Importuj PDF** i wybierz lokalny rachunek.
-   Świstak sprawdza go w podglądzie, kopiuje niezmieniony oryginał do
-   prywatnego archiwum i przypisuje mu identyfikator SHA-256.
-2. Na karcie **Rachunek** wpisz dostawcę, kwotę, kategorię oraz
-   opcjonalnie daty, numer i status. Zapisz.
-3. Na karcie **Dokumenty** znajdziesz importowane pliki. Kliknięcie
-   ponownie otwiera **oryginał z archiwum** i zapisane pola.
-4. Ponowny import identycznego PDF nie tworzy duplikatu.
+## Prywatność i bezpieczeństwo
 
-Pola dat: `RRRR-MM-DD`; kwota: np. `123,45`. Kwoty
-w bazie zapisane są jako całkowita liczba groszy, bez błędów binarnych float.
-W etapie 1 każdy rachunek ma jedną pozycję przypisaną do jednej kategorii.
+- **Dokumenty i baza danych pozostają lokalnie** — nie są przesyłane na GitHub.
+- Analiza AI korzysta z **lokalnej usługi Ollama**. Brak modelu nie powoduje automatycznego wysłania rachunku do chmury.
+- Archiwum przechowuje oryginalne PDF-y bez modyfikacji i weryfikuje je za pomocą SHA-256.
+- **Pełna funkcja tworzenia i przywracania kopii zapasowych jest planowana.** Obecnie wykonuj kopię całego katalogu danych po zamknięciu programu. Przy migracji schematu aplikacja tworzy dodatkowo kopię samej bazy SQLite.
+- Nie publikuj prawdziwych rachunków, plików bazy ani zrzutów pokazujących prywatne dane finansowe.
 
-## Gdzie są dane?
+| System | Domyślny katalog danych |
+| --- | --- |
+| Linux | `~/.local/share/Swistak/` lub `$XDG_DATA_HOME/Swistak/` |
+| Windows | `%LOCALAPPDATA%\Swistak\` |
+| macOS | `~/Library/Application Support/Swistak/` |
 
-- Linux: `~/.local/share/Swistak/` (lub `$XDG_DATA_HOME/Swistak/`).
-- Windows: `%LOCALAPPDATA%\Swistak\`.
-- macOS: `~/Library/Application Support/Swistak/`.
-- Własny katalog: ustaw zmienną `SWISTAK_DATA_DIR` na istniejącą lub nową lokalizację.
+Katalog można zmienić zmienną `SWISTAK_DATA_DIR`. Ustawienia interfejsu i modelu AI zapisywane są oddzielnie od SQLite.
 
-Baza: `swistak.sqlite3`, oryginały: `dokumenty/xx/<sha256>.pdf`.
-Przy imporcie plik jest kopiowany atomowo i nie zmieniamy oryginału na dysku.
-Aplikacja weryfikuje sumę pliku z archiwum przy ponownym otwarciu.
-W razie błędu bazy lub dysku zatrzymujemy operację bez usuwania oryginałów.
+## Testowanie i rozwój
 
-**Uwaga:** pełny mechanizm kopii zapasowej i przywracania jest zaplanowany
-na etap 4. Do tego czasu używaj danych testowych albo samodzielnie
-zabezpieczaj cały katalog danych po zamknięciu Świstaka. Nie publikuj
-ani nie dodawaj tego katalogu do repozytorium.
-
-## Testy
+Na Linuxie uruchom **oddzielną bazę testową**:
 
 ```bash
-python -m unittest discover -s testy -v
-python -m compileall -q main.py baza gui uslugi testy
+./uruchom.sh --test
 ```
 
-Testy modułów danych nie wymagają PySide6. Wykonaj również ręczny test GUI:
-zaimportuj dwa pliki, zapisz rachunek, zamknij aplikację i uruchom ponownie.
+Skrypt działa również w katalogach `git worktree`, które nie mają własnego `.venv`: może wykorzystać środowisko Pythona z głównego drzewa Git. **Bez flagi `--test` aplikacja używa standardowej bazy użytkownika.**
 
-## Test lokalnej Gemmy 3 4B (bez zapisu rachunków)
-
-Przy uruchomionej Ollamie i zainstalowanym modelem `gemma3:4b`:
+Testy automatyczne:
 
 ```bash
-ollama list
-python -m tools.test_gemma --demo
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s testy -v
 ```
 
-To jest **syntetyczna faktura testowa**, bez prywatnych danych. Aby
-sprawdzić własny PDF **lokalnie** (tekst z PDF/OCR → LLM → JSON):
+Dokumentacja projektu: [plan etapów](docs/PLAN.md) · [dobór modelu z pomocą AI Bobra](docs/WYBOR_MODELU_AI_BOBR.md) · [okno „O programie”](docs/OKNO_O_PROGRAMIE.md).
 
-```bash
-python -m tools.test_gemma --pdf "/ścieżka/do/rachunku.pdf"
-```
-
-Skrypt wysyła tekst **wyłącznie do `127.0.0.1:11434`**.
-Nie zapisuje odpowiedzi w SQLite ani w pliku. Uwaga: terminal może
-pokazać prywatne dane finansowe, dlatego **nie publikuj wyników
-rzeczywistych rachunków**. Model może podać błędną kwotę lub konto;
-każdą propozycję trzeba zweryfikować przed użyciem.
-To wstępny eksperyment z formatem JSON, nie ukończona integracja.
-
-## Kolejne etapy
-
-Plan: [docs/PLAN.md](docs/PLAN.md).
-Etapy 0–2 zostały scalone z `main`. Etap 3 jest testowany w osobnej gałęzi:
-model Ollama interpretuje tekst PDF i proponuje wartości do formularza.
-Użytkownik sprawdza i zatwierdza każdą zmianę przed zapisem. Ręczne
-zaznaczanie fragmentów i edycja danych pozostają dostępne.
-[Specyfikacja Ollamy](docs/ETAP_3_OLLAMA.md).
-
-**Świstak jest projektowany jako aplikacja LLM-first:** Ollama i lokalny model będą głównym sposobem interpretacji rachunków. Reguły i ręczne zaznaczanie PDF to rozwiązania awaryjne, uruchamiane, gdy model nie zadziała lub pomyli dane. Pozyskanie tekstu/OCR odbywa się wcześniej wyłącznie w celu przygotowania wejścia dla LLM, a walidacja JSON i numerów kont obowiązuje zawsze.
-
-Do wyboru lokalnego modelu wykorzystamy **[AI Bobra](https://github.com/DarkZachi83/Bobr)**:
-testy sprzętu i szybkości, polszczyzny, JSON oraz planowane testy wiedzy
-z nauk ścisłych. Końcową decyzję zweryfikujemy na syntetycznych rachunkach.
-[Projekt doboru modelu](docs/WYBOR_MODELU_AI_BOBR.md).
-AI Bóbr będzie narzędziem do benchmarków, **nie obowiązkową zależnością Świstaka**.
-
-Bez Ollamy program zachowa możliwość ręcznej obsługi rachunków, ale nie pełną funkcjonalność AI. Nie wysyłamy dokumentów do chmury, nie wykonujemy przelewów ani nie dodajemy telemetrii.
-
-## Rejestr licencji i zależności
-
-Wszystkie komponenty Python, Qt, PDF, OCR i LLM muszą zostać
-zinwentaryzowane **przed wydaniem instalatora**.
-Sprawdź [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) oraz
-maszynowy rejestr [licencje/rejestr.json](licencje/rejestr.json).
-Lista zawiera istotne obowiązki dystrybucyjne: Qt/PySide6 (LGPL),
-PDFium (licencje binarne) i Gemma 3 (odrębne warunki). Poppler
-jest obecnie wyłącznie opcjonalną zależnością porównania OCR.
-Jest to audyt wstępny, nie zaświadczenie o zgodności.
-
-Po instalacji pakietów uruchom:
-
-```bash
-python -m tools.audyt_licencji --check
-```
-
-Skrypt sprawdza obecność bezpośrednich zależności w rejestrze
-i wyświetla metadane licencji z *aktualnie zainstalowanego środowiska*.
-Nie potwierdza zgodności instalatora z prawem; pełny audyt należy
-wykonać dla każdej opublikowanej paczki.
+Wybór lokalnego modelu można wspomóc projektem [AI Bóbr](https://github.com/DarkZachi83/Bobr); **AI Bóbr nie jest obowiązkową zależnością Świstaka**.
 
 ## Licencja
 
-Copyright (C) 2026 Rafał Zacharski.
+Copyright © 2026 **Rafał Zacharski**.
 
-**Propozycja dla kolejnego wydania — licencjonowanie Home/Business.**
+Aktualny kod jest udostępniany na warunkach **[PolyForm Noncommercial 1.0.0](LICENSE)**. To licencja *source-available* dopuszczająca określone zastosowania niekomercyjne — **nie** licencja open source zatwierdzona przez OSI. Użytkowanie komercyjne wymaga odrębnej zgody/licencji właściciela praw.
 
-Dla nowych wydań przygotowujemy **PolyForm Noncommercial License 1.0.0**
-(`SPDX: PolyForm-Noncommercial-1.0.0`) dla zastosowań niekomercyjnych,
-w tym prywatnych. Kod pozostanie publicznie dostępny (source-available),
-z możliwością używania, modyfikowania i rozpowszechniania w zakresie
-dozwolonym przez tę licencję. Użycie komercyjne wymaga **osobnej pisemnej
-licencji od właściciela praw** — warunki i cennik nie zostały jeszcze ustalone.
+**Świstak Home / Business** to planowany model dystrybucji, a nie obecnie gotowe edycje ani opublikowany cennik. Wcześniejsze wersje udostępnione na **GPL-3.0-only** zachowują dotychczasowe warunki.
 
-**Uwaga:** PolyForm Noncommercial obejmuje także określone organizacje
-niekomercyjne, edukacyjne i publiczne — nie jest to wyłącznie licencja
-„domowa”. Nie jest to również licencja open source według OSI.
-
-Wersje udostępnione wcześniej jako **GPL-3.0-only** zachowują prawa udzielone
-odbiorcom i są dostępne w historii Git. Zmiana nie działa wstecz.
-
-Szczegóły: [docs/LICENCJONOWANIE.md](docs/LICENCJONOWANIE.md),
-pełny tekst licencji proponowanej dla nowych wersji: [LICENSE](LICENSE).
-Przed dystrybucją paczek wykonywalnych zweryfikuj warunki
-licencyjne PySide6/Qt i ewentualnych dołączonych bibliotek.
+Szczegóły: [model licencjonowania](docs/LICENCJONOWANIE.md) · [licencje zależności](THIRD_PARTY_LICENSES.md) · [rejestr zależności](licencje/rejestr.json).
