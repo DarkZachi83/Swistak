@@ -79,7 +79,11 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 4. **Sprawdź sugestie** — porównaj je z oryginałem i przenieś wybrane wartości do formularza. Brakujące informacje możesz wpisać ręcznie.
 5. **Zapisz rachunek** — sprawdź kwotę, daty i numer konta, a następnie zatwierdź zapis. Wróć do dokumentu z zakładki **Dokumenty**.
 
-**Uwaga:** AI może podać błędną kwotę, datę lub numer rachunku bankowego. Odczyt i analiza **nie zapisują automatycznie danych** oraz nie wykonują przelewów.
+Obraz wyświetla się z lokalnego pliku
+`assets/about/swistak-o-programie.jpeg` (gdy jest dostępny) lub domyślnie
+`assets/branding/swistak-banner.jpeg`. Obrazy są w formacie JPEG; okno
+zachowuje ostrość również na ekranach HiDPI.
+[Opis implementacji](docs/OKNO_O_PROGRAMIE.md).
 
 Więcej informacji: [analiza przez Ollamę](docs/ETAP_3_OLLAMA.md) · [PDFium i OCR](docs/PDFIUM_OCR_BENCHMARK.md) · [języki](docs/JEZYKI.md).
 
