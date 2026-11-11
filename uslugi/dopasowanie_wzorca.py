@@ -44,12 +44,15 @@ def normalizuj_nip(value: str) -> str | None:
 
 def sprzedawca_fragment(tekst: str) -> str:
     """NIP i alias tylko z sekcji sprzedawcy — nigdy z sekcji nabywcy."""
-    match = re.search(r"(?im)^\s*(?:sprzedawca|wystawca|seller)\s*:", tekst)
+    match = re.search(
+        r"(?im)^\s*(?:sprzedawca|wystawca|seller)\s*:?(?=[ \t]|\r?$)",
+        tekst,
+    )
     if not match:
         return ""  # bezpieczeństwo: brak sekcji => brak pewnego NIP-u
     fragment = tekst[match.end():match.end() + 1200]
     koniec = re.search(
-        r"(?im)^\s*(?:nabywca|odbiorca|buyer|płatnik|platnik)\s*:",
+        r"(?i)\b(?:nabywca|odbiorca|buyer|płatnik|platnik)\s*:",
         fragment,
     )
     return fragment[:koniec.start()] if koniec else fragment[:500]
@@ -102,7 +105,9 @@ def dopasuj(tekst: str, wzorce: list[dict]) -> Dopasowanie | None:
     punkty.sort(key=lambda item: (item[0], item[3]["template_id"]), reverse=True)
     score, nip_ok, alias_ok, best = punkty[0]
     competing = len(punkty) > 1 and punkty[1][0] >= score - 10
-    if nip_ok and score >= 80 and not competing:
+    # Sam NIP + nazwa (80 punktów) nie wystarczają do pewnego
+    # zastosowania — ten sam operator może mieć różne układy faktur.
+    if nip_ok and score >= 80 and layout >= 10 and not competing:
         return Dopasowanie(best, score, "automatic")
     # Bez NIP-u wolno tylko proponować, nawet z pełną zgodnością nazwy/układu.
     if score >= 55 or (alias_ok and score >= 30):

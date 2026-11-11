@@ -749,8 +749,9 @@ class OknoGlowne(QMainWindow):
         przyciski_korekty.addWidget(self.btn_dodaj_kategorie_ai)
         self.btn_komentarz_pola = QPushButton()
         self.btn_komentarz_pola.clicked.connect(self._dodaj_komentarz_wzorca)
-        przyciski_korekty.addWidget(self.btn_komentarz_pola)
         uklad.addLayout(przyciski_korekty)
+        # Osobny wiersz: trzy szerokie przyciski nie mogą ucinać tabeli AI.
+        uklad.addWidget(self.btn_komentarz_pola)
 
         self.etykieta_notatek_wzorca = QLabel()
         uklad.addWidget(self.etykieta_notatek_wzorca)

@@ -121,6 +121,17 @@ class TestDopasowanieWzorca(unittest.TestCase):
         wrong["identification"]["seller_nip"] = NIP_INNY
         self.assertIsNone(dopasuj(TEKST, [wrong]))
 
+    def test_ten_sam_nip_i_nazwa_ale_inny_uklad_wymaga_zgody(self):
+        same_vendor_other_layout = (
+            "Sprzedawca:\nOperator Internetowy DEMO\nNIP 123-456-32-18\n"
+            "Nabywca:\nKlient WYŁĄCZNIE TESTOWY\n"
+            "Jednorazowy dokument bez typowych etykiet faktury"
+        )
+        result = dopasuj(same_vendor_other_layout, [kandydat()])
+        self.assertIsNotNone(result)
+        self.assertEqual(result.punkty, 80)
+        self.assertEqual(result.poziom, "suggest")
+
     def test_brak_nip_moze_tylko_sugerowac(self):
         bez_nipu = TEKST.replace("NIP 123-456-32-18", "NIP nieczytelny")
         result = dopasuj(bez_nipu, [kandydat()])
