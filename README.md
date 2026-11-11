@@ -86,12 +86,15 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 3. **Uruchom lokalną analizę AI** — w zakładce **Analiza AI** poproś Ollamę o propozycje pól rachunku.
 4. **Edytuj dane** — przenieś zatwierdzone propozycje do etapu **Edycja danych**, porównaj z PDF i popraw wartości. Pola można także wypełnić ręcznie, bez Ollamy.
 5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i dopiero wtedy kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Dokumenty**.
+6. **Opcjonalnie ucz Świstaka** — po zapisie wybierz **Utwórz wzorzec faktury**. Sprawdź proponowany JSON z regułami i zatwierdź go osobno. Kolejne faktury będą rozpoznawane po NIP-ie sprzedawcy, nazwie i układzie, a Gemma dostanie zatwierdzone wskazówki. Zapis wzorca **nigdy nie jest automatyczny**.
 
 Obraz wyświetla się z lokalnego pliku
 `assets/about/swistak-o-programie.jpeg` (gdy jest dostępny) lub domyślnie
 `assets/branding/swistak-banner.jpeg`. Obrazy są w formacie JPEG; okno
 zachowuje ostrość również na ekranach HiDPI.
 [Opis implementacji](docs/OKNO_O_PROGRAMIE.md).
+
+Dokumentacja wzorców: **[Inteligentne wzorce faktur — JSON i nauka na poprawkach](docs/WZORCE_FAKTUR.md)**.
 
 Więcej informacji: [analiza przez Ollamę](docs/ETAP_3_OLLAMA.md) · [PDFium i OCR](docs/PDFIUM_OCR_BENCHMARK.md) · [języki](docs/JEZYKI.md).
 
