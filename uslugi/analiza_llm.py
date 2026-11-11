@@ -6,6 +6,7 @@ Rachunek jest NIEZAUFANYM tekstem; instrukcje w dokumencie ignorujemy.
 """
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from dataclasses import dataclass
@@ -36,6 +37,31 @@ ETYKIETY = {
     "kategoria_sugerowana": "Kategoria",
 }
 DATY = {"data_wystawienia", "termin_platnosci", "okres_od", "okres_do"}
+
+
+def _tekst_dowodowy(tekst: str) -> str:
+    """Porównaj fragmenty PDF także przy innych odstępach i podziałach wierszy."""
+    return " ".join(tekst.split()).casefold()
+
+
+def normalizuj_date(wartosc: str, nazwa: str) -> str:
+    """Polskie daty → ISO; miesiąc rozliczenia → pierwszy/ostatni dzień.
+
+    Nie zgadujemy dnia dla dat wystawienia lub płatności.
+    """
+    wartosc = wartosc.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", wartosc):
+        return date.fromisoformat(wartosc).isoformat()
+    if re.fullmatch(r"\d{2}\.\d{2}\.\d{4}", wartosc):
+        dzien, miesiac, rok = map(int, wartosc.split("."))
+        return date(rok, miesiac, dzien).isoformat()
+    if nazwa in ("okres_od", "okres_do") and re.fullmatch(r"\d{1,2}/\d{4}", wartosc):
+        miesiac, rok = map(int, wartosc.split("/"))
+        if not (1 <= miesiac <= 12):
+            raise ValueError("Nieprawidłowy miesiąc rozliczeniowy")
+        dzien = 1 if nazwa == "okres_od" else calendar.monthrange(rok, miesiac)[1]
+        return date(rok, miesiac, dzien).isoformat()
+    raise ValueError("Wymagana data RRRR-MM-DD lub DD.MM.RRRR")
 
 
 @dataclass(frozen=True)
@@ -89,7 +115,9 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str]) -> dict[str, Ocena
             odpowiedzi[nazwa] = OcenaPola(None, dowod, False, "Brak danych — uzupełnij ręcznie")
             continue
         wartosc = wartosc.strip()
-        if not dowod or not dowod.strip() or dowod not in tekst:
+        if not dowod or not dowod.strip() or (
+            _tekst_dowodowy(dowod) not in _tekst_dowodowy(tekst)
+        ):
             odpowiedzi[nazwa] = OcenaPola(wartosc, dowod, False, "Brak potwierdzenia w tekście")
             continue
         try:
@@ -106,9 +134,7 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str]) -> dict[str, Ocena
                     raise ValueError("Obsługiwana waluta rachunku: PLN")
                 wartosc = "PLN"
             elif nazwa in DATY:
-                if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", wartosc):
-                    raise ValueError("Wymagana data RRRR-MM-DD")
-                date.fromisoformat(wartosc)
+                wartosc = normalizuj_date(wartosc, nazwa)
             elif nazwa == "numer_konta_bankowego":
                 wartosc = zweryfikuj_numer_konta(wartosc)
             elif nazwa == "kategoria_sugerowana":
@@ -164,7 +190,9 @@ def analizuj_lokalnie(
         "Nie zgaduj; brakującą lub niepewną wartość ustaw na null. "
         "Kwota: DO ZAPŁATY, nie saldo lub nadpłata. "
         "Nie myl numeru konta bankowego z numerem faktury. "
-        "Daty podawaj RRRR-MM-DD. "
+        "Daty podawaj RRRR-MM-DD. Jeżeli widzisz DD.MM.RRRR, przelicz na RRRR-MM-DD. "
+        "Dla okresu rozliczeniowego zapisanego jako MM/RRRR użyj pierwszego dnia "
+        "miesiąca w okres_od i ostatniego dnia w okres_do. "
         "Waluta jest PLN tylko gdy dokument to potwierdza. "
         "W polu kategoria_sugerowana użyj WYŁĄCZNIE jednej z podanych kategorii "
         "lub null. Jeśli żadna nie pasuje, wybierz null. "
