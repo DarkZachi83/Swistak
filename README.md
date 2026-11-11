@@ -20,15 +20,38 @@ Python 3.11+; Linux lub Windows z dostępem do PySide6.
 ```bash
 git clone https://github.com/DarkZachi83/Swistak.git
 cd Swistak
-git switch experiment/pdfium-ocr
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python main.py
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+./uruchom.sh
 ```
 
-Windows: aktywacja środowiska przez `.venv\Scripts\activate`.
-Można otworzyć wskazany PDF od razu: `python main.py /sciezka/do/rachunku.pdf`.
+Windows: aktywacja środowiska przez `.venv\Scripts\activate`, a następnie
+uruchomienie `python main.py`. Skrypt `uruchom.sh` jest przeznaczony do
+Linuxa i innych systemów z Bash.
+
+### Testowanie osobnego katalogu `git worktree` (Linux)
+
+Każda kopia `git worktree` ma własne pliki projektu, ale zwykle **nie ma
+własnego `.venv`**. Skrypt `uruchom.sh` automatycznie szuka Pythona w
+bieżącym katalogu, a następnie w głównym drzewie repozytorium.
+
+```bash
+# Uruchom z osobną bazą testową dla aktualnej gałęzi Git
+./uruchom.sh --test
+
+# Opcjonalnie: otwórz syntetyczny dokument PDF
+./uruchom.sh --test /sciezka/do/przykladowego.pdf
+```
+
+Tryb `--test` zapisuje dane w oddzielnym katalogu o nazwie
+`Swistak-Test-<nazwa-gałęzi>`, pod `XDG_DATA_HOME` lub
+`~/.local/share/`. Nie kasuje ani nie nadpisuje zwykłej bazy Świstaka.
+Uruchomienie **bez** `--test` korzysta z domyślnej bazy użytkownika.
+
+Skrypt nie pobiera ani nie instaluje automatycznie zależności.
+Gdy wymagania Pythona różnią się pomiędzy gałęziami, należy utworzyć
+osobne `.venv` w danym `worktree`.
+
 
 ### Lokalne narzędzia OCR (Etap 2)
 
