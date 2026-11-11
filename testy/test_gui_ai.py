@@ -83,6 +83,7 @@ class TestInterfejsAI(unittest.TestCase):
                 self.assertIsNone(rejestr.rachunek(dokument_id))
                 with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
                     okno._przenies_sugestie()
+                self.assertEqual(okno.karty.currentIndex(), okno.ETAP_EDYCJA)
                 self.assertEqual(okno.ed_dostawca.text(), "Zakład DEMO")
                 self.assertEqual(okno.ed_kwota.text(), "189,50")
                 self.assertEqual(okno.ed_termin.text(), "2026-12-01")

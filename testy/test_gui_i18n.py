@@ -36,7 +36,8 @@ class TestQtJezyki(unittest.TestCase):
                         [a.text() for a in okno.menuBar().actions()],
                         ["Plik", "Ustawienia", "Języki", "O programie"]
                     )
-                    self.assertEqual(okno.karty.tabText(0), "Rachunek")
+                    self.assertEqual(okno.nawigacja.item(0).text(), "Odczyt PDF / skanu")
+                    self.assertEqual(okno.nawigacja.item(3).text(), "Faktura")
                     pdf = root / "demo.pdf"
                     writer = QPdfWriter(str(pdf))
                     painter = QPainter(writer)
@@ -64,7 +65,8 @@ class TestQtJezyki(unittest.TestCase):
                     self.app.processEvents()
                     self.assertEqual(okno.menuBar().actions()[0].text(), "File")
                     self.assertEqual(okno.menuBar().actions()[2].text(), "Languages")
-                    self.assertEqual(okno.karty.tabText(0), "Bill")
+                    self.assertEqual(okno.nawigacja.item(0).text(), "PDF / scan text")
+                    self.assertEqual(okno.nawigacja.item(3).text(), "Invoice")
                     self.assertEqual(okno.btn_odczytaj.text(), "Read entire PDF")
                     self.assertEqual(okno.ed_kwota.text(), "123,45")
                     self.assertEqual(okno.ed_dostawca.text(), "Dostawca DEMO")
@@ -81,7 +83,8 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertTrue(okno._lang_actions["en"].isChecked())
 
                     okno.change_language("pl")
-                    self.assertEqual(okno.karty.tabText(0), "Rachunek")
+                    self.assertEqual(okno.nawigacja.item(0).text(), "Odczyt PDF / skanu")
+                    self.assertEqual(okno.nawigacja.item(3).text(), "Faktura")
                     self.assertEqual(okno.menuBar().actions()[2].text(), "Języki")
                     self.assertEqual(okno.ed_kwota.text(), "123,45")
                     self.assertEqual(okno.wybor_kategoria.currentText(), "Gaz")
@@ -101,7 +104,7 @@ class TestQtJezyki(unittest.TestCase):
                     ustawienia.save({"language": "en", "ollama_model": "custom:4b"})
                     okno = OknoGlowne(db)
                     self.assertEqual(okno.ed_model.text(), "custom:4b")
-                    self.assertEqual(okno.karty.tabText(0), "Bill")
+                    self.assertEqual(okno.nawigacja.item(3).text(), "Invoice")
                     self.assertEqual(okno.prefs["language"], "en")
                     self.assertTrue(okno._lang_actions["en"].isChecked())
                     okno.close()

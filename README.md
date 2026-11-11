@@ -24,7 +24,7 @@
 | **PDF i OCR** | Odczytuje warstwę tekstową PDF albo rozpoznaje skany przez **Tesseract**. Pozwala również zaznaczać i odczytywać fragment dokumentu. |
 | **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
 | **Kontrola użytkownika** | Waliduje strukturę odpowiedzi AI i wybrane pola. **Dopiero człowiek zatwierdza dane i zapisuje rachunek.** |
-| **Interfejs** | PySide6 / Qt, ciemny motyw, języki **polski i angielski** przełączane bez restartu, graficzne okno „O programie”. |
+| **Interfejs** | PySide6 / Qt, ciemny motyw, pionowy proces **Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty**, języki **polski i angielski** przełączane bez restartu. |
 
 **Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · Ollama.
 
@@ -84,8 +84,8 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 1. **Importuj PDF** — dokument trafia do prywatnego archiwum, a Świstak pokazuje jego podgląd.
 2. **Odczytaj dokument** — w zakładce **Odczyt PDF** uruchom odczyt całego dokumentu albo zaznaczonego fragmentu.
 3. **Uruchom lokalną analizę AI** — w zakładce **Analiza AI** poproś Ollamę o propozycje pól rachunku.
-4. **Sprawdź sugestie** — porównaj je z oryginałem i przenieś wybrane wartości do formularza. Brakujące informacje możesz wpisać ręcznie.
-5. **Zapisz rachunek** — sprawdź kwotę, daty i numer konta, a następnie zatwierdź zapis. Wróć do dokumentu z zakładki **Dokumenty**.
+4. **Edytuj dane** — przenieś zatwierdzone propozycje do etapu **Edycja danych**, porównaj z PDF i popraw wartości. Pola można także wypełnić ręcznie, bez Ollamy.
+5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i dopiero wtedy kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Dokumenty**.
 
 Obraz wyświetla się z lokalnego pliku
 `assets/about/swistak-o-programie.jpeg` (gdy jest dostępny) lub domyślnie

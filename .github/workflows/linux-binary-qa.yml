@@ -4,19 +4,6 @@ on:
   push:
     branches:
       - feature/linux-beta-binary-onedir
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'tools/build_linux_binary.py'
-      - 'tools/diagnostyka.py'
-      - 'packaging/linux-binary/**'
-      - 'requirements-build.txt'
-      - 'main.py'
-      - 'i18n/**'
-      - 'gui/**'
-      - 'baza/**'
-      - '.github/workflows/linux-binary-qa.yml'
   workflow_dispatch:
 
 permissions:
