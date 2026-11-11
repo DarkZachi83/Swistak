@@ -23,12 +23,27 @@ Nie jest to trening/fine-tuning Gemmy. To *pamięć zatwierdzonych reguł*.
    świadomie wybierz **Zapisz fakturę**. Sam zapis faktury **nie zapisuje
    żadnego wzorca**.
 7. Dopiero po zapisie pojawia się propozycja **Utwórz wzorzec faktury…**
-   lub **Zaproponuj aktualizację wzorca…**. Otwiera edytowalny podgląd JSON;
+   lub **Zaproponuj aktualizację wzorca…**. Otwiera formularz z zakładkami **Dane wzorca**, **Reguły pól** i **Podgląd JSON** (tylko do odczytu);
    **Anuluj** nie zmienia żadnego wzorca.
 8. **Zatwierdź i zapisz** tworzy lokalny JSON. Aktualizacja przechowuje
    poprzednią wersję w podkatalogu \`historia\`.
 9. Przy kolejnej fakturze z pasującym NIP-em i układem zatwierdzone
    wskazówki są przekazywane do lokalnej Ollamy.
+10. Z menu **Ustawienia → Zarządzaj wzorcami faktur** można edytować
+    istniejące wzorce formularzem, włączać/wyłączać i przywracać historię.
+
+## Weryfikacja okresu rozliczeniowego
+
+Jeśli Gemma zasugeruje `2026-11-01` – `2026-12-31` dla okresu
+`11/2026`, Świstak wyliczy z **bieżącego** PDF/OCR poprawne daty
+`2026-11-01` – `2026-11-30`. Sprawdza jeden, jednoznaczny miesiąc
+`MM/RRRR` w opisie usługi lub polu okresu.
+
+Program uwzględnia grudzień i lata przestępne. Nie stosuje daty
+wystawienia ani terminu płatności jako źródła okresu. Przy wielu
+miesiącach nie zgaduje — pozostawia kontrolę użytkownikowi.
+Automatyczna korekta dotyczy tylko odpowiedzi Gemmy, nie późniejszych
+ręcznych poprawek.
 
 ## Gdzie są pliki?
 
@@ -68,9 +83,8 @@ pola JSON są ograniczone do zdefiniowanego schematu.
   a katalog jest prywatny (\`0700\`).
 - Rewizje JSON służą do przywracania reguł; nie zastępują pełnej kopii
   bazy danych i zaimportowanych PDF.
-- Zarządzanie historią, wyłączaniem i przywracaniem jest już dostępne
-  w usłudze \`MagazynWzorcow\`; pełny graficzny menedżer wzorców
-  stanowi **kolejny etap W5**.
+- Historia rewizji, edycja formularzem, dezaktywacja i przywracanie
+  są dostępne również w GUI w menu **Ustawienia → Zarządzaj wzorcami faktur**.
 
 ## Granice obecnej wersji
 
@@ -88,7 +102,8 @@ To celowe ograniczenie bezpieczeństwa danych.
 
 \`\`\`bash
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest \
-  testy.test_wzorce testy.test_wzorce_integracja -v
+  testy.test_wzorce testy.test_wzorce_integracja \
+  testy.test_okres_wzorca_formularz testy.test_menedzer_wzorcow -v
 \`\`\`
 
 Testy używają wyłącznie fikcyjnego operatora i syntetycznych PDF.
