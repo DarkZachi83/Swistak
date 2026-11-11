@@ -1,0 +1,32 @@
+name: Szybka kontrola duplikatów (SQLite)
+on:
+  push:
+    paths:
+      - "uslugi/rachunki.py"
+      - "uslugi/archiwum.py"
+      - "baza/**"
+      - "testy/test_rejestr.py"
+      - "testy/test_duplikaty_baza.py"
+      - ".github/workflows/duplikaty-sqlite.yml"
+  pull_request:
+    paths:
+      - "uslugi/rachunki.py"
+      - "uslugi/archiwum.py"
+      - "baza/**"
+      - "testy/test_rejestr.py"
+      - "testy/test_duplikaty_baza.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Standardowa biblioteka Pythona — bez apt i pip
+        run: |
+          python3 --version
+          python3 -m unittest testy.test_rejestr testy.test_duplikaty_baza -v
