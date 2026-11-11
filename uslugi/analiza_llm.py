@@ -99,8 +99,12 @@ def schemat_json(kategorie: list[str]) -> dict:
             "required": list(POLA), "additionalProperties": False}
 
 
-def ocena_json(wynik: dict, tekst: str, kategorie: list[str]) -> dict[str, OcenaPola]:
-    """Oddzielnie waliduj każdy fragment sugestii; błędne nie są przenoszone."""
+def ocena_json(wynik: dict, tekst: str, kategorie: list[str],
+               potwierdzone_recznie: set[str] | None = None) -> dict[str, OcenaPola]:
+    """Oddzielnie waliduj sugestie; ręczna zgoda NIE pomija walidacji formatu."""
+    potwierdzone_recznie = potwierdzone_recznie or set()
+    if not potwierdzone_recznie.issubset(POLA):
+        raise ValueError("Nieznane pole do potwierdzenia ręcznego")
     if not isinstance(wynik, dict) or set(wynik) != set(POLA):
         raise ValueError("Odpowiedź modelu ma nieprawidłowy zestaw pól")
     odpowiedzi: dict[str, OcenaPola] = {}
@@ -115,7 +119,8 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str]) -> dict[str, Ocena
             odpowiedzi[nazwa] = OcenaPola(None, dowod, False, "Brak danych — uzupełnij ręcznie")
             continue
         wartosc = wartosc.strip()
-        if not dowod or not dowod.strip() or (
+        if nazwa not in potwierdzone_recznie and (
+            not dowod or not dowod.strip() or
             _tekst_dowodowy(dowod) not in _tekst_dowodowy(tekst)
         ):
             odpowiedzi[nazwa] = OcenaPola(wartosc, dowod, False, "Brak potwierdzenia w tekście")
@@ -142,7 +147,12 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str]) -> dict[str, Ocena
                 if dopasowanie is None:
                     raise ValueError("Kategoria spoza listy Świstaka")
                 wartosc = dopasowanie
-            odpowiedzi[nazwa] = OcenaPola(wartosc, dowod, True, "Format poprawny — zweryfikuj z PDF")
+            komunikat = (
+                "Potwierdzone ręcznie z PDF — sprawdź przed zapisem"
+                if nazwa in potwierdzone_recznie
+                else "Format poprawny — zweryfikuj z PDF"
+            )
+            odpowiedzi[nazwa] = OcenaPola(wartosc, dowod, True, komunikat)
         except ValueError as blad:
             odpowiedzi[nazwa] = OcenaPola(wartosc, dowod, False, str(blad))
 
