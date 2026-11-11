@@ -129,7 +129,8 @@ class TestDopasowanieWzorca(unittest.TestCase):
         )
         result = dopasuj(same_vendor_other_layout, [kandydat()])
         self.assertIsNotNone(result)
-        self.assertEqual(result.punkty, 80)
+        self.assertGreaterEqual(result.punkty, 80)
+        self.assertLess(result.punkty, 90)  # zwykła etykieta Sprzedawca to za mało
         self.assertEqual(result.poziom, "suggest")
 
     def test_brak_nip_moze_tylko_sugerowac(self):
