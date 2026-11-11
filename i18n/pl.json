@@ -174,5 +174,6 @@
   "ai.add_category": "Dodaj kategorię",
   "ai.manual_title": "Ręczne potwierdzenie wartości",
   "ai.manual_confirm": "Czy sprawdzono pole „{field}” bezpośrednio z oryginalną fakturą? Nieprawidłowy format nadal zablokuje przeniesienie.",
-  "validation.manual": "Potwierdzone ręcznie z PDF — sprawdź przed zapisem"
+  "validation.manual": "Potwierdzone ręcznie z PDF — sprawdź przed zapisem",
+  "validation.value_mismatch": "Wartość nie jest zgodna z dowodem tekstowym — sprawdź PDF i potwierdź ręcznie"
 }

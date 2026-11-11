@@ -174,5 +174,6 @@
   "ai.add_category": "Add category",
   "ai.manual_title": "Manually confirm a value",
   "ai.manual_confirm": "Have you checked “{field}” directly against the original invoice? Invalid format still blocks transfer.",
-  "validation.manual": "Manually confirmed against PDF — verify before saving"
+  "validation.manual": "Manually confirmed against PDF — verify before saving",
+  "validation.value_mismatch": "Value not supported by source evidence — check the PDF and confirm manually"
 }

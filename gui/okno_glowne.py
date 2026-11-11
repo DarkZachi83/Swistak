@@ -203,6 +203,8 @@ class OknoGlowne(QMainWindow):
         "Brak danych — uzupełnij ręcznie": "validation.missing",
         "Brak potwierdzenia w tekście": "validation.evidence",
         "Format poprawny — zweryfikuj z PDF": "validation.valid",
+        "Potwierdzone ręcznie z PDF — sprawdź przed zapisem": "validation.manual",
+        "Wartość niezgodna z fragmentem źródłowym": "validation.value_mismatch",
         "Niepoprawny numer konta (NRB/IBAN lub suma kontrolna). Sprawdź go z oryginalnym rachunkiem.": "validation.account",
         "Kategoria spoza listy Świstaka": "validation.category",
         "Wymagana data RRRR-MM-DD": "validation.date",
