@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import copy
 
 from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 
@@ -16,12 +17,14 @@ class SygnalyAnalizy(QObject):
 
 
 class ZadanieAnalizy(QRunnable):
-    def __init__(self, dokument_id: int, tekst: str, kategorie: list[str], model: str):
+    def __init__(self, dokument_id: int, tekst: str, kategorie: list[str],
+                 model: str, wzorzec: dict | None = None):
         super().__init__()
         self.dokument_id = dokument_id
         self.tekst = tekst
         self.kategorie = list(kategorie)
         self.model = model
+        self.wzorzec = copy.deepcopy(wzorzec)
         self.przerwij = threading.Event()
         self.sygnaly = SygnalyAnalizy()
 
@@ -31,7 +34,9 @@ class ZadanieAnalizy(QRunnable):
             self.sygnaly.anulowano.emit(self.dokument_id)
             return
         try:
-            wynik = analizuj_lokalnie(self.tekst, self.kategorie, self.model)
+            wynik = analizuj_lokalnie(
+                self.tekst, self.kategorie, self.model, wzorzec=self.wzorzec
+            )
         except Exception as blad:
             if self.przerwij.is_set():
                 self.sygnaly.anulowano.emit(self.dokument_id)

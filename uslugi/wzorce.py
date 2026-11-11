@@ -222,3 +222,24 @@ class MagazynWzorcow:
         if historic["template_id"] != template_id or historic["revision"] != revision:
             raise ValueError("Nieprawidłowy historyczny wzorzec")
         return self.aktualizuj(template_id, historic, expected_revision=expected_revision)
+
+
+def wskazowki_dla_modelu(approved: dict) -> str:
+    """Przekazuj wyłącznie zatwierdzone reguły, nigdy dane z minionej faktury."""
+    data = zatwierdz_strukture(approved)
+    if data["status"] != "approved":
+        raise ValueError("Nie wolno używać nieaktywnego wzorca")
+    rules = {
+        "nazwa_wzorca": data["name"],
+        "preferowana_kategoria": data["category"],
+        "wskazowki_ogolne": data["agent_notes"],
+        "reguly_pol": {
+            pole: {
+                "etykiety": info["find_by"],
+                "format_zrodlowy": info["source_format"],
+                "format_docelowy": info["target_format"],
+                "uwaga_uzytkownika": info["note"],
+            } for pole, info in data["fields"].items()
+        },
+    }
+    return json.dumps(rules, ensure_ascii=False, sort_keys=True)

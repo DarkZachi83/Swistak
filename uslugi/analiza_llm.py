@@ -17,6 +17,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 
 from uslugi.rachunki import grosze_na_kwote, kwota_na_grosze
 from uslugi.walidacja import zweryfikuj_numer_konta
+from uslugi.wzorce import wskazowki_dla_modelu
 
 
 POLA = (
@@ -211,7 +212,7 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str],
 
 def analizuj_lokalnie(
     tekst: str, kategorie: list[str], model: str = "gemma3:4b",
-    timeout: int = 180,
+    timeout: int = 180, *, wzorzec: dict | None = None,
 ) -> AnalizaModelu:
     """Wyślij tekst TYLKO na localhost; odbierz JSON i ocenę każdej sugestii."""
     if not tekst.strip():
@@ -236,6 +237,17 @@ def analizuj_lokalnie(
         "lub null. Jeśli żadna nie pasuje, wybierz null. "
         "Kategorie: " + json.dumps(kategorie, ensure_ascii=False)
     )
+    if wzorzec is not None:
+        wskazowki = wskazowki_dla_modelu(wzorzec)
+        # Wzorzec nie zastępuje bieżącego dokumentu ani walidacji.
+        system += (
+            " Poniżej są zatwierdzone przez użytkownika WSKAZÓWKI, "
+            "a nie dane do bezpośredniego podstawienia. "
+            "Każdą wartość odczytaj ponownie z AKTUALNEJ faktury. "
+            "Nie kopiuj historycznych kwot, dat ani numerów kont. "
+            "Wskazówki nie znoszą sprawdzenia dowodu, NRB ani formatu. "
+            "WZORZEC_JSON: " + wskazowki
+        )
     zapytanie = {
         "model": model.strip(),
         "stream": False,
