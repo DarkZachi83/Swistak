@@ -216,6 +216,8 @@ class OknoGlowne(QMainWindow):
         "Format poprawny — zweryfikuj z PDF": "validation.valid",
         "Potwierdzone ręcznie z PDF — sprawdź przed zapisem": "validation.manual",
         "Wartość niezgodna z fragmentem źródłowym": "validation.value_mismatch",
+        "Okres niezgodny z miesiącem rozliczeniowym w PDF": "validation.billing_month",
+        "Okres wyliczony z miesiąca rozliczeniowego w PDF — sprawdź": "validation.billing_derived",
         "Niepoprawny numer konta (NRB/IBAN lub suma kontrolna). Sprawdź go z oryginalnym rachunkiem.": "validation.account",
         "Kategoria spoza listy Świstaka": "validation.category",
         "Wymagana data RRRR-MM-DD": "validation.date",
