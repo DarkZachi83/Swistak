@@ -538,12 +538,13 @@ class OknoGlowne(QMainWindow):
             ("form.notes", "uwagi"),
         )
         for klucz, pole in pola:
+            etykieta = QLabel()
             wartosc = QLabel("—")
             wartosc.setWordWrap(True)
             wartosc.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            podsumowanie.addRow("", wartosc)
+            podsumowanie.addRow(etykieta, wartosc)
             self.podsumowanie_wartosci[pole] = wartosc
-            self.podsumowanie_etykiety[klucz] = podsumowanie.labelForField(wartosc)
+            self.podsumowanie_etykiety[klucz] = etykieta
         uklad.addLayout(podsumowanie)
 
         self.btn_powrot_edycja = QPushButton()
