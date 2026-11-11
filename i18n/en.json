@@ -237,5 +237,6 @@
   "patterns.manage_status_confirm": "Change “{name}” to status: {status}? A new revision will be created; saved documents and invoices remain unchanged.",
   "patterns.manage_no_history": "This template has no earlier revisions.",
   "patterns.manage_which_revision": "Select an earlier revision:",
-  "patterns.manage_restore_confirm": "Restore “{name}” from revision {revision}? The current state will be preserved in history."
+  "patterns.manage_restore_confirm": "Restore “{name}” from revision {revision}? The current state will be preserved in history.",
+  "patterns.form.no_format": "— no enforced format —"
 }

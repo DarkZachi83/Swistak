@@ -237,5 +237,6 @@
   "patterns.manage_status_confirm": "Czy zmienić status wzorca „{name}” na: {status}? Powstanie nowa rewizja; dokumenty i faktury pozostaną bez zmian.",
   "patterns.manage_no_history": "Ten wzorzec nie ma jeszcze wcześniejszych rewizji.",
   "patterns.manage_which_revision": "Wybierz numer wcześniejszej rewizji:",
-  "patterns.manage_restore_confirm": "Przywrócić wzorzec „{name}” z rewizji {revision}? Obecny stan zostanie zachowany w historii."
+  "patterns.manage_restore_confirm": "Przywrócić wzorzec „{name}” z rewizji {revision}? Obecny stan zostanie zachowany w historii.",
+  "patterns.form.no_format": "— bez wymuszonego formatu —"
 }

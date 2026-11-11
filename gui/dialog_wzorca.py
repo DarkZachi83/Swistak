@@ -145,9 +145,15 @@ class DialogWzorca(QDialog):
             source_format = QComboBox()
             target_format = QComboBox()
             for combo in (source_format, target_format):
-                combo.addItems(FORMATY)
-            source_format.setCurrentText(config.get("source_format", ""))
-            target_format.setCurrentText(config.get("target_format", ""))
+                combo.addItem(t("patterns.form.no_format"), "")
+                for format_name in FORMATY[1:]:
+                    combo.addItem(format_name, format_name)
+            source_format.setCurrentIndex(
+                source_format.findData(config.get("source_format", ""))
+            )
+            target_format.setCurrentIndex(
+                target_format.findData(config.get("target_format", ""))
+            )
             form.addRow(t("patterns.form.source_format"), source_format)
             form.addRow(t("patterns.form.target_format"), target_format)
 
@@ -192,8 +198,8 @@ class DialogWzorca(QDialog):
             if ui["group"].isChecked():
                 doc["fields"][name] = {
                     "find_by": _linie(ui["find_by"].toPlainText()),
-                    "source_format": ui["source_format"].currentText(),
-                    "target_format": ui["target_format"].currentText(),
+                    "source_format": ui["source_format"].currentData(),
+                    "target_format": ui["target_format"].currentData(),
                     "note": ui["note"].toPlainText().strip(),
                 }
         return zatwierdz_strukture(doc)
