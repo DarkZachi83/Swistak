@@ -89,10 +89,13 @@ class OknoGlowne(QMainWindow):
         for etykieta, akcja in (
             ("−", lambda: self.podglad.powieksz(0.8)),
             ("+", lambda: self.podglad.powieksz(1.25)),
+            ("Szerokość", lambda: self.podglad.dopasuj_szerokosc()),
             ("Dopasuj", self.podglad_dopasuj),
         ):
             przycisk = QPushButton(etykieta)
             przycisk.clicked.connect(akcja)
+            if etykieta == "Szerokość":
+                self.btn_szerokosc = przycisk
             if etykieta == "Dopasuj":
                 self.btn_dopasuj = przycisk
             przyciski.addWidget(przycisk)
@@ -316,6 +319,7 @@ class OknoGlowne(QMainWindow):
         self.poprzednia.setText(t("button.previous"))
         self.nastepna.setText(t("button.next"))
         self.btn_dopasuj.setText(t("button.fit"))
+        self.btn_szerokosc.setText(t("button.fit_width"))
         self.btn_dodaj_kategorie.setToolTip(t("button.add_category_tip"))
         self.zapisz_przycisk.setText(t("button.save"))
         self.tekst_ostrzezenia_form.setText(t("form.hint"))

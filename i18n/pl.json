@@ -17,7 +17,7 @@
   "button.import": "Importuj PDF",
   "button.previous": "◀ Poprzednia",
   "button.next": "Następna ▶",
-  "button.fit": "Dopasuj",
+  "button.fit": "Cała strona",
   "button.save": "Zapisz rachunek",
   "button.add_category_tip": "Dodaj nową kategorię",
   "button.read_all": "Odczytaj cały PDF",
@@ -157,5 +157,6 @@
   "about.star_hint": "☆ Podoba się program? Zostaw gwiazdkę na GitHubie — to pomaga w dalszym rozwoju.",
   "about.star_button": "☆ Zostaw gwiazdkę na GitHubie",
   "about.close": "Zamknij",
-  "about.image_missing": "Ilustracja Świstaka — dodaj plik assets/about/swistak-o-programie.jpeg"
+  "about.image_missing": "Ilustracja Świstaka — dodaj plik assets/about/swistak-o-programie.jpeg",
+  "button.fit_width": "Szerokość"
 }
