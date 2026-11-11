@@ -2,7 +2,7 @@
 
 **Ostatnia weryfikacja:** 2026-11-11  
 **Repozytorium:** `DarkZachi83/Swistak` · **gałąź:** `main`  
-**Punkt odniesienia:** commit `eab7aabe86a0c391c2a0ad9954b7c49a95c87f04` (przed dodaniem tego pliku).  
+**Punkt odniesienia:** commit `f1ea9b37fb64daca6aa757df2ebf7b589433ca74` (przed wdrożeniem tabeli faktur); aktualny HEAD sprawdź w GitHubie.  
 **Wersja w `wersja.py`:** `0.1.0b1` / `0.1.0 Beta 1`.
 
 > To dokument przekazania prac między sesjami programistycznymi i asystentami AI. **Kod na bieżącym HEAD `main` jest nadrzędny**; przed wznowieniem trzeba porównać ten dokument z repozytorium i ostatnimi commitami. Sam wpis „wykonane” nie zastępuje testu na komputerze użytkownika.
@@ -12,6 +12,7 @@
 - Lokalny rejestr SQLite, wersjonowane migracje, oryginalne PDF-y przechowywane w prywatnym archiwum, SHA-256 i rozpoznawanie identycznego importu.
 - Podgląd PDF, lokalny odczyt tekstu i OCR (Tesseract), analiza przez lokalną Ollamę; edycja propozycji AI i formularza przed świadomym zapisem.
 - Interfejs PySide6 w językach polskim i angielskim; etapy: Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty.
+- Tabela **Faktury** (nowy widok): filtrowanie i sortowanie zapisanych rekordów, statusy, suma widocznych, otwieranie do edycji; pierwotne **Dokumenty** pozostają archiwum PDF. Dane wyłącznie z SQLite, bez nowej migracji.
 - Inteligentne wzorce faktur W1–W4: dopasowywanie na podstawie sprzedawcy/układu, zatwierdzanie, edycja w formularzu zamiast ręcznego JSON, wyłączanie i przywracanie rewizji. Osobne reguły sprawdzają pełny miesiąc rozliczeniowy, jeśli źródło jednoznacznie wskazuje `MM/RRRR`.
 - **Ochrona przed ponownym zapisem faktury (2026-11-11):** `RejestrRachunkow.znajdz_duplikat` i `zapisz_rachunek(..., nadpisz_id=...)` rozpoznają ten sam dokument lub dostawcę i numer faktury. Zapis istniejącej pozycji bez jawnego potwierdzenia jest blokowany w warstwie bazy. GUI pyta „Czy nadpisać?” z domyślnym **Nie**; potwierdzona aktualizacja zachowuje identyfikator faktury, bez dopisywania drugiej.
 - Testy syntetyczne zapisów i duplikatów: `testy/test_rejestr.py`, `testy/test_duplikaty_baza.py`, `testy/test_duplikaty_faktur.py`; workflow `.github/workflows/duplikaty-sqlite.yml` dla testów bez Qt.
@@ -19,11 +20,11 @@
 
 ## Stan weryfikacji
 
-Powyższe funkcje sprawdzono przez **odczyt kodu, dokumentacji i commitów** na GitHubie. W tej sesji nie uruchomiono lokalnie testów, aplikacji ani rzeczywistego PDF/OCR. Samo istnienie testów lub workflow nie oznacza potwierdzonego wyniku CI. Przed uznaniem etapu za zakończony należy wykonać test GUI na komputerze docelowym.
+Mechanizm duplikatów zweryfikowano przez odczyt kodu i commitów na GitHubie. Tabelę faktur dodano wraz z testami syntetycznymi SQLite i GUI. **W tej sesji nie uruchomiono lokalnie aplikacji ani testów z PySide6**; wynik workflow GitHub Actions należy sprawdzić po commicie, a następnie wykonać test GUI na komputerze użytkownika. Samo istnienie testów nie oznacza pozytywnego wyniku.
 
 ## Następne zadania — kolejność
 
-1. **Tabela faktur (kolejny etap funkcjonalny, jeszcze niezrealizowany).** Obecne `gui/okno_glowne.py::_zbuduj_liste` i `_odswiez_liste` pokazują dokumenty w `QListWidget`, nie tabelę zapisanych faktur. Przygotować osobny widok faktur (lub wyraźne rozróżnienie od archiwum PDF), odczytywany z SQLite, z kolumnami: dostawca, numer, data wystawienia, termin płatności, kwota, kategoria, status i powiązany PDF. Zapewnić sortowanie, filtrowanie, otwieranie do podglądu/edycji i odświeżanie po zapisie/nadpisaniu. W miarę możliwości dodać testy syntetyczne modelu danych i GUI. Nie zmieniać archiwalnych PDF-ów.
+1. **Test akceptacyjny tabeli faktur:** sprawdzić na komputerze docelowym różne statusy, daty, sortowanie kwot, wyszukiwanie, zapis i nadpisanie; zweryfikować zachowanie podglądu PDF po otwarciu z tabeli. Wykonać pełny zestaw testów syntetycznych w CI i lokalnie.
 2. **Weryfikacja end-to-end:** fikcyjny PDF z warstwą tekstową i fikcyjny skan → OCR → Ollama → korekta → zapis → ponowny import → odmowa/potwierdzenie nadpisania. Prawdziwy dokument wyłącznie lokalnie, poza GitHubem.
 3. **Kopie zapasowe i historia/statystyki** (etap 4 według `docs/PLAN.md`): spójna kopia SQLite razem z archiwum PDF i sprawdzone przywracanie; przed wykorzystaniem do ważnych danych zapewnić bezpieczną kopię.
 4. **Porządek dokumentacji:** uaktualnić `docs/PLAN.md`, który nadal nazywa część zaimplementowanego etapu 3 „gałęzią roboczą”. Uzupełniać status po każdym większym etapie, także przy zmianie interfejsu i testów.
@@ -32,10 +33,10 @@ Powyższe funkcje sprawdzono przez **odczyt kodu, dokumentacji i commitów** na 
 
 ```bash
 # Baza i duplikaty — Python bez bibliotek GUI
-python3 -m unittest testy.test_rejestr testy.test_duplikaty_baza -v
+python3 -m unittest testy.test_rejestr testy.test_duplikaty_baza testy.test_rejestr_faktur -v
 
 # W środowisku projektu z zainstalowanym PySide6:
-QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest   testy.test_duplikaty_faktur testy.test_wzorce   testy.test_wzorce_integracja testy.test_okres_wzorca_formularz   testy.test_menedzer_wzorcow -v
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest   testy.test_duplikaty_faktur testy.test_tabela_faktur testy.test_wzorce   testy.test_wzorce_integracja testy.test_okres_wzorca_formularz   testy.test_menedzer_wzorcow -v
 
 # Pełny zestaw testów, jeśli zależności są dostępne:
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s testy -v

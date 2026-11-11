@@ -27,6 +27,7 @@ from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
 from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
 from gui.dialog_wzorca import zaakceptuj_wzorzec
 from gui.okno_wzorcow import OknoWzorcow
+from gui.tabela_faktur import TabelaFaktur
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from i18n import LANGUAGES, current_language, set_language, system_language, t
 import ustawienia
@@ -40,7 +41,8 @@ class OknoGlowne(QMainWindow):
     ETAP_EDYCJA = 2
     ETAP_FAKTURA = 3
     ETAP_DOKUMENTY = 4
-    ETAPY = ("tab.read", "tab.ai", "tab.edit", "tab.bill", "tab.documents")
+    ETAP_FAKTURY = 5
+    ETAPY = ("tab.read", "tab.ai", "tab.edit", "tab.bill", "tab.documents", "tab.invoices")
 
     def __init__(self, rejestr: RejestrRachunkow):
         super().__init__()
@@ -170,6 +172,9 @@ class OknoGlowne(QMainWindow):
         self.karty.addWidget(self._zbuduj_formularz())
         self.karty.addWidget(self._zbuduj_fakture())
         self.karty.addWidget(self._zbuduj_liste())
+        self.tabela_faktur = TabelaFaktur(self.rejestr)
+        self.tabela_faktur.otworz_dokument.connect(self._otworz_fakture_z_tabeli)
+        self.karty.addWidget(self.tabela_faktur)
         self.nawigacja.currentRowChanged.connect(self.karty.setCurrentIndex)
         self.karty.currentChanged.connect(self.nawigacja.setCurrentRow)
         self.karty.currentChanged.connect(self._zmieniony_etap)
@@ -426,6 +431,7 @@ class OknoGlowne(QMainWindow):
 
         self.hint_listy.setText(t("list.hint"))
         self.btn_odswiez.setText(t("button.refresh"))
+        self.tabela_faktur.przetlumacz()
         self.hint_odczytu.setText(t("read.hint"))
         self.btn_odczytaj.setText(t("button.read_all"))
         self.btn_odczytaj_obszar.setText(t("button.read_selection"))
@@ -611,8 +617,13 @@ class OknoGlowne(QMainWindow):
         return przewijanie
 
     def _zmieniony_etap(self, indeks: int) -> None:
+        # Tabela korzysta z całej szerokości roboczej; na pozostałych etapach
+        # przywracamy ten sam podgląd PDF bez utraty dokumentu ani zoomu.
+        self.podglad.setVisible(indeks != self.ETAP_FAKTURY)
         if indeks == self.ETAP_FAKTURA:
             self._aktualizuj_podsumowanie()
+        elif indeks == self.ETAP_FAKTURY:
+            self.tabela_faktur.odswiez()
 
     def _aktualizuj_podsumowanie(self) -> None:
         """Wartości po korekcie, bez odczytu/zapisu bazy przy zmianie widoku."""
@@ -1328,6 +1339,7 @@ class OknoGlowne(QMainWindow):
                 keep_row = self.lista_dokumentow.count() - 1
         if keep_row >= 0:
             self.lista_dokumentow.setCurrentRow(keep_row)
+        self.tabela_faktur.odswiez()
 
     def _wyczysc_formularz(self) -> None:
         self._message(self.nazwa_dokumentu, "doc.import_first")
@@ -1386,6 +1398,15 @@ class OknoGlowne(QMainWindow):
             self.ETAP_FAKTURA if zapis is not None else self.ETAP_ODCZYT
         )
         self._status("msg.opened", name=dokument["nazwa_zrodlowa"])
+
+    def _otworz_fakture_z_tabeli(self, dokument_id: int) -> None:
+        try:
+            self.podglad.show()
+            self._wyswietl_dokument(dokument_id)
+        except (ValueError, OSError, sqlite3.Error) as blad:
+            if self.karty.currentIndex() == self.ETAP_FAKTURY:
+                self.podglad.hide()
+            QMessageBox.warning(self, t("msg.document_open_error"), str(blad))
 
     def _wybierz_z_listy(self, element: QListWidgetItem) -> None:
         try:

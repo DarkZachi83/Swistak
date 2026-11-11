@@ -151,6 +151,25 @@ class RejestrRachunkow:
             "ORDER BY d.id DESC"
         ))
 
+    def faktury(self) -> list[sqlite3.Row]:
+        """Zapisane faktury wraz z PDF i kategorią, wyłącznie odczyt SQLite.
+
+        W obecnej wersji każda faktura ma jedną pozycję. Kategorię czytamy
+        osobnym podzapytaniem, aby jeden rachunek zawsze dawał jeden wiersz.
+        Nie obejmuje dokumentów PDF, dla których nie zapisano faktury.
+        """
+        return list(self.db.execute(
+            "SELECT r.id, r.dokument_id, r.dostawca, r.numer, "
+            "r.data_wystawienia, r.termin_platnosci, r.kwota_grosze, r.status, "
+            "d.nazwa_zrodlowa, "
+            "COALESCE((SELECT k.nazwa FROM pozycje_rachunku p "
+            "JOIN kategorie k ON k.id = p.kategoria_id "
+            "WHERE p.rachunek_id = r.id ORDER BY p.id LIMIT 1), '') AS kategoria "
+            "FROM rachunki r "
+            "JOIN dokumenty d ON d.id = r.dokument_id "
+            "ORDER BY r.id DESC"
+        ))
+
     def dokument(self, dokument_id: int) -> sqlite3.Row:
         wiersz = self.db.execute("SELECT * FROM dokumenty WHERE id = ?", (dokument_id,)).fetchone()
         if wiersz is None:

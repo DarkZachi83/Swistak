@@ -242,5 +242,20 @@
   "invoice.duplicate_title": "Invoice already exists",
   "invoice.duplicate_confirm": "The invoice from “{supplier}” (number: {number}) is already in the database.\nSaved document: {filename}\n\nOverwrite the existing invoice?\n\nThis will replace its data and, if needed, link to the PDF document. Choose “No” to preserve the current entry.",
   "invoice.missing_number": "no invoice number",
-  "invoice.overwrite_cancelled": "Invoice was not overwritten. Existing data is unchanged."
+  "invoice.overwrite_cancelled": "Invoice was not overwritten. Existing data is unchanged.",
+  "tab.invoices": "Invoices",
+  "invoices.hint": "Saved invoices. Click a heading to sort; double-click a row to view or edit the linked document. All imported PDFs remain under Documents.",
+  "invoices.search": "Search supplier, number, date, category or PDF filename…",
+  "invoices.all_statuses": "All statuses",
+  "invoices.open": "Open invoice",
+  "invoices.summary": "Visible: {shown}/{total} · Visible total: {amount} PLN",
+  "invoices.currency": "PLN",
+  "invoices.supplier": "Supplier",
+  "invoices.number": "Invoice no.",
+  "invoices.issued": "Issued",
+  "invoices.due": "Payment due",
+  "invoices.amount": "Amount",
+  "invoices.category": "Category",
+  "invoices.status": "Status",
+  "invoices.pdf": "PDF document"
 }

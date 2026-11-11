@@ -42,12 +42,12 @@ class TestProcesFaktury(unittest.TestCase):
                     win = OknoGlowne(db)
                     win.show()
                     self.app.processEvents()
-                    self.assertEqual(win.nawigacja.count(), 5)
-                    self.assertEqual(win.karty.count(), 5)
+                    self.assertEqual(win.nawigacja.count(), 6)
+                    self.assertEqual(win.karty.count(), 6)
                     self.assertEqual(
-                        [win.nawigacja.item(i).text() for i in range(5)],
+                        [win.nawigacja.item(i).text() for i in range(6)],
                         ["Odczyt PDF / skanu", "Analiza AI", "Edycja danych",
-                         "Faktura", "Dokumenty"]
+                         "Faktura", "Dokumenty", "Faktury"]
                     )
                     self.assertEqual(win.karty.currentIndex(), win.ETAP_ODCZYT)
                     self.assertEqual(win.tabela_ai.horizontalHeader().sectionResizeMode(2),

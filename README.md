@@ -19,12 +19,12 @@
 
 | Obszar | Co potrafi Świstak? |
 | --- | --- |
-| **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. |
+| **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. Osobna zakładka **Faktury** pokazuje zapisane rekordy w tabeli: sortowanie, wyszukiwanie, filtr statusu, suma widocznych i otwieranie do edycji. |
 | **Archiwum PDF** | Przechowuje niezmienione oryginały, używa **SHA-256** do kontroli integralności i wykrywa ponowny import identycznego dokumentu. |
 | **PDF i OCR** | Odczytuje warstwę tekstową PDF albo rozpoznaje skany przez **Tesseract**. Pozwala również zaznaczać i odczytywać fragment dokumentu. |
 | **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
 | **Kontrola użytkownika** | Waliduje strukturę odpowiedzi AI i wybrane pola. **Dopiero człowiek zatwierdza dane i zapisuje rachunek.** |
-| **Interfejs** | PySide6 / Qt, ciemny motyw, pionowy proces **Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty**, języki **polski i angielski** przełączane bez restartu. |
+| **Interfejs** | PySide6 / Qt, ciemny motyw, pionowy proces **Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty → Faktury**, języki **polski i angielski** przełączane bez restartu. |
 
 **Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · Ollama.
 
@@ -85,7 +85,7 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 2. **Odczytaj dokument** — w zakładce **Odczyt PDF** uruchom odczyt całego dokumentu albo zaznaczonego fragmentu.
 3. **Uruchom lokalną analizę AI** — w zakładce **Analiza AI** poproś Ollamę o propozycje pól rachunku.
 4. **Edytuj dane** — przenieś zatwierdzone propozycje do etapu **Edycja danych**, porównaj z PDF i popraw wartości. Pola można także wypełnić ręcznie, bez Ollamy.
-5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i dopiero wtedy kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Dokumenty**.
+5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i dopiero wtedy kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Faktury** (tabela i filtry); w **Dokumentach** pozostaje lista wszystkich PDF-ów.
 6. **Opcjonalnie ucz Świstaka** — po zapisie wybierz **Utwórz wzorzec faktury**. Sprawdź proponowany JSON z regułami i zatwierdź go osobno. Kolejne faktury będą rozpoznawane po NIP-ie sprzedawcy, nazwie i układzie, a Gemma dostanie zatwierdzone wskazówki. Zapis wzorca **nigdy nie jest automatyczny**.
 
 Obraz wyświetla się z lokalnego pliku

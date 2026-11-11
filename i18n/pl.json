@@ -242,5 +242,20 @@
   "invoice.duplicate_title": "Faktura jest już w bazie",
   "invoice.duplicate_confirm": "Faktura dostawcy „{supplier}” (nr: {number}) jest już w bazie.\nZapisany dokument: {filename}\n\nCzy nadpisać istniejącą fakturę?\n\nZostaną zastąpione jej dane i, w razie potrzeby, powiązanie z dokumentem PDF. Wybierz „Nie”, aby zachować dotychczasowy zapis.",
   "invoice.missing_number": "brak numeru",
-  "invoice.overwrite_cancelled": "Nie nadpisano faktury. Dotychczasowe dane pozostały bez zmian."
+  "invoice.overwrite_cancelled": "Nie nadpisano faktury. Dotychczasowe dane pozostały bez zmian.",
+  "tab.invoices": "Faktury",
+  "invoices.hint": "Zapisane faktury. Kliknij nagłówek, aby sortować; dwuklik otwiera dokument do podglądu i edycji. Archiwum wszystkich PDF znajdziesz w Dokumentach.",
+  "invoices.search": "Szukaj dostawcy, numeru, daty, kategorii lub pliku PDF…",
+  "invoices.all_statuses": "Wszystkie statusy",
+  "invoices.open": "Otwórz fakturę",
+  "invoices.summary": "Widoczne: {shown}/{total} · Suma widocznych: {amount} zł",
+  "invoices.currency": "zł",
+  "invoices.supplier": "Dostawca",
+  "invoices.number": "Nr faktury",
+  "invoices.issued": "Wystawiono",
+  "invoices.due": "Termin płatności",
+  "invoices.amount": "Kwota",
+  "invoices.category": "Kategoria",
+  "invoices.status": "Status",
+  "invoices.pdf": "Dokument PDF"
 }
