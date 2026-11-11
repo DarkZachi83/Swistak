@@ -226,5 +226,16 @@
   "patterns.form.preview_hint": "Read-only view of the structure generated from the form. No manual JSON editing is required.",
   "patterns.form.error": "Please fix the form first: {error}",
   "validation.billing_month": "Billing period does not match the month on the PDF",
-  "validation.billing_derived": "Billing period derived from the month on the PDF — please verify"
+  "validation.billing_derived": "Billing period derived from the month on the PDF — please verify",
+  "patterns.manage": "Manage invoice templates…",
+  "patterns.manage_help": "Select a saved template. Edit it with a form, deactivate it without deleting, or restore an earlier revision. None of these actions modifies saved invoices.",
+  "patterns.manage_edit": "Edit with form…",
+  "patterns.manage_toggle": "Enable / disable",
+  "patterns.manage_restore": "Restore revision…",
+  "patterns.manage_close": "Close",
+  "patterns.manage_item": "{name} — {status} · revision {revision}",
+  "patterns.manage_status_confirm": "Change “{name}” to status: {status}? A new revision will be created; saved documents and invoices remain unchanged.",
+  "patterns.manage_no_history": "This template has no earlier revisions.",
+  "patterns.manage_which_revision": "Select an earlier revision:",
+  "patterns.manage_restore_confirm": "Restore “{name}” from revision {revision}? The current state will be preserved in history."
 }

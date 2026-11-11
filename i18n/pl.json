@@ -226,5 +226,16 @@
   "patterns.form.preview_hint": "Techniczny podgląd zatwierdzanej struktury. JSON jest generowany z formularza i nie wymaga ręcznej edycji.",
   "patterns.form.error": "Najpierw popraw błędy formularza: {error}",
   "validation.billing_month": "Okres niezgodny z miesiącem rozliczeniowym w PDF",
-  "validation.billing_derived": "Okres wyliczony z miesiąca rozliczeniowego w PDF — sprawdź"
+  "validation.billing_derived": "Okres wyliczony z miesiąca rozliczeniowego w PDF — sprawdź",
+  "patterns.manage": "Zarządzaj wzorcami faktur…",
+  "patterns.manage_help": "Wybierz zapisany wzorzec. Możesz edytować go formularzem, wyłączyć bez usuwania lub przywrócić wcześniejszą rewizję. Żadne działanie nie zmienia zapisanych faktur.",
+  "patterns.manage_edit": "Edytuj formularzem…",
+  "patterns.manage_toggle": "Włącz / wyłącz",
+  "patterns.manage_restore": "Przywróć wersję…",
+  "patterns.manage_close": "Zamknij",
+  "patterns.manage_item": "{name} — {status} · rewizja {revision}",
+  "patterns.manage_status_confirm": "Czy zmienić status wzorca „{name}” na: {status}? Powstanie nowa rewizja; dokumenty i faktury pozostaną bez zmian.",
+  "patterns.manage_no_history": "Ten wzorzec nie ma jeszcze wcześniejszych rewizji.",
+  "patterns.manage_which_revision": "Wybierz numer wcześniejszej rewizji:",
+  "patterns.manage_restore_confirm": "Przywrócić wzorzec „{name}” z rewizji {revision}? Obecny stan zostanie zachowany w historii."
 }
