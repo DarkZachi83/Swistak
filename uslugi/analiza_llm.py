@@ -18,6 +18,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 from uslugi.rachunki import grosze_na_kwote, kwota_na_grosze
 from uslugi.walidacja import zweryfikuj_numer_konta
 from uslugi.wzorce import wskazowki_dla_modelu
+from uslugi.okres_rozliczeniowy import rozpoznaj_miesiac_rozliczenia, popraw_okres_modelu
 
 
 POLA = (
@@ -207,6 +208,18 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str],
                 odpowiedzi[nazwa] = OcenaPola(
                     p.wartosc, p.dowod, False, "Początek okresu późniejszy niż koniec"
                 )
+    # Format pojedynczej daty to za mało: przy wyraźnym "11/2026"
+    # faktura nie może automatycznie przejąć "2026-12-31".
+    month = rozpoznaj_miesiac_rozliczenia(tekst)
+    if month is not None:
+        for name, expected in (("okres_od", month.od), ("okres_do", month.do)):
+            result = odpowiedzi[name]
+            if (result.wartosc and result.wartosc != expected
+                    and name not in potwierdzone_recznie):
+                odpowiedzi[name] = OcenaPola(
+                    result.wartosc, result.dowod, False,
+                    "Okres niezgodny z miesiącem rozliczeniowym w PDF"
+                )
     return odpowiedzi
 
 
@@ -231,7 +244,9 @@ def analizuj_lokalnie(
         "Nie myl numeru konta bankowego z numerem faktury. "
         "Daty podawaj RRRR-MM-DD. Jeżeli widzisz DD.MM.RRRR, przelicz na RRRR-MM-DD. "
         "Dla okresu rozliczeniowego zapisanego jako MM/RRRR użyj pierwszego dnia "
-        "miesiąca w okres_od i ostatniego dnia w okres_do. "
+        "miesiąca w okres_od i ostatniego dnia TEGO SAMEGO miesiąca w okres_do; "
+        "np. 11/2026 oznacza 2026-11-01 do 2026-11-30, nigdy do 2026-12-31. "
+        "Nie wyznaczaj okresu na podstawie daty wystawienia ani płatności. "
         "Waluta jest PLN tylko gdy dokument to potwierdza. "
         "W polu kategoria_sugerowana użyj WYŁĄCZNIE jednej z podanych kategorii "
         "lub null. Jeśli żadna nie pasuje, wybierz null. "
@@ -277,4 +292,15 @@ def analizuj_lokalnie(
         dane = json.loads(response["message"]["content"])
     except (KeyError, TypeError, ValueError) as blad:
         raise ValueError("Ollama nie zwróciła poprawnego JSON") from blad
-    return AnalizaModelu(model.strip(), ocena_json(dane, tekst, kategorie))
+    # Deterministyczne przeliczenie z tekstu źródłowego, jeśli okres
+    # MM/RRRR występuje jednoznacznie w opisie usługi. Bez zgadywania.
+    dane, poprawione = popraw_okres_modelu(dane, tekst)
+    oceny = ocena_json(dane, tekst, kategorie)
+    for pole in poprawione:
+        poprzednia = oceny[pole]
+        if poprzednia.poprawne:
+            oceny[pole] = OcenaPola(
+                poprzednia.wartosc, poprzednia.dowod, True,
+                "Okres wyliczony z miesiąca rozliczeniowego w PDF — sprawdź"
+            )
+    return AnalizaModelu(model.strip(), oceny)
