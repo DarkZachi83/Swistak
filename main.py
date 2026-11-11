@@ -13,6 +13,13 @@ from wersja import __version__
 
 
 def main() -> int:
+    if len(sys.argv) == 2 and sys.argv[1] == "--version":
+        print(__version__)
+        return 0
+    if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
+        from tools.diagnostyka import self_test
+        return self_test()
+
     aplikacja = QApplication(sys.argv)
     aplikacja.setApplicationName("Świstak")
     aplikacja.setApplicationVersion(__version__)
