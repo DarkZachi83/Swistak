@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QBrush, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QBrush, QImage, QPainter, QPen, QPixmap
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWidgets import (
     QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView,
@@ -33,7 +33,11 @@ class PodgladPDF(QGraphicsView):
         self._scena.addItem(self._prostokat)
         self._start: QPointF | None = None
         self._strona = 0
-        self._zoom = 1.0  # mnożnik względem dopasowania
+        self._zoom = 1.0  # mnożnik względem ostatniego dopasowania
+        self._tryb_dopasowania = "szerokosc"
+        # Biały papier pozostaje niezależny od ciemnego motywu aplikacji.
+        self.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setRenderHints(QPainter.RenderHint.Antialiasing |
                             QPainter.RenderHint.SmoothPixmapTransform)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
@@ -64,25 +68,60 @@ class PodgladPDF(QGraphicsView):
         if not (0 <= numer < self.liczba_stron):
             return
         rozmiar = self._pdf.pagePointSize(numer)
-        # Maksymalnie ~2400 px po dłuższym boku — wystarczy na czytelny podgląd.
-        skala = min(2.0, 2400.0 / max(1.0, rozmiar.width(), rozmiar.height()))
+        # Wyższa rozdzielczość pomaga zachować ostrość po powiększeniu.
+        # Limit 3200 px po dłuższym boku ogranicza zużycie pamięci.
+        skala = min(3.0, 3200.0 / max(1.0, rozmiar.width(), rozmiar.height()))
         szer = max(1, round(rozmiar.width() * skala))
         wys = max(1, round(rozmiar.height() * skala))
         obraz = self._pdf.render(numer, QSize(szer, wys))
         if obraz.isNull():
             raise ValueError(f"Nie udało się wyrenderować strony {numer + 1}")
+
+        # Qt PDF może zwrócić obraz z przezroczystym tłem. Na ciemnym motywie
+        # czarny tekst staje się wtedy niemal niewidoczny. Renderujemy więc
+        # nieprzezroczysty biały papier, NIE zmieniając oryginalnego pliku PDF.
+        papier = QImage(szer, wys, QImage.Format.Format_RGB32)
+        papier.fill(Qt.GlobalColor.white)
+        malarz = QPainter(papier)
+        try:
+            malarz.drawImage(0, 0, obraz)
+        finally:
+            malarz.end()
+
         self._strona = numer
         self._start = None
         self._prostokat.hide()
-        self._obraz.setPixmap(QPixmap.fromImage(obraz))
+        self._obraz.setPixmap(QPixmap.fromImage(papier))
         self._scena.setSceneRect(QRectF(0, 0, szer, wys))
-        self.dopasuj()
+        self.dopasuj_szerokosc()
         self.zaznaczono.emit(None)
         self.zmiana_strony.emit(numer, self.liczba_stron)
 
-    def dopasuj(self) -> None:
+    def _dopasuj_szerokosc(self, *, od_poczatku: bool) -> None:
         if self._obraz.pixmap().isNull():
             return
+        poprzednia_pozycja = self.verticalScrollBar().value()
+        self._tryb_dopasowania = "szerokosc"
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.resetTransform()
+        szerokosc = self._obraz.boundingRect().width()
+        dostepna = max(1, self.viewport().width() - 24)
+        self.scale(dostepna / max(1, szerokosc), dostepna / max(1, szerokosc))
+        self._zoom = 1.0
+        self.verticalScrollBar().setValue(
+            0 if od_poczatku else poprzednia_pozycja
+        )
+
+    def dopasuj_szerokosc(self) -> None:
+        """Czytelna strona zajmuje szerokość panelu; wysokość można przewijać."""
+        self._dopasuj_szerokosc(od_poczatku=True)
+
+    def dopasuj(self) -> None:
+        """Cała strona w panelu (alternatywa dla czytelnego widoku szerokości)."""
+        if self._obraz.pixmap().isNull():
+            return
+        self._tryb_dopasowania = "strona"
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.resetTransform()
         self.fitInView(self._obraz, Qt.AspectRatioMode.KeepAspectRatio)
         self._zoom = 1.0
@@ -90,10 +129,19 @@ class PodgladPDF(QGraphicsView):
     def powieksz(self, mnoznik: float) -> None:
         if self._obraz.pixmap().isNull():
             return
-        docelowy = max(0.5, min(5.0, self._zoom * mnoznik))
+        docelowy = max(0.5, min(8.0, self._zoom * mnoznik))
         skala = docelowy / self._zoom
+        self._tryb_dopasowania = None
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scale(skala, skala)
         self._zoom = docelowy
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if self._tryb_dopasowania == "szerokosc":
+            self._dopasuj_szerokosc(od_poczatku=False)
+        elif self._tryb_dopasowania == "strona":
+            self.dopasuj()
 
     def wheelEvent(self, event) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
