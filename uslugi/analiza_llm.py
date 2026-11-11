@@ -44,6 +44,30 @@ def _tekst_dowodowy(tekst: str) -> str:
     return " ".join(tekst.split()).casefold()
 
 
+def _wartosc_jest_w_dowodzie(nazwa: str, wartosc: str, dowod: str) -> bool:
+    """Sprawdź, czy wartość rzeczywiście wynika z podanego fragmentu PDF.
+
+    Nie weryfikujemy tu semantycznej kategorii usług — to sugestia modelu
+    wymagająca oceny człowieka, nie literalny tekst na fakturze.
+    """
+    tekst = _tekst_dowodowy(dowod)
+    if _tekst_dowodowy(wartosc) in tekst:
+        return True
+    if nazwa in DATY:
+        d = date.fromisoformat(wartosc)
+        if d.strftime("%d.%m.%Y") in tekst:
+            return True
+        if nazwa in ("okres_od", "okres_do"):
+            miesiac = f"{d.month:02d}/{d.year:04d}"
+            if miesiac in tekst or f"{d.month}/{d.year}" in tekst:
+                return True
+        return False
+    if nazwa == "numer_konta_bankowego":
+        cyfry = re.sub(r"\D", "", wartosc)
+        return bool(cyfry) and cyfry in re.sub(r"\D", "", dowod)
+    return False
+
+
 def normalizuj_date(wartosc: str, nazwa: str) -> str:
     """Polskie daty → ISO; miesiąc rozliczenia → pierwszy/ostatni dzień.
 
@@ -147,6 +171,10 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str],
                 if dopasowanie is None:
                     raise ValueError("Kategoria spoza listy Świstaka")
                 wartosc = dopasowanie
+            if (nazwa not in potwierdzone_recznie
+                    and nazwa != "kategoria_sugerowana"
+                    and not _wartosc_jest_w_dowodzie(nazwa, wartosc, dowod)):
+                raise ValueError("Wartość niezgodna z fragmentem źródłowym")
             komunikat = (
                 "Potwierdzone ręcznie z PDF — sprawdź przed zapisem"
                 if nazwa in potwierdzone_recznie
