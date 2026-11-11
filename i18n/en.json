@@ -149,7 +149,7 @@
   "validation.account_invoice": "Bank account matches invoice number",
   "validation.supplier_length": "Supplier name too long",
   "validation.invoice_length": "Invoice number too long",
-  "about.subtitle": "Local bill manager • development version",
+  "about.subtitle": "Local bill manager • {version}",
   "about.tagline": "Was this bill extracted and completed correctly?",
   "about.author": "Rafał Zacharski with Atos",
   "about.license": "PolyForm Noncommercial 1.0.0 License",

@@ -29,6 +29,7 @@ class TestOknoOProgramie(unittest.TestCase):
                 i18n.set_language(lang)
                 win = OknoOProgramie()
                 self.assertIn("Świstak", win.windowTitle())
+                self.assertIn("0.1.0 Beta 1", win.subtitle.text())
                 self.assertEqual(win.close_button.text(), label)
                 self.assertTrue(win.star_button.text())
                 self.assertIn("PolyForm", win.license.text())
