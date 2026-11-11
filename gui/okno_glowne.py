@@ -26,6 +26,7 @@ from uslugi.wzorce import MagazynWzorcow
 from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
 from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
 from gui.dialog_wzorca import zaakceptuj_wzorzec
+from gui.okno_wzorcow import OknoWzorcow
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from i18n import LANGUAGES, current_language, set_language, system_language, t
 import ustawienia
@@ -269,6 +270,9 @@ class OknoGlowne(QMainWindow):
 
         self.menu_ustawienia = menu.addMenu("")
         self.akcja_konfiguruj = self.menu_ustawienia.addAction("", self._open_settings)
+        self.akcja_wzorce = self.menu_ustawienia.addAction(
+            "", self._open_patterns_manager
+        )
 
         self.menu_jezyki = menu.addMenu("")
         self._lang_group = QActionGroup(self)
@@ -344,6 +348,13 @@ class OknoGlowne(QMainWindow):
         self.prefs = updated
         self.ed_model.setText(name)
 
+    def _open_patterns_manager(self) -> None:
+        OknoWzorcow(self, self.magazyn_wzorcow).exec()
+        # Menedżer może zmienić/wyłączyć aktywny wzorzec:
+        # ponów dopasowanie przed kolejną analizą.
+        if self.aktualny_dokument_id is not None:
+            self._wykryj_wzorzec(self.pole_odczytu.toPlainText())
+
     def _about(self) -> None:
         OknoOProgramie(self).exec()
 
@@ -371,6 +382,7 @@ class OknoGlowne(QMainWindow):
             (self.akcja_odswiez, "menu.refresh"),
             (self.akcja_zakoncz, "menu.exit"),
             (self.akcja_konfiguruj, "menu.configure"),
+            (self.akcja_wzorce, "patterns.manage"),
             (self.akcja_informacje, "menu.about_dialog"),
         ):
             action.setText(t(key))
