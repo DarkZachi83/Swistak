@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QTextEdit, QVBoxLayout,
+    QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
     QWidget, QComboBox,
 )
 
@@ -22,6 +22,10 @@ from gui.analiza_worker import ZadanieAnalizy
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import WynikOdczytu
 from uslugi.analiza_llm import AnalizaModelu, ETYKIETY, POLA, ocena_json
+from uslugi.wzorce import MagazynWzorcow
+from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
+from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
+from gui.dialog_wzorca import zaakceptuj_wzorzec
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from i18n import LANGUAGES, current_language, set_language, system_language, t
 import ustawienia
@@ -40,6 +44,13 @@ class OknoGlowne(QMainWindow):
     def __init__(self, rejestr: RejestrRachunkow):
         super().__init__()
         self.rejestr = rejestr
+        self.magazyn_wzorcow = MagazynWzorcow(rejestr.katalog)
+        self._dopasowanie_wzorca: Dopasowanie | None = None
+        self._aktywny_wzorzec: dict | None = None
+        self._wzorzec_pominiety = False
+        self._tekst_dopasowania = ""
+        self._wzorzec_dokument_id: int | None = None
+        self._komentarze_wzorca: dict[str, str] = {}
         self.prefs = ustawienia.load()
         set_language(self.prefs["language"])
         self._messages: dict[object, tuple[str, dict]] = {}
@@ -394,6 +405,7 @@ class OknoGlowne(QMainWindow):
         self.btn_przejdz_faktura.setText(t("button.review_invoice"))
         self.btn_powrot_edycja.setText(t("button.back_to_edit"))
         self.tytul_faktury.setText(t("invoice.title"))
+        self._aktualizuj_tekst_propozycji()
         for key, label in self.podsumowanie_etykiety.items():
             label.setText(t(key))
         self._aktualizuj_podsumowanie()
@@ -408,6 +420,12 @@ class OknoGlowne(QMainWindow):
         self.pole_odczytu.setPlaceholderText(t("read.placeholder"))
         self.btn_analizuj_z_odczytu.setText(t("button.analyze_text"))
         self.hint_ai.setText(t("ai.hint"))
+        self.btn_wybierz_wzorzec.setText(t("patterns.choose"))
+        self.etykieta_notatek_wzorca.setText(t("patterns.notes"))
+        self.notatki_wzorca.setPlaceholderText(t("patterns.notes_placeholder"))
+        self.btn_komentarz_pola.setText(t("patterns.field_note"))
+        self.btn_proponuj_wzorzec.setText(t("patterns.propose"))
+        self._aktualizuj_info_wzorca()
         self.etykieta_modelu.setText(t("ai.model"))
         self.ed_model.setToolTip(t("ai.model_tip"))
         self.btn_analizuj.setText(t("button.analyze"))
@@ -565,6 +583,15 @@ class OknoGlowne(QMainWindow):
         self.zapisz_przycisk.setObjectName("zapiszFakture")
         self.zapisz_przycisk.clicked.connect(self._zapisz_rachunek)
         uklad.addWidget(self.zapisz_przycisk)
+        self.info_propozycji_wzorca = QLabel()
+        self.info_propozycji_wzorca.setWordWrap(True)
+        self.info_propozycji_wzorca.setObjectName("podpowiedz")
+        self.info_propozycji_wzorca.hide()
+        uklad.addWidget(self.info_propozycji_wzorca)
+        self.btn_proponuj_wzorzec = QPushButton()
+        self.btn_proponuj_wzorzec.clicked.connect(self._zaproponuj_zapis_wzorca)
+        self.btn_proponuj_wzorzec.hide()
+        uklad.addWidget(self.btn_proponuj_wzorzec)
         uklad.addStretch()
         przewijanie.setWidget(panel)
         return przewijanie
@@ -657,6 +684,16 @@ class OknoGlowne(QMainWindow):
         instrukcja.setObjectName("podpowiedz")
         uklad.addWidget(instrukcja)
 
+        wzorce_uklad = QHBoxLayout()
+        self.info_wzorca = QLabel()
+        self.info_wzorca.setObjectName("podpowiedz")
+        self.info_wzorca.setWordWrap(True)
+        wzorce_uklad.addWidget(self.info_wzorca, 1)
+        self.btn_wybierz_wzorzec = QPushButton()
+        self.btn_wybierz_wzorzec.clicked.connect(self._wybierz_wzorzec_recznie)
+        wzorce_uklad.addWidget(self.btn_wybierz_wzorzec)
+        uklad.addLayout(wzorce_uklad)
+
         model_uklad = QHBoxLayout()
         self.etykieta_modelu = QLabel("Model Ollama:")
         model_uklad.addWidget(self.etykieta_modelu)
@@ -710,7 +747,17 @@ class OknoGlowne(QMainWindow):
         self.btn_dodaj_kategorie_ai = QPushButton()
         self.btn_dodaj_kategorie_ai.clicked.connect(self._dodaj_kategorie)
         przyciski_korekty.addWidget(self.btn_dodaj_kategorie_ai)
+        self.btn_komentarz_pola = QPushButton()
+        self.btn_komentarz_pola.clicked.connect(self._dodaj_komentarz_wzorca)
+        przyciski_korekty.addWidget(self.btn_komentarz_pola)
         uklad.addLayout(przyciski_korekty)
+
+        self.etykieta_notatek_wzorca = QLabel()
+        uklad.addWidget(self.etykieta_notatek_wzorca)
+        self.notatki_wzorca = QPlainTextEdit()
+        self.notatki_wzorca.setMaximumHeight(75)
+        self.notatki_wzorca.setObjectName("wskazowkiWzorca")
+        uklad.addWidget(self.notatki_wzorca)
 
         self.btn_przenies = QPushButton("Przenieś zweryfikowane pola do formularza")
         self.btn_przenies.setToolTip("Nie zapisuje rachunku w SQLite")
@@ -831,6 +878,7 @@ class OknoGlowne(QMainWindow):
         )
         self.btn_potwierdz_recznie.setEnabled(not zajete and analiza_dokumentu)
         self.btn_dodaj_kategorie_ai.setEnabled(not zajete and analiza_dokumentu)
+        self.btn_komentarz_pola.setEnabled(not zajete and analiza_dokumentu)
 
     def _start_analizy(self) -> None:
         if self._zadanie_ai is not None or self._zadanie_odczytu is not None:
@@ -848,8 +896,30 @@ class OknoGlowne(QMainWindow):
         if not model:
             QMessageBox.warning(self, t("tab.ai"), t("msg.model_required"))
             return
+        if (self._wzorzec_dokument_id != self.aktualny_dokument_id
+                or self._tekst_dopasowania != tekst):
+            self._wykryj_wzorzec(tekst)
+        if (self._dopasowanie_wzorca is not None
+                and self._dopasowanie_wzorca.poziom == "suggest"
+                and self._aktywny_wzorzec is None and not self._wzorzec_pominiety):
+            decyzja = QMessageBox.question(
+                self, t("patterns.match_title"),
+                t("patterns.match_confirm",
+                  name=self._dopasowanie_wzorca.wzorzec["name"],
+                  score=self._dopasowanie_wzorca.punkty),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if decyzja == QMessageBox.StandardButton.Yes:
+                self._aktywny_wzorzec = self._dopasowanie_wzorca.wzorzec
+            else:
+                self._wzorzec_pominiety = True
+            self._aktualizuj_info_wzorca()
         kategorie = [wiersz["nazwa"] for wiersz in self.rejestr.kategorie()]
-        zadanie = ZadanieAnalizy(self.aktualny_dokument_id, tekst, kategorie, model)
+        zadanie = ZadanieAnalizy(
+            self.aktualny_dokument_id, tekst, kategorie, model,
+            wzorzec=self._aktywny_wzorzec,
+        )
         self._wyczysc_analize()
         self._zadanie_ai = zadanie
         self.karty.setCurrentIndex(self.ETAP_ANALIZA)
@@ -995,6 +1065,7 @@ class OknoGlowne(QMainWindow):
         self._zadanie_odczytu = None
         self._aktualizuj_odczyt()
         self.pole_odczytu.setPlainText(wynik.tekst_dla_llm)
+        self._wykryj_wzorzec(wynik.tekst_dla_llm)
         self._aktualizuj_odczyt()
         if wynik.czy_pusty:
             self._message(self.info_odczytu, "read.missing")
@@ -1028,6 +1099,146 @@ class OknoGlowne(QMainWindow):
         if self._zadanie_ai is not None:
             self._zadanie_ai.przerwij.set()
         super().closeEvent(event)
+
+    def _aktualizuj_info_wzorca(self) -> None:
+        if not hasattr(self, "info_wzorca"):
+            return
+        if self._aktywny_wzorzec is not None:
+            self.info_wzorca.setText(t(
+                "patterns.active", name=self._aktywny_wzorzec["name"]
+            ))
+        elif self._dopasowanie_wzorca is not None:
+            match = self._dopasowanie_wzorca
+            key = "patterns.skipped" if self._wzorzec_pominiety else "patterns.suggest"
+            self.info_wzorca.setText(t(
+                key, name=match.wzorzec["name"], score=match.punkty
+            ))
+        else:
+            self.info_wzorca.setText(t("patterns.none"))
+
+    def _wykryj_wzorzec(self, tekst: str) -> None:
+        """Rozpoznanie tylko po wstępnym OCR; żadnego zapisu i żadnego LLM."""
+        self._wzorzec_dokument_id = self.aktualny_dokument_id
+        self._tekst_dopasowania = tekst
+        self._dopasowanie_wzorca = None
+        self._aktywny_wzorzec = None
+        self._wzorzec_pominiety = False
+        if tekst.strip() and self.aktualny_dokument_id is not None:
+            try:
+                self._dopasowanie_wzorca = dopasuj(
+                    tekst, self.magazyn_wzorcow.lista(tylko_aktywne=True)
+                )
+                if (self._dopasowanie_wzorca is not None
+                        and self._dopasowanie_wzorca.poziom == "automatic"):
+                    self._aktywny_wzorzec = self._dopasowanie_wzorca.wzorzec
+            except (OSError, ValueError) as error:
+                self.info_wzorca.setText(t("patterns.load_error"))
+                self._status("patterns.load_error")
+                return
+        self._aktualizuj_info_wzorca()
+
+    def _wybierz_wzorzec_recznie(self) -> None:
+        """Użytkownik może pominąć dopasowanie lub wskazać inne zatwierdzone reguły."""
+        try:
+            templates = self.magazyn_wzorcow.lista(tylko_aktywne=True)
+        except (OSError, ValueError) as error:
+            QMessageBox.warning(self, t("patterns.title"), str(error))
+            return
+        choices = [t("patterns.no_template")] + [
+            f"{item['name']} ({item['template_id'][-8:]}, r{item['revision']})"
+            for item in templates
+        ]
+        choice, accepted = QInputDialog.getItem(
+            self, t("patterns.choose"), t("patterns.select"), choices, 0, False
+        )
+        if not accepted:
+            return
+        index = choices.index(choice)
+        self._aktywny_wzorzec = templates[index - 1] if index else None
+        self._wzorzec_pominiety = (index == 0)
+        self._aktualizuj_info_wzorca()
+
+    def _dodaj_komentarz_wzorca(self) -> None:
+        if self._analiza is None or self._analiza_dokument_id != self.aktualny_dokument_id:
+            return
+        row = self.tabela_ai.currentRow()
+        if not 0 <= row < len(POLA):
+            QMessageBox.information(self, t("patterns.title"), t("patterns.select_field"))
+            return
+        pole = POLA[row]
+        text, accepted = QInputDialog.getMultiLineText(
+            self, t("patterns.field_note"), t("patterns.field_note_help"),
+            self._komentarze_wzorca.get(pole, ""),
+        )
+        if accepted:
+            if len(text.strip()) > 450:
+                QMessageBox.warning(self, t("patterns.title"), t("patterns.note_too_long"))
+                return
+            if text.strip():
+                self._komentarze_wzorca[pole] = text.strip()
+            else:
+                self._komentarze_wzorca.pop(pole, None)
+            self.tabela_ai.item(row, 0).setToolTip(
+                self._komentarze_wzorca.get(pole, t("patterns.no_field_note"))
+            )
+
+    def _aktualizuj_tekst_propozycji(self) -> None:
+        if not hasattr(self, "btn_proponuj_wzorzec"):
+            return
+        existing = self._aktywny_wzorzec is not None
+        self.btn_proponuj_wzorzec.setText(t(
+            "patterns.propose_update" if existing else "patterns.propose"
+        ))
+        self.info_propozycji_wzorca.setText(t(
+            "patterns.offer_update" if existing else "patterns.offer_new"
+        ))
+
+    def _zaproponuj_zapis_wzorca(self) -> None:
+        """Wyłącznie po zapisie faktury, z osobnym przeglądem JSON i zgodą."""
+        if self.aktualny_dokument_id is None or self.rejestr.rachunek(
+            self.aktualny_dokument_id
+        ) is None:
+            return
+        tekst = self.pole_odczytu.toPlainText()
+        if not tekst.strip():
+            QMessageBox.information(
+                self, t("patterns.title"), t("patterns.read_first")
+            )
+            return
+        kategoria = (
+            self.wybor_kategoria.currentText()
+            if self.wybor_kategoria.currentData() is not None else None
+        )
+        try:
+            candidate = zaproponuj_wzorzec(
+                tekst, self.ed_dostawca.text(), kategoria,
+                self._komentarze_wzorca, self.notatki_wzorca.toPlainText(),
+            )
+            original = self._aktywny_wzorzec
+            if original is not None:
+                proposal = zaproponuj_aktualizacje(original, candidate)
+            else:
+                proposal = candidate
+            # Dialog nie zapisuje niczego; anulowanie pozostawia pliki bez zmian.
+            approved = zaakceptuj_wzorzec(
+                self, proposal, aktualizacja=original is not None
+            )
+            if approved is None:
+                return
+            if original is not None:
+                saved = self.magazyn_wzorcow.aktualizuj(
+                    original["template_id"], approved,
+                    expected_revision=original["revision"],
+                )
+            else:
+                saved = self.magazyn_wzorcow.utworz(approved)
+            self._aktywny_wzorzec = saved
+            self._wzorzec_pominiety = False
+            self._aktualizuj_info_wzorca()
+            self._aktualizuj_tekst_propozycji()
+            self._status("patterns.saved", name=saved["name"])
+        except (ValueError, OSError, TypeError) as error:
+            QMessageBox.warning(self, t("patterns.title"), str(error))
 
     def _zbuduj_liste(self) -> QWidget:
         panel = QWidget()
@@ -1116,6 +1327,16 @@ class OknoGlowne(QMainWindow):
     def _wyswietl_dokument(self, dokument_id: int) -> None:
         self._wybrany_obszar = None
         self._wyczysc_analize()
+        self._komentarze_wzorca.clear()
+        self.notatki_wzorca.clear()
+        self._dopasowanie_wzorca = None
+        self._aktywny_wzorzec = None
+        self._wzorzec_pominiety = False
+        self._wzorzec_dokument_id = None
+        self._tekst_dopasowania = ""
+        self._aktualizuj_info_wzorca()
+        self.btn_proponuj_wzorzec.hide()
+        self.info_propozycji_wzorca.hide()
         self.pole_odczytu.clear()
         self._message(self.info_odczytu, "doc.opened")
         sciezka = self.rejestr.sciezka_pdf(dokument_id)
@@ -1202,6 +1423,9 @@ class OknoGlowne(QMainWindow):
             self.rejestr.zapisz_rachunek(dane)
             self._odswiez_liste()
             self._aktualizuj_podsumowanie()
+            self.btn_proponuj_wzorzec.show()
+            self.info_propozycji_wzorca.show()
+            self._aktualizuj_tekst_propozycji()
             self.info_faktury.setText(t("invoice.saved"))
             self._status("msg.saved")
         except (ValueError, OSError, sqlite3.Error) as blad:
