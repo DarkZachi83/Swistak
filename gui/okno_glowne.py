@@ -21,7 +21,7 @@ from gui.odczyt_worker import ZadanieOdczytu
 from gui.analiza_worker import ZadanieAnalizy
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import WynikOdczytu
-from uslugi.analiza_llm import AnalizaModelu, ETYKIETY, POLA
+from uslugi.analiza_llm import AnalizaModelu, ETYKIETY, POLA, ocena_json
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from i18n import LANGUAGES, current_language, set_language, system_language, t
 import ustawienia
@@ -50,6 +50,8 @@ class OknoGlowne(QMainWindow):
         self._zadanie_ai: ZadanieAnalizy | None = None
         self._analiza: AnalizaModelu | None = None
         self._analiza_dokument_id: int | None = None
+        self._aktualizuje_tabele_ai = False
+        self._pola_potwierdzone_recznie: set[str] = set()
         self.setWindowTitle("Świstak — rachunki i analiza AI (etap 3)")
         self.resize(1450, 860)
         self.setMinimumSize(990, 570)
@@ -410,9 +412,13 @@ class OknoGlowne(QMainWindow):
         self.btn_anuluj_ai.setText(t("button.cancel"))
         self.btn_przenies.setText(t("button.apply"))
         self.btn_przenies.setToolTip(t("ai.apply_tip"))
+        self.btn_potwierdz_recznie.setText(t("ai.confirm_row"))
+        self.btn_potwierdz_recznie.setToolTip(t("ai.confirm_row_tip"))
+        self.btn_dodaj_kategorie_ai.setText(t("ai.add_category"))
+        self.hint_edycji_ai.setText(t("ai.edit_hint"))
         self.hint_ai_stopka.setText(t("ai.next_step"))
         self.tabela_ai.setHorizontalHeaderLabels([
-            t("ai.table.field"), t("ai.table.suggestion"),
+            t("ai.table.field"), t("ai.table.suggestion_edit"),
             t("ai.table.evidence"), t("ai.table.verdict"),
         ])
         for row, field in enumerate(POLA):
@@ -671,21 +677,38 @@ class OknoGlowne(QMainWindow):
         uklad.addWidget(self.info_ai)
 
         self.tabela_ai = QTableWidget(len(POLA), 4)
-        self.tabela_ai.setHorizontalHeaderLabels(["Pole", "Sugestia AI", "Dowód z tekstu", "Ocena"])
-        self.tabela_ai.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabela_ai.setHorizontalHeaderLabels(["Pole", "Sugestia / korekta", "Dowód z tekstu", "Ocena"])
+        self.tabela_ai.setEditTriggers(
+            QAbstractItemView.EditTrigger.DoubleClicked
+            | QAbstractItemView.EditTrigger.EditKeyPressed
+        )
         self.tabela_ai.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tabela_ai.setWordWrap(True)
         self.tabela_ai.setAlternatingRowColors(True)
         self.tabela_ai.verticalHeader().setVisible(False)
-        self.tabela_ai.setColumnWidth(0, 128)
-        self.tabela_ai.setColumnWidth(1, 155)
-        self.tabela_ai.setColumnWidth(3, 175)
+        self.tabela_ai.setColumnWidth(0, 130)
+        self.tabela_ai.setColumnWidth(1, 185)
+        self.tabela_ai.setColumnWidth(3, 200)
         self.tabela_ai.horizontalHeader().setSectionResizeMode(
             2, QHeaderView.ResizeMode.Stretch
         )
         for n, pole in enumerate(POLA):
-            self.tabela_ai.setItem(n, 0, QTableWidgetItem(ETYKIETY[pole]))
+            self.tabela_ai.setItem(n, 0, self._element_tabeli_ai(ETYKIETY[pole]))
+        self.tabela_ai.itemChanged.connect(self._edytowano_sugestie_ai)
         uklad.addWidget(self.tabela_ai, 1)
+
+        self.hint_edycji_ai = QLabel()
+        self.hint_edycji_ai.setWordWrap(True)
+        self.hint_edycji_ai.setObjectName("podpowiedz")
+        uklad.addWidget(self.hint_edycji_ai)
+        przyciski_korekty = QHBoxLayout()
+        self.btn_potwierdz_recznie = QPushButton()
+        self.btn_potwierdz_recznie.clicked.connect(self._potwierdz_pole_ai)
+        przyciski_korekty.addWidget(self.btn_potwierdz_recznie)
+        self.btn_dodaj_kategorie_ai = QPushButton()
+        self.btn_dodaj_kategorie_ai.clicked.connect(self._dodaj_kategorie)
+        przyciski_korekty.addWidget(self.btn_dodaj_kategorie_ai)
+        uklad.addLayout(przyciski_korekty)
 
         self.btn_przenies = QPushButton("Przenieś zweryfikowane pola do formularza")
         self.btn_przenies.setToolTip("Nie zapisuje rachunku w SQLite")
@@ -696,13 +719,97 @@ class OknoGlowne(QMainWindow):
         uklad.addWidget(self.hint_ai_stopka)
         return panel
 
+    @staticmethod
+    def _element_tabeli_ai(tekst: str, edytowalny: bool = False) -> QTableWidgetItem:
+        element = QTableWidgetItem(tekst)
+        if not edytowalny:
+            element.setFlags(element.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        element.setToolTip(tekst)
+        return element
+
     def _wyczysc_analize(self) -> None:
         self._analiza = None
         self._analiza_dokument_id = None
-        for r in range(len(POLA)):
-            for c in range(1, 4):
-                self.tabela_ai.setItem(r, c, QTableWidgetItem(""))
+        self._pola_potwierdzone_recznie.clear()
+        self._aktualizuje_tabele_ai = True
+        try:
+            for r in range(len(POLA)):
+                for c in range(1, 4):
+                    self.tabela_ai.setItem(r, c, self._element_tabeli_ai(""))
+        finally:
+            self._aktualizuje_tabele_ai = False
         self._message(self.info_ai, "ai.none")
+
+    def _przelicz_sugestie_ai(self) -> None:
+        """Zastosuj te same walidacje co po odpowiedzi Ollamy, ale bez żądania AI."""
+        if self._analiza is None or self._analiza_dokument_id != self.aktualny_dokument_id:
+            return
+        dane = {}
+        for r, pole in enumerate(POLA):
+            element = self.tabela_ai.item(r, 1)
+            wartosc = element.text().strip() if element is not None else ""
+            dane[pole] = {
+                "wartosc": wartosc if wartosc and wartosc != "—" else None,
+                "dowod": self._analiza.oceny[pole].dowod,
+            }
+        oceny = ocena_json(
+            dane, self.pole_odczytu.toPlainText(),
+            [wiersz["nazwa"] for wiersz in self.rejestr.kategorie()],
+            potwierdzone_recznie=self._pola_potwierdzone_recznie,
+        )
+        self._analiza = AnalizaModelu(self._analiza.model, oceny)
+        self._aktualizuje_tabele_ai = True
+        try:
+            for r, pole in enumerate(POLA):
+                ocena = oceny[pole]
+                element = self.tabela_ai.item(r, 1)
+                if element is not None and ocena.poprawne and ocena.wartosc is not None:
+                    element.setText(ocena.wartosc)
+                    element.setToolTip(ocena.wartosc)
+                opis = ("✓ " if ocena.poprawne else "⚠ ") + self._validation_message(ocena.komunikat)
+                self.tabela_ai.setItem(r, 3, self._element_tabeli_ai(opis))
+            self.tabela_ai.resizeRowsToContents()
+        finally:
+            self._aktualizuje_tabele_ai = False
+        self._aktualizuj_ai()
+
+    def _edytowano_sugestie_ai(self, element: QTableWidgetItem) -> None:
+        if self._aktualizuje_tabele_ai or element.column() != 1 or self._analiza is None:
+            return
+        pole = POLA[element.row()]
+        # Zmiana wartości unieważnia wcześniejsze ręczne potwierdzenie.
+        self._pola_potwierdzone_recznie.discard(pole)
+        self._przelicz_sugestie_ai()
+
+    def _potwierdz_pole_ai(self) -> None:
+        """Ręcznie potwierdź wskazaną wartość po porównaniu z PDF.
+
+        Dowód OCR może być uszkodzony, ale poprawność daty, kwoty,
+        numeru konta, waluty i kategorii nadal jest weryfikowana.
+        """
+        if self._analiza is None or self._analiza_dokument_id != self.aktualny_dokument_id:
+            return
+        r = self.tabela_ai.currentRow()
+        if not 0 <= r < len(POLA):
+            return
+        pole = POLA[r]
+        odp = QMessageBox.question(
+            self, t("ai.manual_title"),
+            t("ai.manual_confirm", field=t(self._AI_FIELDS[pole])),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if odp != QMessageBox.StandardButton.Yes:
+            return
+        self._pola_potwierdzone_recznie.add(pole)
+        self._przelicz_sugestie_ai()
+        if not self._analiza.oceny[pole].poprawne:
+            self._pola_potwierdzone_recznie.discard(pole)
+            self._przelicz_sugestie_ai()
+            QMessageBox.warning(
+                self, t("ai.manual_title"),
+                self._validation_message(self._analiza.oceny[pole].komunikat)
+            )
 
     def _aktualizuj_ai(self) -> None:
         zajete = self._zadanie_ai is not None or self._zadanie_odczytu is not None
@@ -712,11 +819,16 @@ class OknoGlowne(QMainWindow):
         self.btn_analizuj.setEnabled(mozna)
         self.btn_analizuj_z_odczytu.setEnabled(mozna)
         self.btn_anuluj_ai.setEnabled(self._zadanie_ai is not None)
-        self.btn_przenies.setEnabled(
-            not zajete and self._analiza is not None
+        analiza_dokumentu = (
+            self._analiza is not None
             and self._analiza_dokument_id == self.aktualny_dokument_id
+        )
+        self.btn_przenies.setEnabled(
+            not zajete and analiza_dokumentu
             and any(x.poprawne for x in self._analiza.oceny.values())
         )
+        self.btn_potwierdz_recznie.setEnabled(not zajete and analiza_dokumentu)
+        self.btn_dodaj_kategorie_ai.setEnabled(not zajete and analiza_dokumentu)
 
     def _start_analizy(self) -> None:
         if self._zadanie_ai is not None or self._zadanie_odczytu is not None:
@@ -753,21 +865,26 @@ class OknoGlowne(QMainWindow):
             return
         self._analiza = wynik
         self._analiza_dokument_id = dokument_id
+        self._pola_potwierdzone_recznie.clear()
         ile = 0
-        for r, pole in enumerate(POLA):
-            ocena = wynik.oceny[pole]
-            if ocena.poprawne:
-                ile += 1
-            tresci = (
-                ocena.wartosc if ocena.wartosc is not None else "—",
-                ocena.dowod or "—",
-                ("✓ " if ocena.poprawne else "⚠ ") + self._validation_message(ocena.komunikat),
-            )
-            for c, napis in enumerate(tresci, 1):
-                element = QTableWidgetItem(napis)
-                element.setToolTip(napis)
-                self.tabela_ai.setItem(r, c, element)
-        self.tabela_ai.resizeRowsToContents()
+        self._aktualizuje_tabele_ai = True
+        try:
+            for r, pole in enumerate(POLA):
+                ocena = wynik.oceny[pole]
+                if ocena.poprawne:
+                    ile += 1
+                tresci = (
+                    ocena.wartosc if ocena.wartosc is not None else "—",
+                    ocena.dowod or "—",
+                    ("✓ " if ocena.poprawne else "⚠ ") + self._validation_message(ocena.komunikat),
+                )
+                for c, napis in enumerate(tresci, 1):
+                    self.tabela_ai.setItem(
+                        r, c, self._element_tabeli_ai(napis, edytowalny=(c == 1))
+                    )
+            self.tabela_ai.resizeRowsToContents()
+        finally:
+            self._aktualizuje_tabele_ai = False
         self._message(self.info_ai, "ai.done", model=wynik.model, count=ile, total=len(POLA))
         self._aktualizuj_odczyt()
 
@@ -831,6 +948,7 @@ class OknoGlowne(QMainWindow):
             if id_kategorii >= 0:
                 self.wybor_kategoria.setCurrentIndex(id_kategorii)
         self._analiza = None  # nie pozwól ponownie użyć nieaktualnej propozycji
+        self._pola_potwierdzone_recznie.clear()
         self._aktualizuj_odczyt()
         self.karty.setCurrentIndex(self.ETAP_EDYCJA)
         self._status("ai.saved_hint")
@@ -944,6 +1062,20 @@ class OknoGlowne(QMainWindow):
         try:
             identyfikator = self.rejestr.dodaj_kategorie(nazwa)
             self._odswiez_kategorie(identyfikator)
+            # Dodanie kategorii na ekranie AI oznacza świadomy wybór użytkownika.
+            # Ocenę semantyczną zastępuje ręczna decyzja, ale walidacja zostaje.
+            if self.karty.currentIndex() == self.ETAP_ANALIZA and self._analiza is not None:
+                pole = "kategoria_sugerowana"
+                r = POLA.index(pole)
+                element = self.tabela_ai.item(r, 1)
+                if element is not None:
+                    self._aktualizuje_tabele_ai = True
+                    try:
+                        element.setText(nazwa.strip())
+                    finally:
+                        self._aktualizuje_tabele_ai = False
+                    self._pola_potwierdzone_recznie.add(pole)
+                    self._przelicz_sugestie_ai()
         except (ValueError, sqlite3.Error) as blad:
             QMessageBox.warning(self, t("msg.category"), str(blad))
 
