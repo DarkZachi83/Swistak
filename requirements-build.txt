@@ -1,0 +1,3 @@
+# Wyłącznie do budowania testowego pakietu Linux w izolowanym CI.
+# Wymagana wersja PyInstaller obsługująca Qt/PySide6 i Python 3.11.
+pyinstaller>=6.15,<7

@@ -1,0 +1,72 @@
+name: Linux Beta binarnie (QA)
+
+on:
+  push:
+    branches:
+      - feature/linux-beta-binary-onedir
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'tools/build_linux_binary.py'
+      - 'tools/diagnostyka.py'
+      - 'packaging/linux-binary/**'
+      - 'requirements-build.txt'
+      - 'main.py'
+      - 'i18n/**'
+      - 'gui/**'
+      - 'baza/**'
+      - '.github/workflows/linux-binary-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-qa:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Systemowe biblioteki Qt (tylko budowanie i test)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-xinerama0 tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng
+      - name: Zależności programu i narzędzia budowania
+        run: python -m pip install -r requirements.txt -r requirements-build.txt
+      - name: Test bez otwierania bazy użytkownika
+        run: |
+          export SWISTAK_DATA_DIR="$RUNNER_TEMP/no-private-data"
+          python main.py --version
+          python main.py --self-test
+          test ! -e "$SWISTAK_DATA_DIR"
+      - name: Budowanie binarnego pakietu one-folder
+        run: python -m tools.build_linux_binary
+      - name: Sprawdzenie wykonania z innego katalogu i bez venv
+        run: |
+          test -f dist/binary/swistak-linux-0.1.0b1-bin.tar.gz
+          mkdir -p "$RUNNER_TEMP/extracted"
+          tar -xzf dist/binary/swistak-linux-0.1.0b1-bin.tar.gz -C "$RUNNER_TEMP/extracted"
+          APP="$RUNNER_TEMP/extracted/Swistak-Linux-0.1.0b1-bin"
+          test -x "$APP/Swistak"
+          test -x "$APP/start.sh"
+          test -f "$APP/_internal/assets/branding/swistak-banner.jpeg"
+          test -f "$APP/_internal/baza/schemat/001_start.sql"
+          test -f "$APP/_internal/i18n/pl.json"
+          test -f "$APP/INWENTARYZACJA_LICENCJI.txt"
+          export SWISTAK_DATA_DIR="$RUNNER_TEMP/no-user-sqlite"
+          (cd "$RUNNER_TEMP" && "$APP/start.sh" --version)
+          (cd "$RUNNER_TEMP" && "$APP/start.sh" --self-test)
+          test ! -e "$SWISTAK_DATA_DIR"
+          echo 'Pakiet PyInstaller: uruchomienie i test bez prywatnej bazy OK'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swistak-linux-0.1.0b1-binary-QA
+          path: dist/binary/swistak-linux-0.1.0b1-bin.tar.gz
+          if-no-files-found: error
+          retention-days: 7
