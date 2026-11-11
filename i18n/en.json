@@ -90,7 +90,7 @@
   "ai.cancelled": "Analysis cancelled — no changes to the form or database.",
   "ai.cancelling": "Cancelling: waiting for the current Ollama request to finish...",
   "ai.confirm_title": "Apply AI suggestions?",
-  "ai.confirm_body": "Apply {count} format-validated suggestions to the form?\n\nWarning: existing form values may be replaced. Verify each field against the original PDF. This does NOT save the bill to the database.",
+  "ai.confirm_body": "Apply {count} fields to Edit data?\n\nOnly format-validated fields with evidence or explicit manual confirmation are applied. Existing values may be overwritten. Verify against the original PDF before saving. This operation does NOT write to SQLite.",
   "ai.saved_hint": "AI suggestions moved to Edit data. Correct the values, open Invoice and explicitly save.",
   "list.hint": "Select an imported document to open or complete it.",
   "list.missing": "○ Needs details",
@@ -166,5 +166,13 @@
   "invoice.title": "Invoice — review",
   "invoice.review": "Verify edited values against the original PDF. The data will only be saved after clicking “Save invoice”.",
   "invoice.no_document": "Import a PDF or scan first.",
-  "invoice.saved": "The invoice has been saved to the local database. You can reopen it in Documents."
+  "invoice.saved": "The invoice has been saved to the local database. You can reopen it in Documents.",
+  "ai.table.suggestion_edit": "Suggestion / edit",
+  "ai.edit_hint": "Double-click any value to correct the AI result. The program validates the data again. If OCR evidence is missing, select the row and manually confirm it against the original PDF.",
+  "ai.confirm_row": "Confirm selected from PDF",
+  "ai.confirm_row_tip": "Only after comparing with the original invoice. Date, amount and bank account format checks remain active.",
+  "ai.add_category": "Add category",
+  "ai.manual_title": "Manually confirm a value",
+  "ai.manual_confirm": "Have you checked “{field}” directly against the original invoice? Invalid format still blocks transfer.",
+  "validation.manual": "Manually confirmed against PDF — verify before saving"
 }

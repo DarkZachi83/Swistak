@@ -90,7 +90,7 @@
   "ai.cancelled": "Analiza anulowana — bez zmian w formularzu i bazie.",
   "ai.cancelling": "Anulowanie: oczekiwanie na zakończenie bieżącego żądania Ollamy...",
   "ai.confirm_title": "Przenieść propozycje AI?",
-  "ai.confirm_body": "Przenieść {count} sprawdzonych formatowo propozycji do formularza?\n\nUwaga: istniejące wartości formularza mogą zostać zastąpione. Zweryfikuj każde pole z oryginalnym PDF. Ta operacja NIE zapisuje rachunku w bazie.",
+  "ai.confirm_body": "Przenieść {count} pól do etapu Edycja danych?\n\nPrzenoszone są tylko wartości o sprawdzonym formacie i potwierdzonym źródle albo świadomie potwierdzone ręcznie. Istniejące wpisy mogą zostać zastąpione. Sprawdź wszystko z PDF przed zapisaniem faktury. Ta operacja NIE zapisuje niczego do SQLite.",
   "ai.saved_hint": "Sugestie przeniesiono do Edycji danych. Popraw wartości, przejdź do Faktury i zatwierdź zapis.",
   "list.hint": "Wybierz zaimportowany dokument, aby go otworzyć lub uzupełnić.",
   "list.missing": "○ Do uzupełnienia",
@@ -166,5 +166,13 @@
   "invoice.title": "Faktura — podsumowanie",
   "invoice.review": "Sprawdź poprawione dane z dokumentem PDF. Zapis nastąpi dopiero po naciśnięciu przycisku „Zapisz fakturę”.",
   "invoice.no_document": "Najpierw zaimportuj dokument PDF lub skan.",
-  "invoice.saved": "Faktura została zapisana w lokalnej bazie. Możesz ją ponownie otworzyć w Dokumentach."
+  "invoice.saved": "Faktura została zapisana w lokalnej bazie. Możesz ją ponownie otworzyć w Dokumentach.",
+  "ai.table.suggestion_edit": "Sugestia / korekta",
+  "ai.edit_hint": "Dwuklik w wartości pozwala poprawić odpowiedź Gemmy. Pola są ponownie sprawdzane; przy błędnym dowodzie OCR zaznacz wiersz i potwierdź go ręcznie po sprawdzeniu z PDF.",
+  "ai.confirm_row": "Potwierdź zaznaczone z PDF",
+  "ai.confirm_row_tip": "Wyłącznie po ręcznym porównaniu z oryginałem. Nie omija kontroli dat, kwot ani numeru konta.",
+  "ai.add_category": "Dodaj kategorię",
+  "ai.manual_title": "Ręczne potwierdzenie wartości",
+  "ai.manual_confirm": "Czy sprawdzono pole „{field}” bezpośrednio z oryginalną fakturą? Nieprawidłowy format nadal zablokuje przeniesienie.",
+  "validation.manual": "Potwierdzone ręcznie z PDF — sprawdź przed zapisem"
 }
