@@ -45,7 +45,7 @@ def normalizuj_nip(value: str) -> str | None:
 def sprzedawca_fragment(tekst: str) -> str:
     """NIP i alias tylko z sekcji sprzedawcy — nigdy z sekcji nabywcy."""
     match = re.search(
-        r"(?im)^\s*(?:sprzedawca|wystawca|seller)\s*:?(?=[ \t]|\r?$)",
+        r"(?im)^[ \t]*(?:sprzedawca|wystawca|seller)(?:[ \t]*:|[ \t]*(?=\r?$))",
         tekst,
     )
     if not match:
