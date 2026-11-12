@@ -14,7 +14,7 @@ from PySide6.QtGui import QImage, QPainter, QPdfWriter
 from uslugi.kody_qr import OdczytQRAnulowany, odczytaj_kody_qr, rozpoznaj_platnosc
 
 SYNTHETIC = "1234563218|PL|07109010140000000000000001|001234|Operator Testowy|FV/DEMO/11/2026|||"
-QR_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAALQAAAC0AQAAAAAVtjufAAABhUlEQVR42u2XsY0dQQxDn4zL33Sw/Ze1HXAqoIN/BhxcKMCJlSxGATEjkZR2yk9xf/Fz/M+v52fmXOBymDkzc1bxbTkcuPfS2C6/aw4ZBn2cw5z9ugmee/OS3fp/fT7je5Cz3t8voJxecHwdKIv9nTLg39IFs6Zf+h1iQvM5ZRFfNUCD0Zpd/GrSpoG0UFfxSQxpUCp1Ef8LhBe9dMLJnTx7/KGNRTQULe3u/Z9Mv5UVDlyzev9WWm6/v58wgOp3PwrO/PL+MN5PKe21X+A5pv/y9Z7e/8/7/+p/nf5ChdmVCSSvIAAAAASUVORK5CYII="
+QR_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAALQAAAC0AQAAAAAVtjufAAABhUlEQVR42u2XsY0dQQxDn4zL33Sw/Ze1HXAqoIN/BhxcKMCJlSxGATEjkZR2yk9xf/Fz/M+v52fmXOBymDkzc1bxbTkcuPfS2C6/aw4ZBn2cw5z9ugmee/OS3fp/fT7je5Cz3t8voJxecHwdKIv9nTLg39IFs6Zf+h1iQvM5ZRFfNUCD0Zpd/GrSpoG0UFfxSQxpUCp1Ef8LhBe9dMLJnTx7/KGNRTQULe3u/Z9Mv5UVDlyzev9WWyOU0iz3tyGRhKSQbPL/C4aOOR548kfKm/oqrURKLCzzk+nhhdsrL3HZ37jwQCYg0+vifsLHEIKJRcM2f2wqtSmpu/qihZi2KaWkdtvfmiZNUlivDxSRBktJFvF/QTJFuHAv9zMtF/EfOjcRDKUu7w8vExg8PLfcg7v+QNA05DOIt+fvZwR/ioN1nT+YEqWqq/5Ga2tiQ9JasoyPSipav0fO8n77wkjuvWWm6/v58wgOp3PwrO/PL+MN5PKe21X+A5pv/y9Z7e/8/7/+p/nf5ChdmVCSSvIAAAAASUVORK5CYII="
 
 
 class TestQR(unittest.TestCase):
@@ -35,14 +35,17 @@ class TestQR(unittest.TestCase):
     def test_odczyt_z_fikcyjnego_pdf(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "faktura-testowa.pdf"
+            bitmap = QImage.fromData(base64.b64decode(QR_PNG_BASE64), "PNG")
+            self.assertFalse(bitmap.isNull())
             writer = QPdfWriter(str(path))
             writer.setResolution(72)
             painter = QPainter(writer)
-            self.assertTrue(painter.isActive())
-            bitmap = QImage.fromData(base64.b64decode(QR_PNG_BASE64), "PNG")
-            self.assertFalse(bitmap.isNull())
-            painter.drawImage(QRect(120, 210, 310, 310), bitmap)
-            painter.end()
+            try:
+                self.assertTrue(painter.isActive())
+                painter.drawImage(QRect(120, 210, 310, 310), bitmap)
+            finally:
+                if painter.isActive():
+                    painter.end()
             result = odczytaj_kody_qr(path)
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0].strona, 0)
