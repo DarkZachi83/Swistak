@@ -34,7 +34,6 @@ class DialogModeleLokalne(QDialog):
         layout.addWidget(self.wskazowka)
 
         self.karty = QTabWidget()
-        self.karty.currentChanged.connect(lambda _: self._zmieniono())
         layout.addWidget(self.karty, 1)
 
         self.strona_ollama = QWidget()
@@ -74,6 +73,9 @@ class DialogModeleLokalne(QDialog):
         self.btn_uzyj.setEnabled(False)
         self.btn_uzyj.clicked.connect(self._zatwierdz)
         buttons.addWidget(self.btn_uzyj)
+        # Dopiero po utworzeniu przycisków: currentChanged wyzwala się też
+        # podczas dodawania pierwszej zakładki.
+        self.karty.currentChanged.connect(self._zmieniono)
         self.btn_zamknij = QPushButton(t("models.close"))
         self.btn_zamknij.clicked.connect(self.reject)
         buttons.addWidget(self.btn_zamknij)
