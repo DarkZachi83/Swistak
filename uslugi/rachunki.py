@@ -16,6 +16,7 @@ from baza.migracje import zastosuj_migracje
 from baza.polaczenie import polacz, transakcja
 from konfiguracja import katalog_danych
 from uslugi.archiwum import MagazynDokumentow
+from uslugi.kategorie import PODSTAWOWE_KATEGORIE, klucz_kategorii, podobne_kategorie
 from uslugi.walidacja import zweryfikuj_numer_konta
 
 
@@ -185,16 +186,83 @@ class RejestrRachunkow:
             "SELECT id, nazwa FROM kategorie WHERE aktywna = 1 ORDER BY nazwa COLLATE NOCASE"
         ))
 
-    def dodaj_kategorie(self, nazwa: str) -> int:
+    def kategorie_z_uzyciem(self) -> list[sqlite3.Row]:
+        """Liczba przypisanych pozycji — tylko aktywne kategorie."""
+        return list(self.db.execute(
+            "SELECT k.id, k.nazwa, COUNT(p.id) AS liczba_faktur "
+            "FROM kategorie k LEFT JOIN pozycje_rachunku p ON p.kategoria_id = k.id "
+            "WHERE k.aktywna = 1 GROUP BY k.id, k.nazwa "
+            "ORDER BY k.nazwa COLLATE NOCASE"
+        ))
+
+    def dodaj_kategorie(self, nazwa: str, *, zezwol_na_podobna: bool = False) -> int:
+        """Chroni też API bazy przed przypadkowymi literówkami.
+
+        Podobne, lecz świadomie rozróżnione kategorie wymagają jawnej flagi
+        (GUI uzyskuje ją dopiero po potwierdzeniu). Nazwy równoważne
+        po usunięciu diakrytyków są zawsze odrzucane.
+        """
         nazwa = " ".join(nazwa.split())
         if not (1 <= len(nazwa) <= 80):
             raise ValueError("Nazwa kategorii musi mieć od 1 do 80 znaków")
-        try:
-            with transakcja(self.db):
-                kursor = self.db.execute("INSERT INTO kategorie(nazwa) VALUES (?)", (nazwa,))
-                return int(kursor.lastrowid)
-        except sqlite3.IntegrityError as blad:
-            raise ValueError("Kategoria o tej nazwie już istnieje") from blad
+        with transakcja(self.db):
+            rows = self.db.execute(
+                "SELECT nazwa FROM kategorie WHERE aktywna = 1"
+            ).fetchall()
+            labels = [row["nazwa"] for row in rows]
+            equal = next(
+                (original for original in labels
+                 if klucz_kategorii(original) == klucz_kategorii(nazwa)),
+                None,
+            )
+            if equal:
+                raise ValueError(f"Kategoria „{equal}” już istnieje. Wybierz ją z listy.")
+            close = podobne_kategorie(nazwa, labels)
+            if close and not zezwol_na_podobna:
+                raise ValueError(
+                    "Istnieją podobne kategorie: " + ", ".join(close)
+                    + ". Wybierz istniejącą lub świadomie zatwierdź nową."
+                )
+            try:
+                cursor = self.db.execute(
+                    "INSERT INTO kategorie(nazwa) VALUES (?)", (nazwa,)
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("Kategoria o tej nazwie już istnieje") from exc
+            return int(cursor.lastrowid)
+
+    def scal_kategorie(self, zrodlo_id: int, cel_id: int) -> int:
+        """Świadome scalenie: przenieś przypisania, ukryj błędną kategorię.
+
+        Nie modyfikuje rachunków, kwot, dokumentów ani wzorców. Kategorie
+        fabryczne są chronione przed wycofaniem. Operacja atomowa; wywołujący
+        musi uprzednio upewnić się, że żaden wzorzec nie używa nazwy źródła.
+        """
+        if (type(zrodlo_id) is not int or type(cel_id) is not int
+                or zrodlo_id == cel_id):
+            raise ValueError("Wybierz dwie różne kategorie")
+        with transakcja(self.db):
+            rows = self.db.execute(
+                "SELECT id, nazwa FROM kategorie "
+                "WHERE id IN (?, ?) AND aktywna = 1", (zrodlo_id, cel_id)
+            ).fetchall()
+            found = {int(row["id"]): row["nazwa"] for row in rows}
+            if len(found) != 2:
+                raise ValueError("Kategorie muszą istnieć i być aktywne")
+            if found[zrodlo_id] in PODSTAWOWE_KATEGORIE:
+                raise ValueError("Nie można wycofać kategorii podstawowej")
+            count = int(self.db.execute(
+                "SELECT COUNT(*) FROM pozycje_rachunku WHERE kategoria_id = ?",
+                (zrodlo_id,)
+            ).fetchone()[0])
+            self.db.execute(
+                "UPDATE pozycje_rachunku SET kategoria_id = ? WHERE kategoria_id = ?",
+                (cel_id, zrodlo_id)
+            )
+            self.db.execute(
+                "UPDATE kategorie SET aktywna = 0 WHERE id = ?", (zrodlo_id,)
+            )
+            return count
 
     def rachunek(self, dokument_id: int) -> sqlite3.Row | None:
         return self.db.execute(

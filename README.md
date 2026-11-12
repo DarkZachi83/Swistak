@@ -88,6 +88,10 @@ W karcie **DANE** pod tabelą znajduje się pasek pracy Agenta. Podczas generowa
 
 Zakładka **Analiza AI** dzieli prawy panel na dwie karty: **DANE** (tabela pól, komentarze, walidacja, przyciski akcji i przycisk INFO) oraz **AGENT** (model Ollama, wybrany wzorzec i wskazówki). Podwójne kliknięcie kolumny **Komentarz** umożliwia edycję wskazówki konkretnego pola. Wskazówki te służą do przygotowania wzorca przy jego późniejszym zatwierdzaniu — nie zmieniają w locie polecenia bieżącej analizy.
 
+## Kategorie i porządek w statystykach
+
+W zakładce **Analiza AI → DANE** oraz w **Edycji danych** przycisk wyboru/dodawania kategorii otwiera listę istniejących pozycji z liczbą przypisanych faktur. Nowa nazwa otrzymuje podpowiedzi o podobnych kategoriach; ich przypadkowe dublowanie jest blokowane, a świadome stworzenie podobnej wymaga osobnego potwierdzenia. Opcja **Scal duplikaty…** pozwala przenieść przypisania z błędnej kategorii do właściwej, po potwierdzeniu. Operacja jest transakcyjna w SQLite; oryginalne faktury i kwoty nie są zmieniane. Podstawowych kategorii nie można wycofać. Scalanie jest blokowane, jeśli zapisany wzorzec nadal wskazuje kategorię źródłową — taki wzorzec trzeba najpierw zaktualizować. Przed scalaniem rzeczywistych danych wykonaj kopię całego katalogu danych po zamknięciu Świstaka.
+
 ## Jak to działa
 
 1. **Importuj PDF** — dokument trafia do prywatnego archiwum, a Świstak pokazuje jego podgląd.

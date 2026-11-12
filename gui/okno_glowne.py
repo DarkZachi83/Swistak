@@ -28,6 +28,7 @@ from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
 from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
 from gui.dialog_wzorca import zaakceptuj_wzorzec
 from gui.dialog_modele_lokalne import DialogModeleLokalne
+from gui.dialog_kategorie import DialogKategorie
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
@@ -485,7 +486,8 @@ class OknoGlowne(QMainWindow):
         self.btn_przenies.setToolTip(t("ai.apply_tip"))
         self.btn_potwierdz_recznie.setText(t("ai.confirm_row"))
         self.btn_potwierdz_recznie.setToolTip(t("ai.confirm_row_tip"))
-        self.btn_dodaj_kategorie_ai.setText(t("ai.add_category"))
+        self.btn_dodaj_kategorie_ai.setText(t("categories.open"))
+        self.btn_dodaj_kategorie.setToolTip(t("categories.open"))
         self.tabela_ai.setHorizontalHeaderLabels([
             t("ai.table.field"), t("ai.table.suggestion_edit"),
             t("ai.table.evidence"), t("ai.table.verdict"), t("ai.table.comment"),
@@ -1447,28 +1449,39 @@ class OknoGlowne(QMainWindow):
                 self.wybor_kategoria.setCurrentIndex(numer)
 
     def _dodaj_kategorie(self) -> None:
-        nazwa, zaakceptowano = QInputDialog.getText(self, t("msg.new_category"), t("msg.category_name"))
-        if not zaakceptowano:
+        """Wspólny dialog dla DANE i Edycji: najpierw wybór istniejącej."""
+        dialog = DialogKategorie(self.rejestr, self.magazyn_wzorcow, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        try:
-            identyfikator = self.rejestr.dodaj_kategorie(nazwa)
-            self._odswiez_kategorie(identyfikator)
-            # Dodanie kategorii na ekranie AI oznacza świadomy wybór użytkownika.
-            # Ocenę semantyczną zastępuje ręczna decyzja, ale walidacja zostaje.
-            if self.karty.currentIndex() == self.ETAP_ANALIZA and self._analiza is not None:
-                pole = "kategoria_sugerowana"
-                r = POLA.index(pole)
-                element = self.tabela_ai.item(r, 1)
-                if element is not None:
-                    self._aktualizuje_tabele_ai = True
-                    try:
-                        element.setText(nazwa.strip())
-                    finally:
-                        self._aktualizuje_tabele_ai = False
-                    self._pola_potwierdzone_recznie.add(pole)
-                    self._przelicz_sugestie_ai()
-        except (ValueError, sqlite3.Error) as blad:
-            QMessageBox.warning(self, t("msg.category"), str(blad))
+        selected = dialog.wybrana_id
+        if selected is None:
+            return
+        row = next(
+            (r for r in self.rejestr.kategorie() if int(r["id"]) == selected),
+            None,
+        )
+        if row is None:
+            QMessageBox.warning(self, t("categories.title"),
+                                t("categories.no_longer_available"))
+            return
+        self._odswiez_kategorie(selected)
+        self.tabela_faktur.odswiez()
+        # W ANALIZA AI świadomy wybór istniejącej lub nowej kategorii
+        # jest korektą sugestii, ale nadal podlega walidacji formatu.
+        if (self.karty.currentIndex() == self.ETAP_ANALIZA
+                and self._analiza is not None
+                and self._analiza_dokument_id == self.aktualny_dokument_id):
+            pole = "kategoria_sugerowana"
+            nr = POLA.index(pole)
+            element = self.tabela_ai.item(nr, 1)
+            if element is not None:
+                self._aktualizuje_tabele_ai = True
+                try:
+                    element.setText(row["nazwa"])
+                finally:
+                    self._aktualizuje_tabele_ai = False
+                self._pola_potwierdzone_recznie.add(pole)
+                self._przelicz_sugestie_ai()
 
     def _odswiez_liste(self) -> None:
         selected = self.lista_dokumentow.currentItem()

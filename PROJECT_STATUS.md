@@ -22,6 +22,8 @@
 - Testy syntetyczne zapisów i duplikatów: `testy/test_rejestr.py`, `testy/test_duplikaty_baza.py`, `testy/test_duplikaty_faktur.py`; workflow `.github/workflows/duplikaty-sqlite.yml` dla testów bez Qt.
 - Linux Beta: dokumentacja paczki źródłowej i eksperymentalnego pakietu binarnego. Nie traktować tego jako gotowej, oficjalnej wersji dla użytkowników końcowych.
 
+- Katalog kategorii: wybór istniejących z liczbą faktur, ostrzeganie przed nazwami bliskimi lub równoważnymi, osobne potwierdzenie celowego duplikatu oraz transakcyjne scalanie błędnych kategorii (zachowuje kwoty, PDF-y i przypisania; źródło jest dezaktywowane). Kategorii domyślnych nie można wycofać, a wzorce z nazwą źródłową blokują scalanie do czasu poprawy wzorca. Funkcje nie wymagają migracji SQLite.
+
 ## Stan weryfikacji
 
 **GitHub Actions — pełny zestaw testów ukończony pomyślnie** na Pythonie 3.11 i 3.13 (run `43182694952`, stan kodu `9a0fe7697be5de7a53b927ee4a04bfd2604331a4`). Testy QR korzystają wyłącznie z fikcyjnego kodu i syntetycznego PDF-u. Naprawiono też obsługę polskiego „ł” w nazwach okresów rozliczeniowych oraz izolację języka w teście sortowania kwot. **Nie wykonano testu GUI na komputerze użytkownika ani testu nowego dekodera na jego prywatnej fakturze**; są to kolejne testy akceptacyjne.
