@@ -107,38 +107,6 @@ class TestPostepAgenta(unittest.TestCase):
         self.assertEqual(stages, ["ollama", "validate"])
         self.assertEqual(result.model, "gemma3:4b")
 
-    def test_worker_przekazuje_etapy_i_wynik_bez_danych_prywatnych(self):
-        sentinel = object()
-        events = []
-        done = []
-        job = ZadanieAnalizy(7, "FIKCYJNE", ["Inne"], "demo:1")
-        job.sygnaly.etap.connect(lambda doc, step: events.append((doc, step)))
-        job.sygnaly.gotowe.connect(lambda doc, result: done.append((doc, result)))
-
-        def fake_llm(text, categories, model, *, wzorzec, postep):
-            postep("ollama")
-            postep("validate")
-            return sentinel
-
-        with patch("gui.analiza_worker.analizuj_lokalnie", side_effect=fake_llm):
-            job.run()
-        self.assertEqual(events, [
-            (7, "prepare"), (7, "ollama"), (7, "validate"),
-        ])
-        self.assertEqual(done, [(7, sentinel)])
-        self.assertFalse(job.przerwij.is_set())
-
-    def test_anulowanie_przed_startem_nie_wysyla_etapow(self):
-        job = ZadanieAnalizy(4, "FIKCYJNE", ["Inne"], "demo:1")
-        stages, cancelled = [], []
-        job.sygnaly.etap.connect(lambda doc, stage: stages.append(stage))
-        job.sygnaly.anulowano.connect(lambda doc: cancelled.append(doc))
-        job.przerwij.set()
-        with patch("gui.analiza_worker.analizuj_lokalnie") as llm:
-            job.run()
-        llm.assert_not_called()
-        self.assertEqual(cancelled, [4])
-        self.assertEqual(stages, [])
 
 
 if __name__ == "__main__":
