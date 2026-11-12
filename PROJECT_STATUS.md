@@ -2,7 +2,7 @@
 
 **Ostatnia weryfikacja:** 2026-11-12  
 **Repozytorium:** `DarkZachi83/Swistak` · **gałąź:** `main`  
-**Punkt odniesienia:** commit `f1ea9b37fb64daca6aa757df2ebf7b589433ca74` (przed wdrożeniem tabeli faktur); aktualny HEAD sprawdź w GitHubie.  
+**Punkt odniesienia:** commit `9a0fe7697be5de7a53b927ee4a04bfd2604331a4` (wdrożenie QR, poprawki testów; przed aktualizacją tego dokumentu).  
 **Wersja w `wersja.py`:** `0.1.0b1` / `0.1.0 Beta 1`.
 
 > To dokument przekazania prac między sesjami programistycznymi i asystentami AI. **Kod na bieżącym HEAD `main` jest nadrzędny**; przed wznowieniem trzeba porównać ten dokument z repozytorium i ostatnimi commitami. Sam wpis „wykonane” nie zastępuje testu na komputerze użytkownika.
@@ -21,7 +21,7 @@
 
 ## Stan weryfikacji
 
-Mechanizm duplikatów zweryfikowano przez odczyt kodu i commitów na GitHubie. Tabelę faktur dodano wraz z testami syntetycznymi SQLite i GUI. **W tej sesji nie uruchomiono lokalnie aplikacji ani testów z PySide6**; wynik workflow GitHub Actions należy sprawdzić po commicie, a następnie wykonać test GUI na komputerze użytkownika. Samo istnienie testów nie oznacza pozytywnego wyniku.
+**GitHub Actions — pełny zestaw testów ukończony pomyślnie** na Pythonie 3.11 i 3.13 (run `43182694952`, stan kodu `9a0fe7697be5de7a53b927ee4a04bfd2604331a4`). Testy QR korzystają wyłącznie z fikcyjnego kodu i syntetycznego PDF-u. Naprawiono też obsługę polskiego „ł” w nazwach okresów rozliczeniowych oraz izolację języka w teście sortowania kwot. **Nie wykonano testu GUI na komputerze użytkownika ani testu nowego dekodera na jego prywatnej fakturze**; są to kolejne testy akceptacyjne.
 
 ## Następne zadania — kolejność
 
@@ -39,6 +39,9 @@ python3 -m unittest testy.test_rejestr testy.test_duplikaty_baza testy.test_reje
 
 # W środowisku projektu z zainstalowanym PySide6:
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest   testy.test_duplikaty_faktur testy.test_tabela_faktur testy.test_wzorce   testy.test_wzorce_integracja testy.test_okres_wzorca_formularz   testy.test_menedzer_wzorcow -v
+
+# Nowe testy lokalnego odczytu QR (tylko dane fikcyjne):
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest testy.test_kody_qr -v
 
 # Pełny zestaw testów, jeśli zależności są dostępne:
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s testy -v
