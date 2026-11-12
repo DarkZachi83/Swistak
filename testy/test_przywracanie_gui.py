@@ -52,16 +52,26 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                     previous_window = OknoGlowne(reg)
                     previous_window.show()
                     self.app.processEvents()
+                    old_visible_on_new_show = []
+                    original_show = OknoGlowne.show
+
+                    def observe_show(window):
+                        old_visible_on_new_show.append(previous_window.isVisible())
+                        return original_show(window)
+
                     with (
                         patch("gui.okno_glowne.QFileDialog.getOpenFileName",
                               return_value=(str(archive), "ZIP")),
                         patch.object(QMessageBox, "question",
                                      return_value=QMessageBox.StandardButton.Yes),
                         patch.object(QMessageBox, "information"),
+                        patch.object(OknoGlowne, "show", observe_show),
                     ):
                         previous_window._przywroc_kopie()
                     restored_window = previous_window._okno_po_przywroceniu
                     self.assertIsNotNone(restored_window)
+                    self.assertEqual(old_visible_on_new_show, [False])
+                    self.assertFalse(previous_window.isVisible())
                     self.assertTrue(restored_window.isVisible())
                     self.assertEqual(ustawienia.load()["ollama_model"], "gemma3:4b")
                     self.assertEqual(reg.rachunek(doc)["kwota_grosze"], 1337)

@@ -10,6 +10,7 @@
 ## Zrealizowane i obecne w kodzie `main`
 
 - Lokalny rejestr SQLite, wersjonowane migracje, oryginalne PDF-y przechowywane w prywatnym archiwum, SHA-256 i rozpoznawanie identycznego importu.
+- Przełączanie okien po **Przywróć kopię** i **Wyczyść bazę danych**: poprzednie okno jest ukrywane przed pokazaniem nowego, a następnie zamykane przed modalnym komunikatem. Zapobiega to migotaniu i chwilowemu wyświetlaniu dwóch okien; test GUI sprawdza kolejność i widoczność.
 - **Wyczyść bazę danych…** w menu Plik: najpierw ostrzeżenie „UWAGA! Komenda spowoduje wymazanie wszystkich danych! Utwórz najpierw kopię zapasową.”, potem obowiązkowa pełna kopia ZIP i próba jej weryfikacji, wpisanie frazy, końcowe potwierdzenie, nowa pusta baza z sześcioma kategoriami podstawowymi. Usuwane są faktury, PDF-y, wzorce i własne kategorie. Ustawienia i kopia ZIP pozostają. Awarię podmiany można cofnąć, a jeśli nie uda się usunąć starego katalogu, GUI zgłasza jego ścieżkę. Testy wyłącznie syntetyczne.
 - Pełne kopie zapasowe w menu Plik: ZIP z migawką SQLite, PDF-ami, wzorcami (w tym historią) i lokalnymi ustawieniami. Przed przywróceniem weryfikacja manifestu SHA-256, integralności SQLite i powiązań PDF; świadoma zgoda i zachowanie całego poprzedniego katalogu. ZIP **nie jest szyfrowany**. Testy tylko na fikcyjnych dokumentach.
 - Podgląd PDF, lokalny odczyt tekstu i OCR (Tesseract), analiza przez lokalną Ollamę; edycja propozycji AI i formularza przed świadomym zapisem.

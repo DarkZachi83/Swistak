@@ -476,15 +476,16 @@ class OknoGlowne(QMainWindow):
                 return
             finally:
                 QApplication.restoreOverrideCursor()
-            # Najpierw pokaż nowe okno, potem zamknij poprzednie.
-            # Ten sam obiekt RejestrRachunkow pozostaje pod opieką main.py.
+            # Stare okno trzeba ukryć PRZED pokazaniem nowego.
+            # Modalny komunikat może uruchomić wewnętrzną pętlę Qt,
+            # dlatego nie może pozostawiać dwóch okien na ekranie.
+            # RejestrRachunkow nadal pozostaje pod opieką main.py.
             self._okno_po_przywroceniu = new_window
-            new_window.show()
+            self._przelacz_na_nowe_okno(new_window)
             QMessageBox.information(
                 new_window, t("backup.title"),
                 t("backup.restored", previous=str(previous)),
             )
-            self.close()
         finally:
             kopia.sprzataj()
 
@@ -603,7 +604,7 @@ class OknoGlowne(QMainWindow):
             residual = str(exc)
 
         self._okno_po_wyczyszczeniu = new_window
-        new_window.show()
+        self._przelacz_na_nowe_okno(new_window)
         if residual is not None:
             QMessageBox.warning(
                 new_window, t("clear.title"),
@@ -615,6 +616,20 @@ class OknoGlowne(QMainWindow):
                 new_window, t("clear.title"),
                 t("clear.success", path=path),
             )
+
+    def _przelacz_na_nowe_okno(self, nowe_okno: OknoGlowne) -> None:
+        """Bez podwójnego okna: ukryj stare przed pokazaniem nowego.
+
+        Samo hide() nie wywołuje zamknięcia ostatniego okna aplikacji,
+        a close() wykonujemy dopiero po wyświetleniu nowego. Jeżeli Qt
+        odmówi pokazania nowego okna, ponownie ujawnij poprzednie.
+        """
+        self.hide()
+        try:
+            nowe_okno.show()
+        except Exception:
+            self.show()
+            raise
         self.close()
 
     def _open_settings(self) -> None:

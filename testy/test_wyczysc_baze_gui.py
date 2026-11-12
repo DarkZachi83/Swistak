@@ -91,6 +91,13 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                     old_win.show()
                     self.app.processEvents()
                     zip_path = home / "obowiazkowa-kopia.zip"
+                    old_visible_on_new_show = []
+                    original_show = OknoGlowne.show
+
+                    def observe_show(window):
+                        old_visible_on_new_show.append(old_win.isVisible())
+                        return original_show(window)
+
                     with (
                         patch.object(QMessageBox, "warning",
                                      return_value=QMessageBox.StandardButton.Yes),
@@ -101,9 +108,12 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         patch.object(QMessageBox, "question",
                                      return_value=QMessageBox.StandardButton.Yes),
                         patch.object(QMessageBox, "information"),
+                        patch.object(OknoGlowne, "show", observe_show),
                     ):
                         old_win._wyczysc_baze()
                     new_win = old_win._okno_po_wyczyszczeniu
+                    self.assertEqual(old_visible_on_new_show, [False])
+                    self.assertFalse(old_win.isVisible())
                     self.assertTrue(new_win.isVisible())
                     self.assertEqual(reg.db.execute("SELECT COUNT(*) FROM rachunki").fetchone()[0], 0)
                     self.assertEqual(reg.db.execute("SELECT COUNT(*) FROM dokumenty").fetchone()[0], 0)
