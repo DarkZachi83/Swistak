@@ -166,6 +166,40 @@ class TestKopieZapasowe(unittest.TestCase):
         finally:
             prepared.sprzataj()
 
+    def test_po_przerwaniu_przelaczenia_katalog_wraca_na_miejsce(self):
+        doc, data = self.przygotuj_pdf()
+        archive = self.folder / "kopia.zip"
+        utworz_kopie(self.db, archive)
+        prepared = przygotuj_przywracanie(archive, self.root)
+        try:
+            self.db.zamknij()
+            from uslugi.kopie_zapasowe import os as backups_os
+            real_replace = backups_os.replace
+
+            def przerwij_drugi_krok(src, dst):
+                if Path(src) == prepared.katalog_danych:
+                    raise OSError("symulowana awaria podczas przywracania")
+                return real_replace(src, dst)
+
+            with patch("uslugi.kopie_zapasowe.os.replace",
+                       side_effect=przerwij_drugi_krok):
+                with self.assertRaises(OSError):
+                    podmien_dane(prepared, self.root)
+            self.db.__init__(self.root)
+            self.assertEqual(self.db.rachunek(doc)["kwota_grosze"], 6899)
+            self.assertEqual(self.db.sciezka_pdf(doc).read_bytes(), data)
+        finally:
+            prepared.sprzataj()
+
+    def test_brak_glownego_katalogu_z_poprzednim_nie_tworzy_pustej_bazy(self):
+        # Tak może wyglądać stan po nagłym wyłączeniu między rename(2).
+        missing = self.folder / "inna-baza"
+        old = self.folder / "inna-baza-przed-przywroceniem-20261112-123000"
+        old.mkdir()
+        with self.assertRaisesRegex(RuntimeError, "przerwane przywracanie"):
+            RejestrRachunkow(missing)
+        self.assertFalse(missing.exists())
+
     def test_reject_symlink_inside_document_folder(self):
         link = self.root / "dokumenty" / "wyciek.pdf"
         external = self.folder / "poza.pdf"
