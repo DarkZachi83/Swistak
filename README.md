@@ -82,6 +82,8 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 
 ## Analiza AI — DANE i AGENT
 
+Przycisk **Szukaj modeli lokalnych…** w karcie **AGENT** wyświetla nazwy modeli dostępnych w uruchomionej Ollamie oraz osobno modele GGUF i wpisy magazynów znalezione w znanych katalogach (mechanizm inspirowany AI Bobrem). **Tylko modele z listy lokalnego API Ollamy można od razu wybrać**. Wybrany model jest zapamiętywany w ustawieniach; skan dysku nie uruchamia modeli, nie pobiera ich ani nie wysyła faktur przez sieć. Modele z LM Studio, Hugging Face i innych źródeł wymagają uprzedniego udostępnienia ich Ollamie.
+
 Zakładka **Analiza AI** dzieli prawy panel na dwie karty: **DANE** (tabela pól, komentarze, walidacja, przyciski akcji i przycisk INFO) oraz **AGENT** (model Ollama, wybrany wzorzec i wskazówki). Podwójne kliknięcie kolumny **Komentarz** umożliwia edycję wskazówki konkretnego pola. Wskazówki te służą do przygotowania wzorca przy jego późniejszym zatwierdzaniu — nie zmieniają w locie polecenia bieżącej analizy.
 
 ## Jak to działa

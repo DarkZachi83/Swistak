@@ -27,6 +27,7 @@ from uslugi.wzorce import MagazynWzorcow
 from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
 from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
 from gui.dialog_wzorca import zaakceptuj_wzorzec
+from gui.dialog_modele_lokalne import DialogModeleLokalne
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
@@ -317,6 +318,29 @@ class OknoGlowne(QMainWindow):
         set_language(code)
         self._retranslate_ui()
 
+    def _wybierz_model_lokalny(self) -> None:
+        """Wybór TYLKO modelu gotowego w lokalnej Ollamie.
+
+        Dodatkowy skan dysku jest podglądem, nie próbą uruchomienia
+        przypadkowego GGUF przez API Ollamy.
+        """
+        dialog = DialogModeleLokalne(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        name = dialog.wybrany_model
+        if not isinstance(name, str) or not name.strip() or len(name) > 120:
+            return
+        updated = dict(self.prefs, ollama_model=name)
+        try:
+            ustawienia.save(updated)
+        except (OSError, ValueError) as error:
+            QMessageBox.warning(self, t("models.title"),
+                                t("settings.save_failed", error=error))
+            return
+        self.prefs = updated
+        self.ed_model.setText(name)
+        self._status("models.selected", name=name)
+
     def _open_settings(self) -> None:
         box = QDialog(self)
         box.setWindowTitle(t("settings.title"))
@@ -452,6 +476,8 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_info_wzorca()
         self.etykieta_modelu.setText(t("ai.model"))
         self.ed_model.setToolTip(t("ai.model_tip"))
+        self.btn_szukaj_modeli.setText(t("models.search"))
+        self.btn_szukaj_modeli.setToolTip(t("models.search_hint"))
         self.btn_analizuj.setText(t("button.analyze"))
         self.btn_anuluj_ai.setText(t("button.cancel"))
         self.btn_przenies.setText(t("button.apply"))
@@ -793,7 +819,13 @@ class OknoGlowne(QMainWindow):
         agent_uklad.addWidget(self.etykieta_modelu)
         self.ed_model = QLineEdit(self.prefs.get("ollama_model", "gemma3:4b"))
         self.ed_model.setObjectName("modelOllamaAgent")
-        agent_uklad.addWidget(self.ed_model)
+        model_wiersz = QHBoxLayout()
+        model_wiersz.addWidget(self.ed_model, 1)
+        self.btn_szukaj_modeli = QPushButton()
+        self.btn_szukaj_modeli.setObjectName("szukajModeliLokalnych")
+        self.btn_szukaj_modeli.clicked.connect(self._wybierz_model_lokalny)
+        model_wiersz.addWidget(self.btn_szukaj_modeli)
+        agent_uklad.addLayout(model_wiersz)
 
         wzorce_uklad = QHBoxLayout()
         self.info_wzorca = QLabel()

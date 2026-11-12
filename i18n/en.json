@@ -282,5 +282,22 @@
   "ai.tab_agent": "AGENT",
   "ai.table.comment": "Comment",
   "ai.info_title": "INFO — AI analysis workflow",
-  "ai.notes_scope": "General notes and field comments are used when proposing a template after approving an invoice. The current analysis uses the selected approved template. Double-click the Comment column to add a field-specific hint."
+  "ai.notes_scope": "General notes and field comments are used when proposing a template after approving an invoice. The current analysis uses the selected approved template. Double-click the Comment column to add a field-specific hint.",
+  "models.search": "Find local models…",
+  "models.search_hint": "Show models available in local Ollama and models detected on disk, like AI Bóbr.",
+  "models.title": "Local models — choose for Świstak",
+  "models.hint": "Świstak analyzes invoices through local Ollama. Select a model on the Ollama tab. Models found on disk in other apps are informational only and must be imported into Ollama.",
+  "models.ollama_tab": "Available in Ollama",
+  "models.disk_tab": "Found on disk",
+  "models.api_only": "Only these models can be selected for invoice analysis. The list comes from the local /api/tags API.",
+  "models.disk_hint": "A file on disk does not necessarily mean the model is registered with Ollama. Świstak does not load or copy these models. Import a file into Ollama separately.",
+  "models.searching": "Searching locally for models…",
+  "models.refresh": "Search again",
+  "models.choose": "Use selected model",
+  "models.close": "Close",
+  "models.no_ollama": "No models available from local Ollama.",
+  "models.no_disk": "No other models were found in the searched folders.",
+  "models.no_service": "Cannot read the Ollama model list: {error}. Disk files can still be viewed, but start Ollama before analysis.",
+  "models.found": "Ollama: {count} models · Disk: {disk} entries",
+  "models.selected": "Selected local Ollama model: {name}"
 }

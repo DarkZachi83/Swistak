@@ -282,5 +282,22 @@
   "ai.tab_agent": "AGENT",
   "ai.table.comment": "Komentarz",
   "ai.info_title": "INFO — przebieg analizy AI",
-  "ai.notes_scope": "Wskazówki ogólne i komentarze pól posłużą do zaproponowania wzorca po zatwierdzeniu faktury. Bieżąca analiza wykorzystuje wybrany, zatwierdzony wzorzec. Dwuklik w kolumnie Komentarz pozwala dodać opis dla konkretnego pola."
+  "ai.notes_scope": "Wskazówki ogólne i komentarze pól posłużą do zaproponowania wzorca po zatwierdzeniu faktury. Bieżąca analiza wykorzystuje wybrany, zatwierdzony wzorzec. Dwuklik w kolumnie Komentarz pozwala dodać opis dla konkretnego pola.",
+  "models.search": "Szukaj modeli lokalnych…",
+  "models.search_hint": "Wyświetl modele dostępne w lokalnej Ollamie oraz wykryte na dysku (jak w AI Bobrze).",
+  "models.title": "Modele lokalne — wybór dla Świstaka",
+  "models.hint": "Świstak analizuje faktury przez lokalną Ollamę. Zaznacz model w zakładce Ollama. Wykryte na dysku modele innych programów są tylko informacją — wymagają importu do Ollamy.",
+  "models.ollama_tab": "Dostępne w Ollamie",
+  "models.disk_tab": "Znalezione na dysku",
+  "models.api_only": "Tylko te modele można wybrać bezpośrednio do analizy faktury. Lista pochodzi z lokalnego API /api/tags.",
+  "models.disk_hint": "Modele na dysku to nie zawsze modele zarejestrowane w Ollamie. Nie uruchamiamy ich i nie kopiujemy do Świstaka. Dodaj wybrany plik do Ollamy oddzielnie.",
+  "models.searching": "Trwa lokalne wyszukiwanie modeli…",
+  "models.refresh": "Szukaj ponownie",
+  "models.choose": "Użyj zaznaczonego modelu",
+  "models.close": "Zamknij",
+  "models.no_ollama": "Nie znaleziono modeli dostępnych w lokalnej Ollamie.",
+  "models.no_disk": "Nie znaleziono dodatkowych modeli w sprawdzonych folderach.",
+  "models.no_service": "Nie można odczytać listy modeli z Ollamy: {error}. Możesz zobaczyć pliki na dysku, ale uruchom Ollamę przed analizą.",
+  "models.found": "Ollama: {count} modeli · Dysk: {disk} wpisów",
+  "models.selected": "Wybrano lokalny model Ollama: {name}"
 }
