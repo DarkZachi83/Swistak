@@ -2,7 +2,7 @@
 
 **Ostatnia weryfikacja:** 2026-11-12  
 **Repozytorium:** `DarkZachi83/Swistak` · **gałąź:** `main`  
-**Punkt odniesienia:** commit `2a868f0b0b71a93dece8958f51a688b5a2ad486f` (wyszukiwanie modeli lokalnych i testy, przed aktualizacją tego dokumentu).  
+**Punkt odniesienia:** commit `e69c1bf42464ab8f2eb33a45e09b6c6f57325b28` (pasek postępu i testy, przed aktualizacją tego dokumentu).  
 **Wersja w `wersja.py`:** `0.1.0b1` / `0.1.0 Beta 1`.
 
 > To dokument przekazania prac między sesjami programistycznymi i asystentami AI. **Kod na bieżącym HEAD `main` jest nadrzędny**; przed wznowieniem trzeba porównać ten dokument z repozytorium i ostatnimi commitami. Sam wpis „wykonane” nie zastępuje testu na komputerze użytkownika.
@@ -27,6 +27,9 @@
 **GitHub Actions — pełny zestaw testów ukończony pomyślnie** na Pythonie 3.11 i 3.13 (run `43182694952`, stan kodu `9a0fe7697be5de7a53b927ee4a04bfd2604331a4`). Testy QR korzystają wyłącznie z fikcyjnego kodu i syntetycznego PDF-u. Naprawiono też obsługę polskiego „ł” w nazwach okresów rozliczeniowych oraz izolację języka w teście sortowania kwot. **Nie wykonano testu GUI na komputerze użytkownika ani testu nowego dekodera na jego prywatnej fakturze**; są to kolejne testy akceptacyjne.
 
 **Wyszukiwanie modeli lokalnych:** GitHub Actions `43197033453` zakończone sukcesem na Pythonie 3.11 i 3.13. Testy korzystają z fikcyjnych manifestów Ollamy, plików GGUF oraz symulowanego API `/api/tags`, bez prywatnych danych. Rzeczywisty skan katalogów na komputerze użytkownika pozostaje do sprawdzenia.
+
+
+**Pasek pracy Agenta:** GitHub Actions `43199521730` — pełny zestaw testów ukończony pomyślnie na Pythonie 3.11 i 3.13 (commit `e69c1bf42464ab8f2eb33a45e09b6c6f57325b28`). Etapy pochodzą z lokalnego procesu analizy, a animacja pracy Ollamy nie udaje rzeczywistych procentów. Testy na danych fikcyjnych, bez prywatnych faktur.
 
 ## Dystrybucja i licencje
 
