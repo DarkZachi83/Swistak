@@ -31,6 +31,7 @@ na PolyForm Noncommercial 1.0.0 znajduje się w gałęzi
 | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | `>=5.9,<6` | **Apache-2.0 / BSD-3-Clause**, PDFium ma osobne zależności/NOTICE | Domyślna rasteryzacja skanów OCR | **DO SPRAWDZENIA:** prawa i notices binariów PDFium w konkretnym wheel |
 | [pytesseract](https://github.com/madmaze/pytesseract) | `>=0.3.13,<1` | **Apache-2.0** | Wywoływanie lokalnego silnika Tesseract | **INFORMACYJNIE:** uwzględnić notices Apache, niezależnie audytować silnik OCR |
 | [Pillow](https://python-pillow.github.io/) | `>=12.2,<14` | **MIT-CMU** | Obraz PIL przy OCR PDFium i generowanie skanów do testów | **INFORMACYJNIE:** dołączyć tekst licencji i copyright |
+| [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) | `>=3.1.1,<4` | **Apache-2.0** | Lokalny dekoder QR | **DO SPRAWDZENIA:** licencja i notices dokładnego binarnego wheel przed wydaniem |
 
 ## 2. Zależności pośrednie / pakiety, które mogą trafić do instalatora
 

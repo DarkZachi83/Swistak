@@ -22,11 +22,12 @@
 | **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. Osobna zakładka **Faktury** pokazuje zapisane rekordy w tabeli: sortowanie, wyszukiwanie, filtr statusu, suma widocznych i otwieranie do edycji. |
 | **Archiwum PDF** | Przechowuje niezmienione oryginały, używa **SHA-256** do kontroli integralności i wykrywa ponowny import identycznego dokumentu. |
 | **PDF i OCR** | Odczytuje warstwę tekstową PDF albo rozpoznaje skany przez **Tesseract**. Pozwala również zaznaczać i odczytywać fragment dokumentu. |
+| **Kody QR** | Lokalnie dekoduje QR na stronach PDF, rozpoznaje wybrane polskie formaty płatności i umożliwia przeniesienie kwoty i konta do formularza po osobnym potwierdzeniu. |
 | **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
 | **Kontrola użytkownika** | Waliduje strukturę odpowiedzi AI i wybrane pola. **Dopiero człowiek zatwierdza dane i zapisuje rachunek.** |
 | **Interfejs** | PySide6 / Qt, ciemny motyw, pionowy proces **Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty → Faktury**, języki **polski i angielski** przełączane bez restartu. |
 
-**Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · Ollama.
+**Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · ZXing-C++ · Ollama.
 
 > **W testach: [Świstak Linux Beta — samodzielny pakiet binarny](docs/LINUX_BINARY_BETA.md).**
 > To eksperymentalny pakiet PyInstaller dla Linuxa, uruchamiany bez
@@ -82,7 +83,7 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 ## Jak to działa
 
 1. **Importuj PDF** — dokument trafia do prywatnego archiwum, a Świstak pokazuje jego podgląd.
-2. **Odczytaj dokument** — w zakładce **Odczyt PDF** uruchom odczyt całego dokumentu albo zaznaczonego fragmentu.
+2. **Odczytaj dokument** — w zakładce **Odczyt PDF** uruchom odczyt całego dokumentu albo zaznaczonego fragmentu. Opcjonalnie kliknij **Odczytaj QR**, sprawdź wyświetlone dane i świadomie przenieś kwotę oraz numer konta.
 3. **Uruchom lokalną analizę AI** — w zakładce **Analiza AI** poproś Ollamę o propozycje pól rachunku.
 4. **Edytuj dane** — przenieś zatwierdzone propozycje do etapu **Edycja danych**, porównaj z PDF i popraw wartości. Pola można także wypełnić ręcznie, bez Ollamy.
 5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i dopiero wtedy kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Faktury** (tabela i filtry); w **Dokumentach** pozostaje lista wszystkich PDF-ów.
@@ -96,7 +97,7 @@ zachowuje ostrość również na ekranach HiDPI.
 
 Dokumentacja wzorców: **[Inteligentne wzorce faktur — JSON i nauka na poprawkach](docs/WZORCE_FAKTUR.md)**.
 
-Więcej informacji: [analiza przez Ollamę](docs/ETAP_3_OLLAMA.md) · [PDFium i OCR](docs/PDFIUM_OCR_BENCHMARK.md) · [języki](docs/JEZYKI.md).
+Więcej informacji: [odczyt QR](docs/KODY_QR.md) · [analiza przez Ollamę](docs/ETAP_3_OLLAMA.md) · [PDFium i OCR](docs/PDFIUM_OCR_BENCHMARK.md) · [języki](docs/JEZYKI.md).
 
 ## Prywatność i bezpieczeństwo
 

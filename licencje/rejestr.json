@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-10",
+  "updated": "2026-11-12",
   "license_review_branch": "proposal/licencja-home-business",
   "release_status": "NOT APPROVED FOR COMMERCIAL BUNDLE",
   "components": [
@@ -43,6 +43,14 @@
       "source_url": "https://doc.qt.io/qt-6/licensing.html",
       "status": "review",
       "purpose": "Qt runtime"
+    },
+    {
+      "name": "zxing-cpp",
+      "kind": "python-direct",
+      "license": "Apache-2.0",
+      "source_url": "https://github.com/zxing-cpp/zxing-cpp",
+      "status": "review",
+      "purpose": "Lokalny natywny dekoder QR z obrazów PDF, dołączane binaria wymagają przeglądu licencji"
     },
     {
       "name": "PySide6-Addons",

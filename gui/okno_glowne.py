@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from gui.okno_o_programie import OknoOProgramie
 from gui.podglad_pdf import PodgladPDF
 from gui.odczyt_worker import ZadanieOdczytu
+from gui.dialog_qr import DialogQR
 from gui.analiza_worker import ZadanieAnalizy
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import WynikOdczytu
@@ -435,6 +436,7 @@ class OknoGlowne(QMainWindow):
         self.hint_odczytu.setText(t("read.hint"))
         self.btn_odczytaj.setText(t("button.read_all"))
         self.btn_odczytaj_obszar.setText(t("button.read_selection"))
+        self.btn_odczytaj_qr.setText(t("qr.read"))
         self.btn_anuluj.setText(t("button.cancel"))
         self.btn_kopiuj.setText(t("button.copy"))
         self.pole_odczytu.setPlaceholderText(t("read.placeholder"))
@@ -669,6 +671,10 @@ class OknoGlowne(QMainWindow):
         self.btn_odczytaj_obszar = QPushButton("Odczytaj zaznaczenie")
         self.btn_odczytaj_obszar.clicked.connect(lambda: self._start_odczytu(True))
         przyciski.addWidget(self.btn_odczytaj_obszar)
+        self.btn_odczytaj_qr = QPushButton()
+        self.btn_odczytaj_qr.setObjectName("odczytajQR")
+        self.btn_odczytaj_qr.clicked.connect(self._otworz_qr)
+        przyciski.addWidget(self.btn_odczytaj_qr)
         uklad.addLayout(przyciski)
         self.btn_anuluj = QPushButton("Anuluj")
         self.btn_anuluj.clicked.connect(self._anuluj_odczyt)
@@ -1058,6 +1064,7 @@ class OknoGlowne(QMainWindow):
         self.btn_odczytaj_obszar.setEnabled(
             jest_dokument and self._wybrany_obszar is not None and not pracuje
         )
+        self.btn_odczytaj_qr.setEnabled(jest_dokument and not pracuje)
         self.btn_anuluj.setEnabled(self._zadanie_odczytu is not None)
         self.otworz_przycisk.setEnabled(not pracuje)
         self.lista_dokumentow.setEnabled(not pracuje)
@@ -1113,6 +1120,28 @@ class OknoGlowne(QMainWindow):
         self._zadanie_odczytu = None
         self._aktualizuj_odczyt()
         self._message(self.info_odczytu, "read.cancelled")
+
+    def _otworz_qr(self) -> None:
+        """Odczytaj QR lokalnie, bez zapisu i bez wywołania bankowości."""
+        if (self.aktualny_dokument_id is None or self._zadanie_odczytu is not None
+                or self._zadanie_ai is not None):
+            return
+        try:
+            pdf = self.rejestr.sciezka_pdf(self.aktualny_dokument_id)
+            dialog = DialogQR(self, pdf)
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            platnosc = dialog.wybrana_platnosc
+            if platnosc is None:
+                return
+            # Zgoda w oknie QR dotyczy tylko dwóch pól. Żadnych
+            # automatycznych zapisów do SQLite ani operacji bankowych.
+            self.ed_kwota.setText(grosze_na_kwote(platnosc.kwota_grosze))
+            self.ed_konto.setText(platnosc.numer_konta)
+            self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+            self._status("qr.applied")
+        except (OSError, ValueError, sqlite3.Error) as blad:
+            QMessageBox.warning(self, t("qr.title"), str(blad))
 
     def _anuluj_odczyt(self) -> None:
         if self._zadanie_odczytu is not None:
