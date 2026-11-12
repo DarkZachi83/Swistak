@@ -54,3 +54,26 @@ Kopiowanie dużych archiwów jest na razie synchroniczne — interfejs może
 pozostać zajęty przez dłuższą chwilę. Nie wdrożono jeszcze harmonogramu
 automatycznych kopii ani szyfrowania ZIP. Do ważnych danych stosuj również
 zewnętrzną, niezależną kopię na bezpiecznym nośniku.
+
+## Wyczyszczenie bazy danych
+
+Nowa pozycja **Plik → Wyczyść bazę danych…** jest operacją destrukcyjną.
+Po ostrzeżeniu „UWAGA! Komenda spowoduje wymazanie wszystkich danych!
+Utwórz najpierw kopię zapasową.” użytkownik wskazuje miejsce na **nowe ZIP**.
+Program wykonuje pełną kopię i jej walidację, a dopiero następnie wymaga
+wpisania hasła potwierdzającego (`USUŃ WSZYSTKO` w języku polskim) i
+ostatniej zgody. Anulowanie dowolnego kroku pozostawia bieżącą bazę bez zmian.
+
+Czyszczenie usuwa lokalne rekordy, PDF-y, wzorce, historię rewizji i własne
+kategorie z aktywnego katalogu danych. Nowa baza ma tylko kategorie
+fabryczne. **Ustawienia modelu Ollama i języka są zachowane.** Zewnętrzne,
+obowiązkowe archiwum ZIP pozostaje dostępne do przywrócenia.
+
+Program chroni się przed wymazaniem przypadkowego katalogu zawierającego
+obce pliki. W razie nieudanej podmiany próbuje odzyskać poprzedni stan.
+Jeśli usunięcie starego katalogu nie powiedzie się, informuje o jego ścieżce;
+nie twierdzi wtedy, że wszystkie dane zostały usunięte. Pliki usunięte
+standardowo nie są nadpisywane kryptograficznie, więc nie jest to
+funkcja bezpiecznego niszczenia danych na nośniku.
+
+Testuj najpierw z `./uruchom.sh --test`.

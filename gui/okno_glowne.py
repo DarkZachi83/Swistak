@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import zipfile
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -37,6 +38,10 @@ from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from uslugi.kopie_zapasowe import (
     BladKopii, utworz_kopie, przygotuj_przywracanie, podmien_dane,
     cofnij_podmiane,
+)
+from uslugi.czyszczenie_bazy import (
+    BladCzyszczenia, przygotuj_pusta_baze, podmien_na_pusta,
+    usun_poprzednie_dane,
 )
 from i18n import LANGUAGES, current_language, set_language, system_language, t
 import ustawienia
@@ -283,6 +288,8 @@ class OknoGlowne(QMainWindow):
         self.akcja_kopia = self.menu_pliki.addAction("", self._utworz_kopie)
         self.akcja_przywroc = self.menu_pliki.addAction("", self._przywroc_kopie)
         self.menu_pliki.addSeparator()
+        self.akcja_wyczysc = self.menu_pliki.addAction("", self._wyczysc_baze)
+        self.menu_pliki.addSeparator()
         self.akcja_zakoncz = self.menu_pliki.addAction("", self.close)
 
         self.menu_ustawienia = menu.addMenu("")
@@ -481,6 +488,135 @@ class OknoGlowne(QMainWindow):
         finally:
             kopia.sprzataj()
 
+    def _wyczysc_baze(self) -> None:
+        """Całkowity reset danych aplikacji dopiero po sprawdzonym backupie.
+
+        Kontrole: brak pracy w tle, ostrzeżenie, nowa kopia ZIP poza bazą,
+        test przywracania tej kopii, wpisanie frazy i końcowe potwierdzenie.
+        """
+        if not self._czy_mozna_przywracac():
+            return
+        answer = QMessageBox.warning(
+            self, t("clear.title"), t("clear.warning"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        default = Path.home() / (
+            "Swistak-przed-wyczyszczeniem-"
+            + datetime.now().strftime("%Y%m%d-%H%M%S") + ".zip"
+        )
+        path, _ = QFileDialog.getSaveFileName(
+            self, t("clear.backup_title"), str(default), t("backup.file_filter"),
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".zip"):
+            path += ".zip"
+
+        # Kopia jest bezwarunkowo obowiązkowa — nie ma przycisku "Pomiń".
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            utworz_kopie(self.rejestr, path,
+                         ustawienia=ustawienia.path_settings())
+            inspected = przygotuj_przywracanie(path, self.rejestr.katalog)
+            try:
+                # Kontrola obejmuje SHA-256, SQLite i zgodność PDF z bazą.
+                pass
+            finally:
+                inspected.sprzataj()
+        except (BladKopii, OSError, sqlite3.Error, ValueError,
+                zipfile.BadZipFile) as exc:
+            QMessageBox.warning(self, t("clear.title"),
+                                t("clear.backup_failed", error=str(exc)))
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        phrase, accepted = QInputDialog.getText(
+            self, t("clear.title"),
+            t("clear.type_phrase", phrase=t("clear.phrase")),
+        )
+        if not accepted or phrase != t("clear.phrase"):
+            QMessageBox.information(self, t("clear.title"),
+                                    t("clear.cancelled", path=path))
+            return
+        answer = QMessageBox.question(
+            self, t("clear.title"),
+            t("clear.last_confirm", path=path),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        root = self.rejestr.katalog
+        stage = None
+        previous = None
+        new_window = None
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            stage = przygotuj_pusta_baze(root)
+            self.podglad.zamknij_dokument()
+            self.rejestr.zamknij()
+            previous = podmien_na_pusta(root, stage)
+            stage = None  # nowy folder jest już głównym katalogiem danych
+            self.rejestr.__init__(root)
+            new_window = OknoGlowne(self.rejestr)
+        except Exception as exc:
+            if new_window is not None:
+                new_window.close()
+            if previous is not None:
+                try:
+                    self.rejestr.zamknij()
+                except sqlite3.Error:
+                    pass
+            try:
+                if previous is not None:
+                    cofnij_podmiane(root, previous)
+                self.rejestr.__init__(root)
+            except Exception as rollback:
+                QMessageBox.critical(
+                    self, t("clear.title"),
+                    t("clear.critical", error=str(exc), rollback=str(rollback)),
+                )
+                return
+            QMessageBox.warning(
+                self, t("clear.title"),
+                t("clear.failed", error=str(exc)),
+            )
+            return
+        finally:
+            if stage is not None:
+                shutil.rmtree(stage, ignore_errors=True)
+            QApplication.restoreOverrideCursor()
+
+        # Usuń stare dane dopiero PO poprawnym otwarciu pustej bazy.
+        # Jeśli usunięcie się nie powiedzie, poinformuj o zachowanej
+        # lokalizacji zamiast fałszywie ogłaszać zakończenie czyszczenia.
+        residual = None
+        try:
+            usun_poprzednie_dane(previous, root)
+        except (BladCzyszczenia, OSError) as exc:
+            residual = str(exc)
+
+        self._okno_po_wyczyszczeniu = new_window
+        new_window.show()
+        if residual is not None:
+            QMessageBox.warning(
+                new_window, t("clear.title"),
+                t("clear.partial", previous=str(previous), error=residual,
+                  path=path),
+            )
+        else:
+            QMessageBox.information(
+                new_window, t("clear.title"),
+                t("clear.success", path=path),
+            )
+        self.close()
+
     def _open_settings(self) -> None:
         box = QDialog(self)
         box.setWindowTitle(t("settings.title"))
@@ -552,6 +688,7 @@ class OknoGlowne(QMainWindow):
             (self.akcja_odswiez, "menu.refresh"),
             (self.akcja_kopia, "backup.menu_create"),
             (self.akcja_przywroc, "backup.menu_restore"),
+            (self.akcja_wyczysc, "clear.menu"),
             (self.akcja_zakoncz, "menu.exit"),
             (self.akcja_konfiguruj, "menu.configure"),
             (self.akcja_wzorce, "patterns.manage"),

@@ -343,5 +343,18 @@
   "backup.restore_confirm": "SHA-256 checks, SQLite integrity, PDF references and archive contents passed validation.\n\nBackup date: {date}\nPDF documents: {pdf}\nTemplate files: {templates}\n\nWARNING: restoring will replace CURRENT data with backup data. The current data directory will be preserved nearby for rollback. Open PDF files will be closed and a fresh Świstak window opened.\n\nRestore now?",
   "backup.restore_error": "Could not restore data:\n{error}\n\nŚwistak rolled back to the previous data directory.",
   "backup.restore_critical": "Restoration and automatic rollback failed.\n\nError: {error}\nRollback problem: {rollback}\n\nDo not save new invoices! Close the application and inspect data directories and the ZIP backup.",
-  "backup.restored": "Backup restored. A fresh Świstak window has opened.\n\nYour previous data remains in:\n{previous}\n\nDo not delete it until you verify invoices, PDFs and templates."
+  "backup.restored": "Backup restored. A fresh Świstak window has opened.\n\nYour previous data remains in:\n{previous}\n\nDo not delete it until you verify invoices, PDFs and templates.",
+  "clear.menu": "Clear database…",
+  "clear.title": "Clear the Świstak database",
+  "clear.warning": "WARNING! This command will erase ALL data!\n\nCreate a backup first.\n\nAll saved invoices, original PDFs, custom categories and AI templates will be removed. A new empty database with default categories will remain. Application settings will be preserved.\n\nŚwistak will first create a MANDATORY full ZIP backup. Continue?",
+  "clear.backup_title": "Choose a location for the mandatory pre-wipe backup",
+  "clear.backup_failed": "Cannot safely clear the database: creation or verification of the backup failed.\n\n{error}\n\nExisting data was not changed.",
+  "clear.phrase": "DELETE EVERYTHING",
+  "clear.type_phrase": "Your backup was created and verified.\n\nTo permanently erase all Świstak data, type exactly:\n{phrase}\n\nCancellation or any other text leaves your data untouched.",
+  "clear.cancelled": "Clearing was cancelled; the database has not changed.\n\nYour backup remains here:\n{path}",
+  "clear.last_confirm": "FINAL CONFIRMATION\n\nPermanently remove all invoices, PDFs, templates and custom categories from Świstak's active data directory?\n\nVerified ZIP backup:\n{path}\n\nData can only be recovered from the backup. The default answer is NO.",
+  "clear.failed": "Cannot clear data:\n{error}\n\nThe previous data directory was restored. Your ZIP backup remains available.",
+  "clear.critical": "Database clearing and automatic rollback both failed.\n\nError: {error}\nRollback: {rollback}\n\nDo not save invoices! Check the adjacent data directories and the ZIP backup.",
+  "clear.partial": "Świstak opened a new empty database, but could not completely delete the previous data directory:\n{previous}\n\nError: {error}\n\nZIP backup:\n{path}\n\nThe old directory still contains data; remove it manually after checking the new database.",
+  "clear.success": "The database has been cleared. Invoices, archived PDFs and templates are removed. Only default categories remain.\n\nYour backup is still safely stored here:\n{path}\n\nThis ZIP is not encrypted."
 }

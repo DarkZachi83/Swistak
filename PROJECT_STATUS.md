@@ -10,6 +10,7 @@
 ## Zrealizowane i obecne w kodzie `main`
 
 - Lokalny rejestr SQLite, wersjonowane migracje, oryginalne PDF-y przechowywane w prywatnym archiwum, SHA-256 i rozpoznawanie identycznego importu.
+- **Wyczyść bazę danych…** w menu Plik: najpierw ostrzeżenie „UWAGA! Komenda spowoduje wymazanie wszystkich danych! Utwórz najpierw kopię zapasową.”, potem obowiązkowa pełna kopia ZIP i próba jej weryfikacji, wpisanie frazy, końcowe potwierdzenie, nowa pusta baza z sześcioma kategoriami podstawowymi. Usuwane są faktury, PDF-y, wzorce i własne kategorie. Ustawienia i kopia ZIP pozostają. Awarię podmiany można cofnąć, a jeśli nie uda się usunąć starego katalogu, GUI zgłasza jego ścieżkę. Testy wyłącznie syntetyczne.
 - Pełne kopie zapasowe w menu Plik: ZIP z migawką SQLite, PDF-ami, wzorcami (w tym historią) i lokalnymi ustawieniami. Przed przywróceniem weryfikacja manifestu SHA-256, integralności SQLite i powiązań PDF; świadoma zgoda i zachowanie całego poprzedniego katalogu. ZIP **nie jest szyfrowany**. Testy tylko na fikcyjnych dokumentach.
 - Podgląd PDF, lokalny odczyt tekstu i OCR (Tesseract), analiza przez lokalną Ollamę; edycja propozycji AI i formularza przed świadomym zapisem.
 - Interfejs PySide6 w językach polskim i angielskim; etapy: Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty.
@@ -49,7 +50,7 @@
 1. **Test akceptacyjny QR:** sprawdzić syntetyczne kody, odczyt PDF na komputerze użytkownika, przypadki nieznanych formatów, brak QR, przeniesienie danych tylko po potwierdzeniu; testy CI nie używają prywatnego PDF.
 2. **Test akceptacyjny tabeli faktur:** sprawdzić na komputerze docelowym różne statusy, daty, sortowanie kwot, wyszukiwanie, zapis i nadpisanie; zweryfikować zachowanie podglądu PDF po otwarciu z tabeli. Wykonać pełny zestaw testów syntetycznych w CI i lokalnie.
 3. **Weryfikacja end-to-end:** fikcyjny PDF z warstwą tekstową i fikcyjny skan → OCR → Ollama → korekta → zapis → ponowny import → odmowa/potwierdzenie nadpisania. Prawdziwy dokument wyłącznie lokalnie, poza GitHubem.
-4. **Akceptacja kopii zapasowych i historia/statystyki:** w trybie testowym utworzyć i przywrócić kopię, sprawdzić PDF-y i wzorce; na rzeczywistych danych dopiero po pomyślnych testach. Następnie zaprojektować sumy miesięczne, historię i statystyki.
+4. **Akceptacja czyszczenia i historia/statystyki:** w trybie testowym potwierdzić, że przycisk bez backupu niczego nie usuwa, że wyczyszczona baza jest pusta i że sprawdzony ZIP pozwala odtworzyć dane. Następnie zaprojektować sumy miesięczne, historię i statystyki.
 5. **Porządek dokumentacji:** uaktualnić `docs/PLAN.md`, który nadal nazywa część zaimplementowanego etapu 3 „gałęzią roboczą”. Uzupełniać status po każdym większym etapie, także przy zmianie interfejsu i testów.
 
 ## Testy do uruchamiania

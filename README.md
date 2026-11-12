@@ -22,6 +22,7 @@
 | **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. Osobna zakładka **Faktury** pokazuje zapisane rekordy w tabeli: sortowanie, wyszukiwanie, filtr statusu, suma widocznych i otwieranie do edycji. |
 | **Archiwum PDF** | Przechowuje niezmienione oryginały, używa **SHA-256** do kontroli integralności i wykrywa ponowny import identycznego dokumentu. |
 | **Kopie zapasowe** | **Plik → Utwórz kopię zapasową… / Przywróć kopię zapasową…**: ZIP z migawką SQLite, PDF-ami, wzorcami z historią i ustawieniami. Manifest SHA-256, kontrola przed przywróceniem i zachowanie poprzedniego katalogu. |
+| **Wyczyszczenie danych** | **Plik → Wyczyść bazę danych…**: usunięcie faktur, archiwum PDF, własnych kategorii i wzorców po obowiązkowym backupie ZIP, sprawdzeniu jego integralności, wpisaniu frazy potwierdzającej i końcowym ostrzeżeniu. Ustawienia języka i modelu pozostają. |
 | **PDF i OCR** | Odczytuje warstwę tekstową PDF albo rozpoznaje skany przez **Tesseract**. Pozwala również zaznaczać i odczytywać fragment dokumentu. |
 | **Kody QR** | Lokalnie dekoduje QR na stronach PDF, rozpoznaje wybrane polskie formaty płatności i umożliwia przeniesienie kwoty i konta do formularza po osobnym potwierdzeniu. |
 | **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
@@ -128,6 +129,20 @@ Więcej informacji: [odczyt QR](docs/KODY_QR.md) · [analiza przez Ollamę](docs
 | macOS | `~/Library/Application Support/Swistak/` |
 
 Katalog można zmienić zmienną `SWISTAK_DATA_DIR`. Ustawienia interfejsu i modelu AI zapisywane są oddzielnie od SQLite.
+
+## Czyszczenie wszystkich danych
+
+**Plik → Wyczyść bazę danych…** otwiera ostrzeżenie o nieodwracalnym
+usunięciu faktur, dokumentów PDF, własnych kategorii i wzorców. Operacja
+**wymaga wykonania nowej, kompletnej kopii ZIP poza katalogiem danych**.
+Świstak weryfikuje możliwość odzyskania tej kopii, żąda wpisania
+specjalnej frazy i jeszcze jednego potwierdzenia. Dopiero wtedy tworzy
+nową pustą bazę z kategoriami fabrycznymi i usuwa starą zawartość.
+Ustawienia języka i domyślnego modelu Ollama są zachowane. Kopia ZIP
+**nie jest szyfrowana** i pozostaje poza katalogiem aplikacji.
+W razie błędu podczas podmiany program próbuje przywrócić poprzedni katalog;
+jeśli nie uda się usunąć starego katalogu po sukcesie, poinformuje o tym
+użytkownika.
 
 ## Testowanie i rozwój
 

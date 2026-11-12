@@ -343,5 +343,18 @@
   "backup.restore_confirm": "Sprawdzono sumy SHA-256, bazę SQLite, powiązania z PDF i zawartość archiwum.\n\nData kopii: {date}\nDokumenty PDF: {pdf}\nPliki wzorców: {templates}\n\nUWAGA: przywrócenie zastąpi BIEŻĄCE dane danymi z kopii. Dotychczasowy katalog zachowamy obok jako kopię awaryjną. Otwarte PDF zostaną zamknięte, a okno Świstaka uruchomione ponownie.\n\nCzy na pewno przywrócić?",
   "backup.restore_error": "Nie udało się przywrócić danych:\n{error}\n\nŚwistak odtworzył poprzedni katalog danych.",
   "backup.restore_critical": "Nie udało się przywrócić danych i automatycznie wrócić do wcześniejszego stanu.\n\nBłąd: {error}\nProblem cofnięcia: {rollback}\n\nNie zapisuj nowych faktur! Zamknij program i sprawdź katalogi danych oraz kopię ZIP.",
-  "backup.restored": "Dane zostały pomyślnie przywrócone. Świstak otworzył nowe okno.\n\nDotychczasowe dane zachowano w:\n{previous}\n\nNie usuwaj tego katalogu, dopóki nie sprawdzisz faktur, PDF-ów i wzorców."
+  "backup.restored": "Dane zostały pomyślnie przywrócone. Świstak otworzył nowe okno.\n\nDotychczasowe dane zachowano w:\n{previous}\n\nNie usuwaj tego katalogu, dopóki nie sprawdzisz faktur, PDF-ów i wzorców.",
+  "clear.menu": "Wyczyść bazę danych…",
+  "clear.title": "Wyczyść bazę danych Świstaka",
+  "clear.warning": "UWAGA! Komenda spowoduje wymazanie wszystkich danych!\n\nUtwórz najpierw kopię zapasową.\n\nZostaną usunięte wszystkie zapisane faktury, oryginalne PDF-y, własne kategorie i wzorce AI. Świstak będzie miał pustą bazę z kategoriami domyślnymi. Ustawienia programu zostaną zachowane.\n\nAby kontynuować, Świstak najpierw utworzy OBOWIĄZKOWĄ pełną kopię ZIP. Czy przejść do jej zapisywania?",
+  "clear.backup_title": "Wybierz lokalizację obowiązkowej kopii przed wyczyszczeniem",
+  "clear.backup_failed": "Nie można bezpiecznie wyczyścić bazy: nie udało się utworzyć i sprawdzić kopii zapasowej.\n\n{error}\n\nDane pozostają bez zmian.",
+  "clear.phrase": "USUŃ WSZYSTKO",
+  "clear.type_phrase": "Kopia zapasowa została utworzona i sprawdzona.\n\nAby naprawdę wymazać wszystkie dane Świstaka, wpisz dokładnie:\n{phrase}\n\nAnulowanie lub inny tekst pozostawi dane bez zmian.",
+  "clear.cancelled": "Czyszczenie anulowano. Baza danych pozostaje bez zmian.\n\nUtworzona kopia jest dostępna tutaj:\n{path}",
+  "clear.last_confirm": "OSTATNIE POTWIERDZENIE\n\nUsunąć BEZPOWROTNIE wszystkie faktury, PDF-y, wzorce i własne kategorie z aktywnego katalogu Świstaka?\n\nSprawdzona kopia ZIP:\n{path}\n\nPo operacji odzyskanie danych będzie możliwe tylko z kopii. Domyślna odpowiedź to NIE.",
+  "clear.failed": "Nie udało się wyczyścić danych:\n{error}\n\nPrzywrócono poprzedni katalog danych. Kopia ZIP pozostała dostępna.",
+  "clear.critical": "Błąd czyszczenia i automatycznego odzyskiwania.\n\nBłąd: {error}\nBłąd cofnięcia: {rollback}\n\nNie zapisuj faktur! Sprawdź sąsiednie katalogi danych i kopię ZIP.",
+  "clear.partial": "Świstak otworzył pustą bazę, ale nie udało się całkowicie usunąć poprzedniego katalogu:\n{previous}\n\nBłąd: {error}\n\nKopia ZIP:\n{path}\n\nDane w starym katalogu nadal istnieją; usuń je ręcznie po sprawdzeniu nowej bazy.",
+  "clear.success": "Baza danych została wyczyszczona. Usunięto faktury, archiwalne PDF-y i wzorce. Pozostały tylko kategorie podstawowe.\n\nKopia zapasowa jest bezpiecznie zachowana tutaj:\n{path}\n\nArchiwum nie jest szyfrowane."
 }

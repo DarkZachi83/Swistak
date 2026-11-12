@@ -79,13 +79,14 @@ class RejestrRachunkow:
         # Awaria między zmianą nazw przy przywracaniu mogłaby sprawić, że
         # brakujący katalog zostałby pomylony z pierwszym uruchomieniem.
         # Nie twórz pustej bazy, gdy obok leży zachowany stary katalog.
-        if not self.katalog.exists() and list(self.katalog.parent.glob(
-            self.katalog.name + "-przed-przywroceniem-*"
-        )):
+        if not self.katalog.exists() and any(
+            list(self.katalog.parent.glob(self.katalog.name + suffix))
+            for suffix in ("-przed-przywroceniem-*", "-przed-wyczyszczeniem-*")
+        ):
             raise RuntimeError(
-                "Wykryto przerwane przywracanie kopii. "
+                "Wykryto przerwane przywracanie lub czyszczenie bazy. "
                 "Nie utworzono pustej bazy. Sprawdź sąsiedni katalog "
-                "'przed-przywroceniem' i odzyskaj poprzednie dane."
+                "'przed-przywroceniem' albo 'przed-wyczyszczeniem' i odzyskaj dane."
             )
         self.katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
         sciezka_bazy = self.katalog / "swistak.sqlite3"
