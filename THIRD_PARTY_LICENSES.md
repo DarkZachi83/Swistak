@@ -1,6 +1,6 @@
 # Świstak — rejestr zależności i licencji
 
-**Stan przeglądu: 2026-11-10 · WERSJA ROBOCZA · nie stanowi opinii prawnej.**
+**Stan przeglądu: 2026-11-12 · WERSJA ROBOCZA · nie stanowi opinii prawnej.**
 
 Rejestr opisuje komponenty występujące w kodzie, `requirements.txt`,
 pobrane w przykładowym środowisku Python oraz wymagane programy systemowe.
@@ -9,9 +9,7 @@ Wersje w `requirements.txt` są zakresami, a nie zamrożonymi wersjami.
 Przed pierwszym wydaniem należy sporządzić rzeczywistą listę wszystkich
 plików binarnych, bibliotek, podzespołów i modeli w *konkretnym artefakcie*.
 
-**Obecnie `main` Świstaka jest na GPL-3.0-only.** Projekt zmiany
-na PolyForm Noncommercial 1.0.0 znajduje się w gałęzi
-`proposal/licencja-home-business` i nie zmienia zasad wcześniejszych wydań.
+**Aktualny `main` Świstaka jest udostępniany na PolyForm Noncommercial 1.0.0** (plik `LICENSE`). Planowana wersja Business będzie wymagała osobnych warunków komercyjnych. Historyczne wydania GPL-3.0-only zachowują swoje warunki. Licencje bibliotek pozostają niezależne od licencji Świstaka.
 
 ## Znaczenie statusów
 
@@ -31,7 +29,7 @@ na PolyForm Noncommercial 1.0.0 znajduje się w gałęzi
 | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | `>=5.9,<6` | **Apache-2.0 / BSD-3-Clause**, PDFium ma osobne zależności/NOTICE | Domyślna rasteryzacja skanów OCR | **DO SPRAWDZENIA:** prawa i notices binariów PDFium w konkretnym wheel |
 | [pytesseract](https://github.com/madmaze/pytesseract) | `>=0.3.13,<1` | **Apache-2.0** | Wywoływanie lokalnego silnika Tesseract | **INFORMACYJNIE:** uwzględnić notices Apache, niezależnie audytować silnik OCR |
 | [Pillow](https://python-pillow.github.io/) | `>=12.2,<14` | **MIT-CMU** | Obraz PIL przy OCR PDFium i generowanie skanów do testów | **INFORMACYJNIE:** dołączyć tekst licencji i copyright |
-| [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) | `>=3.1.1,<4` | **Apache-2.0** | Lokalny dekoder QR | **DO SPRAWDZENIA:** licencja i notices dokładnego binarnego wheel przed wydaniem |
+| [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp) | `>=3.1.1,<4` | **Apache-2.0** | Lokalny dekoder QR | **DOZWOLONY komercyjnie**; przed wydaniem sprawdzić konkretny wheel i dołączyć wymagany tekst licencji oraz ewentualne NOTICE / informacje o prawach autorów |
 
 ## 2. Zależności pośrednie / pakiety, które mogą trafić do instalatora
 
@@ -143,6 +141,13 @@ Dokumentacja upstream:
 [pypdfium2 Licensing](https://pypdfium2-team.github.io/pypdfium2/readme.html#licensing)
 i [threading](https://pypdfium2.readthedocs.io/en/stable/python_api.html#incompatibility-with-threading).
 
+### B.2. ZXing-C++ (`zxing-cpp`) — wydanie komercyjne
+
+- **Licencja Apache-2.0 potwierdzona** w [repozytorium autorów](https://github.com/zxing-cpp/zxing-cpp/blob/master/LICENSE) i w [metadanych PyPI](https://pypi.org/project/zxing-cpp/). Zezwala na użycie, modyfikowanie i sprzedaż programu wykorzystującego bibliotekę, także w wersji Business. Sam ZXing-C++ nie nakłada obowiązku otwarcia kodu Świstaka ani opłaty licencyjnej.
+- **Przy dystrybucji** dołączyć pełny tekst Apache-2.0, zachować wymagane informacje o prawach i autorach, uwzględnić `NOTICE`, jeśli jest wymagany dla konkretnego artefaktu, oraz oznaczyć własne modyfikacje kodu biblioteki, jeśli wystąpią.
+- **Przed bundlingiem** zweryfikować dokładny wheel Python (platforma, wersja, zawarte biblioteki natywne i ich licencje); wiązanie Pythona korzysta z nanobind, więc nie wolno zakładać, że samo pole `License: Apache-2.0` opisuje każde dołączone binarium. Zapisać wersję i hash w SBOM / lockfile wydania.
+- Stan: **licencja podstawowa odpowiednia do komercyjnej wersji Business; pełne sprawdzenie redystrybuowanego pakietu binarnego pozostaje otwarte.** Nie jest to opinia prawna o całym instalatorze.
+
 ### C. Gemma 3 — nie mylić silnika z modelem
 
 Ollama ma licencję MIT, ale **wagi Gemma 3 nie są MIT**.
@@ -161,8 +166,9 @@ prezentować niezależnie.
 
 Wersje Świstaka opublikowane dotychczas jako GPL-3.0-only zachowują
 swoje warunki. Zmiana licencji przyszłych wersji wymaga praw do kodu.
-Dokument obejmuje **jedynie propozycję** i nie jest próbą
-retroaktywnej zmiany praw.
+Aktualna licencja PolyForm Noncommercial obejmuje wskazane nią wydania;
+warunki komercyjne Business nadal wymagają odrębnej umowy. Nie jest to
+próba retroaktywnej zmiany praw do historycznych wersji GPL.
 
 ## 5. Co musi być gotowe przed publikacją instalatora?
 
@@ -171,6 +177,7 @@ retroaktywnej zmiany praw.
 - [ ] Rozstrzygnięte skutki użycia Popplera lub zamieniona rasteryzacja.
 - [ ] Zweryfikowane warunki **Qt LGPLv3** i użytych konkretnych modułów.
 - [ ] Spisane binarne zależności PDFium/Qt wraz z własnymi licencjami.
+- [ ] Zweryfikowany dokładny wheel `zxing-cpp` i jego dodatkowe notice/licencje, wraz z kopią Apache-2.0 w wydaniu.
 - [ ] Przygotowane NOTICE/third-party license texts wymagane przez
       faktycznie dołączone komponenty (nie tylko odnośniki).
 - [ ] Gemma i Ollama instalowane osobno lub licencjonowane odpowiednio

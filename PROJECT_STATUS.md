@@ -13,7 +13,7 @@
 - Podgląd PDF, lokalny odczyt tekstu i OCR (Tesseract), analiza przez lokalną Ollamę; edycja propozycji AI i formularza przed świadomym zapisem.
 - Interfejs PySide6 w językach polskim i angielskim; etapy: Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty.
 - Tabela **Faktury** (nowy widok): filtrowanie i sortowanie zapisanych rekordów, statusy, suma widocznych, otwieranie do edycji; pierwotne **Dokumenty** pozostają archiwum PDF. Dane wyłącznie z SQLite, bez nowej migracji.
-- Odczyt kodów QR z PDF: lokalny PDFium + ZXing-C++, okno z danymi płatności i potwierdzanym przenoszeniem kwoty oraz numeru konta. Żadnych przelewów ani automatycznego zapisu.
+- Odczyt kodów QR z PDF: lokalny PDFium + ZXing-C++, okno z danymi płatności i potwierdzanym przenoszeniem kwoty oraz numeru konta. Żadnych przelewów ani automatycznego zapisu. **Licencja ZXing-C++: Apache-2.0, dopuszcza wykorzystanie komercyjne**; zawartość docelowego binarnego wheel wymaga audytu przed wydaniem Business.
 - Inteligentne wzorce faktur W1–W4: dopasowywanie na podstawie sprzedawcy/układu, zatwierdzanie, edycja w formularzu zamiast ręcznego JSON, wyłączanie i przywracanie rewizji. Osobne reguły sprawdzają pełny miesiąc rozliczeniowy, jeśli źródło jednoznacznie wskazuje `MM/RRRR`.
 - **Ochrona przed ponownym zapisem faktury (2026-11-11):** `RejestrRachunkow.znajdz_duplikat` i `zapisz_rachunek(..., nadpisz_id=...)` rozpoznają ten sam dokument lub dostawcę i numer faktury. Zapis istniejącej pozycji bez jawnego potwierdzenia jest blokowany w warstwie bazy. GUI pyta „Czy nadpisać?” z domyślnym **Nie**; potwierdzona aktualizacja zachowuje identyfikator faktury, bez dopisywania drugiej.
 - Testy syntetyczne zapisów i duplikatów: `testy/test_rejestr.py`, `testy/test_duplikaty_baza.py`, `testy/test_duplikaty_faktur.py`; workflow `.github/workflows/duplikaty-sqlite.yml` dla testów bez Qt.
@@ -22,6 +22,12 @@
 ## Stan weryfikacji
 
 **GitHub Actions — pełny zestaw testów ukończony pomyślnie** na Pythonie 3.11 i 3.13 (run `43182694952`, stan kodu `9a0fe7697be5de7a53b927ee4a04bfd2604331a4`). Testy QR korzystają wyłącznie z fikcyjnego kodu i syntetycznego PDF-u. Naprawiono też obsługę polskiego „ł” w nazwach okresów rozliczeniowych oraz izolację języka w teście sortowania kwot. **Nie wykonano testu GUI na komputerze użytkownika ani testu nowego dekodera na jego prywatnej fakturze**; są to kolejne testy akceptacyjne.
+
+## Dystrybucja i licencje
+
+- Aktualny kod `main`: **PolyForm Noncommercial 1.0.0**. Business wymaga osobnej licencji dla klientów; wcześniejsze wersje GPL pozostają na swoich warunkach.
+- Biblioteka QR `zxing-cpp` (`>=3.1.1,<4`): podstawowa licencja Apache-2.0 **pozwala na użycie komercyjne**. Przed sprzedażą instalatora zweryfikować konkretny wheel, notices i inne dołączane komponenty Qt/PDFium oraz zapisać listę wersji/hashów.
+- Szczegóły: `THIRD_PARTY_LICENSES.md` i `docs/LICENCJONOWANIE.md`.
 
 ## Następne zadania — kolejność
 

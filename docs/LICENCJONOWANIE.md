@@ -19,7 +19,7 @@ odrębnej pisemnej umowy i nie zostały jeszcze opublikowane.
   Termin właściwy: **source-available**, nie klasyczne
   **open source / OSI-approved**.
 
-## Licencja proponowana dla kolejnych wersji
+## Licencja obowiązująca na aktualnym `main`
 
 **PolyForm Noncommercial License 1.0.0**
 SPDX: `PolyForm-Noncommercial-1.0.0`
@@ -86,11 +86,6 @@ oraz pozostałych zależności.
 
 Poradnik Qt: https://www.qt.io/development/open-source-lgpl-obligations
 
-## Zmiana licencji w repozytorium
+## Aktualny stan projektu
 
-Dokonać jej spójnym commitem: `LICENSE`, nagłówki SPDX kodu,
-README i niniejszy dokument. Nie przejmować automatycznie
-licencji wcześniejszych wersji. Zanim PR zostanie scalony
-z gałęzią `main`, właściciel praw powinien zatwierdzić
-brzmienie nowej licencji i uzyskać profesjonalny przegląd
-licencji zależności oraz umowy komercyjnej.
+Zmianę na PolyForm Noncommercial 1.0.0 uwzględniono w obecnym `LICENSE`, nagłówkach SPDX oraz README. Historyczne wersje GPL-3.0-only zachowują swoje uprawnienia. Przed komercyjną premierą wydania Business nadal wymagane są: sprawdzenie praw do całego kodu, audyt dołączonych binariów i licencji zależności oraz przygotowanie warunków osobnej licencji komercyjnej. Biblioteka QR `zxing-cpp` jest udostępniana na Apache-2.0, która pozwala na wykorzystanie komercyjne przy zachowaniu obowiązków informacyjnych.
