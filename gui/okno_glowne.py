@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
-    QWidget, QComboBox,
+    QWidget, QComboBox, QTabWidget,
 )
 
 from gui.okno_o_programie import OknoOProgramie
@@ -441,11 +441,13 @@ class OknoGlowne(QMainWindow):
         self.btn_kopiuj.setText(t("button.copy"))
         self.pole_odczytu.setPlaceholderText(t("read.placeholder"))
         self.btn_analizuj_z_odczytu.setText(t("button.analyze_text"))
-        self.hint_ai.setText(t("ai.hint"))
+        self.zakladki_ai.setTabText(0, t("ai.tab_data"))
+        self.zakladki_ai.setTabText(1, t("ai.tab_agent"))
+        self.btn_info_ai.setToolTip(t("ai.info_title"))
         self.btn_wybierz_wzorzec.setText(t("patterns.choose"))
         self.etykieta_notatek_wzorca.setText(t("patterns.notes"))
         self.notatki_wzorca.setPlaceholderText(t("patterns.notes_placeholder"))
-        self.btn_komentarz_pola.setText(t("patterns.field_note"))
+        self.info_notatek_agenta.setText(t("ai.notes_scope"))
         self.btn_proponuj_wzorzec.setText(t("patterns.propose"))
         self._aktualizuj_info_wzorca()
         self.etykieta_modelu.setText(t("ai.model"))
@@ -457,12 +459,11 @@ class OknoGlowne(QMainWindow):
         self.btn_potwierdz_recznie.setText(t("ai.confirm_row"))
         self.btn_potwierdz_recznie.setToolTip(t("ai.confirm_row_tip"))
         self.btn_dodaj_kategorie_ai.setText(t("ai.add_category"))
-        self.hint_edycji_ai.setText(t("ai.edit_hint"))
-        self.hint_ai_stopka.setText(t("ai.next_step"))
         self.tabela_ai.setHorizontalHeaderLabels([
             t("ai.table.field"), t("ai.table.suggestion_edit"),
-            t("ai.table.evidence"), t("ai.table.verdict"),
+            t("ai.table.evidence"), t("ai.table.verdict"), t("ai.table.comment"),
         ])
+        self._odswiez_komentarze_ai()
         for row, field in enumerate(POLA):
             self.tabela_ai.setItem(row, 0, QTableWidgetItem(t(self._AI_FIELDS[field])))
             if self._analiza is not None and field in self._analiza.oceny:
@@ -700,20 +701,99 @@ class OknoGlowne(QMainWindow):
         return panel
 
     def _zbuduj_analize(self) -> QWidget:
+        """Dwie wewnętrzne zakładki: wyniki analizy i konfiguracja agenta.
+
+        Podział zmienia wyłącznie układ GUI, nie kolejność walidacji
+        ani zasady świadomego przenoszenia danych do formularza.
+        """
         panel = QWidget()
         uklad = QVBoxLayout(panel)
-        uklad.setContentsMargins(10, 12, 10, 12)
-        uklad.setSpacing(8)
+        uklad.setContentsMargins(10, 8, 10, 8)
+        uklad.setSpacing(4)
+        self.zakladki_ai = QTabWidget()
+        self.zakladki_ai.setObjectName("zakladkiAnalizyAI")
+        uklad.addWidget(self.zakladki_ai, 1)
 
-        instrukcja = QLabel(
-            "Najpierw użyj Odczyt PDF. Lokalny LLM proponuje wartości; "
-            "Świstak sprawdza format, a Ty decydujesz, co przenieść do formularza. "
-            "Nic nie jest zapisywane automatycznie."
+        # DANE: tabela na całej dostępnej wysokości, przyciski na dole.
+        self.karta_ai_dane = QWidget()
+        dane_uklad = QVBoxLayout(self.karta_ai_dane)
+        dane_uklad.setContentsMargins(6, 8, 6, 6)
+        dane_uklad.setSpacing(6)
+
+        self.tabela_ai = QTableWidget(len(POLA), 5)
+        self.tabela_ai.setObjectName("tabelaAnalizyAI")
+        self.tabela_ai.setHorizontalHeaderLabels([
+            "Pole", "Sugestia / korekta", "Dowód z tekstu", "Ocena", "Komentarz",
+        ])
+        self.tabela_ai.setEditTriggers(
+            QAbstractItemView.EditTrigger.DoubleClicked
+            | QAbstractItemView.EditTrigger.EditKeyPressed
         )
-        self.hint_ai = instrukcja
-        instrukcja.setWordWrap(True)
-        instrukcja.setObjectName("podpowiedz")
-        uklad.addWidget(instrukcja)
+        self.tabela_ai.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tabela_ai.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tabela_ai.setWordWrap(True)
+        self.tabela_ai.setAlternatingRowColors(True)
+        self.tabela_ai.verticalHeader().setVisible(False)
+        self.tabela_ai.setColumnWidth(0, 120)
+        self.tabela_ai.setColumnWidth(1, 160)
+        self.tabela_ai.setColumnWidth(3, 175)
+        self.tabela_ai.setColumnWidth(4, 145)
+        self.tabela_ai.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.ResizeMode.Stretch
+        )
+        for n, pole in enumerate(POLA):
+            self.tabela_ai.setItem(n, 0, self._element_tabeli_ai(ETYKIETY[pole]))
+            self.tabela_ai.setItem(n, 4, self._element_tabeli_ai("—"))
+        self.tabela_ai.itemChanged.connect(self._edytowano_sugestie_ai)
+        self.tabela_ai.itemDoubleClicked.connect(self._podwojny_klik_ai)
+        dane_uklad.addWidget(self.tabela_ai, 1)
+
+        status_uklad = QHBoxLayout()
+        self.info_ai = QLabel()
+        self.info_ai.setObjectName("podpowiedz")
+        self.info_ai.setWordWrap(True)
+        status_uklad.addWidget(self.info_ai, 1)
+        self.btn_info_ai = QPushButton("ⓘ")
+        self.btn_info_ai.setObjectName("informacjeAnalizaAI")
+        self.btn_info_ai.setFixedWidth(38)
+        self.btn_info_ai.clicked.connect(self._pokaz_info_ai)
+        status_uklad.addWidget(self.btn_info_ai)
+        dane_uklad.addLayout(status_uklad)
+
+        analiza_akcje = QHBoxLayout()
+        self.btn_analizuj = QPushButton()
+        self.btn_analizuj.clicked.connect(self._start_analizy)
+        analiza_akcje.addWidget(self.btn_analizuj, 1)
+        self.btn_anuluj_ai = QPushButton()
+        self.btn_anuluj_ai.clicked.connect(self._anuluj_analize)
+        analiza_akcje.addWidget(self.btn_anuluj_ai)
+        dane_uklad.addLayout(analiza_akcje)
+
+        korekty = QHBoxLayout()
+        self.btn_potwierdz_recznie = QPushButton()
+        self.btn_potwierdz_recznie.clicked.connect(self._potwierdz_pole_ai)
+        korekty.addWidget(self.btn_potwierdz_recznie, 1)
+        self.btn_dodaj_kategorie_ai = QPushButton()
+        self.btn_dodaj_kategorie_ai.clicked.connect(self._dodaj_kategorie)
+        korekty.addWidget(self.btn_dodaj_kategorie_ai, 1)
+        dane_uklad.addLayout(korekty)
+
+        self.btn_przenies = QPushButton()
+        self.btn_przenies.setObjectName("przeniesSugestieAI")
+        self.btn_przenies.clicked.connect(self._przenies_sugestie)
+        dane_uklad.addWidget(self.btn_przenies)
+
+        # AGENT: wszystkie ustawienia modelu, wzorce i wskazówki razem.
+        self.karta_ai_agent = QWidget()
+        agent_uklad = QVBoxLayout(self.karta_ai_agent)
+        agent_uklad.setContentsMargins(10, 14, 10, 12)
+        agent_uklad.setSpacing(12)
+
+        self.etykieta_modelu = QLabel()
+        agent_uklad.addWidget(self.etykieta_modelu)
+        self.ed_model = QLineEdit(self.prefs.get("ollama_model", "gemma3:4b"))
+        self.ed_model.setObjectName("modelOllamaAgent")
+        agent_uklad.addWidget(self.ed_model)
 
         wzorce_uklad = QHBoxLayout()
         self.info_wzorca = QLabel()
@@ -723,82 +803,48 @@ class OknoGlowne(QMainWindow):
         self.btn_wybierz_wzorzec = QPushButton()
         self.btn_wybierz_wzorzec.clicked.connect(self._wybierz_wzorzec_recznie)
         wzorce_uklad.addWidget(self.btn_wybierz_wzorzec)
-        uklad.addLayout(wzorce_uklad)
-
-        model_uklad = QHBoxLayout()
-        self.etykieta_modelu = QLabel("Model Ollama:")
-        model_uklad.addWidget(self.etykieta_modelu)
-        self.ed_model = QLineEdit(self.prefs.get("ollama_model", "gemma3:4b"))
-        self.ed_model.setToolTip("Nazwa lokalnie zainstalowanego modelu (ollama list)")
-        model_uklad.addWidget(self.ed_model)
-        uklad.addLayout(model_uklad)
-
-        akcje = QHBoxLayout()
-        self.btn_analizuj = QPushButton("Analizuj rachunek przez AI")
-        self.btn_analizuj.clicked.connect(self._start_analizy)
-        akcje.addWidget(self.btn_analizuj)
-        self.btn_anuluj_ai = QPushButton("Anuluj")
-        self.btn_anuluj_ai.clicked.connect(self._anuluj_analize)
-        akcje.addWidget(self.btn_anuluj_ai)
-        uklad.addLayout(akcje)
-
-        self.info_ai = QLabel("Odczytaj PDF, aby rozpocząć analizę lokalnym modelem.")
-        self.info_ai.setWordWrap(True)
-        uklad.addWidget(self.info_ai)
-
-        self.tabela_ai = QTableWidget(len(POLA), 4)
-        self.tabela_ai.setHorizontalHeaderLabels(["Pole", "Sugestia / korekta", "Dowód z tekstu", "Ocena"])
-        self.tabela_ai.setEditTriggers(
-            QAbstractItemView.EditTrigger.DoubleClicked
-            | QAbstractItemView.EditTrigger.EditKeyPressed
-        )
-        self.tabela_ai.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tabela_ai.setWordWrap(True)
-        self.tabela_ai.setAlternatingRowColors(True)
-        self.tabela_ai.verticalHeader().setVisible(False)
-        self.tabela_ai.setColumnWidth(0, 130)
-        self.tabela_ai.setColumnWidth(1, 185)
-        self.tabela_ai.setColumnWidth(3, 200)
-        self.tabela_ai.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeMode.Stretch
-        )
-        for n, pole in enumerate(POLA):
-            self.tabela_ai.setItem(n, 0, self._element_tabeli_ai(ETYKIETY[pole]))
-        self.tabela_ai.itemChanged.connect(self._edytowano_sugestie_ai)
-        uklad.addWidget(self.tabela_ai, 1)
-
-        self.hint_edycji_ai = QLabel()
-        self.hint_edycji_ai.setWordWrap(True)
-        self.hint_edycji_ai.setObjectName("podpowiedz")
-        uklad.addWidget(self.hint_edycji_ai)
-        przyciski_korekty = QHBoxLayout()
-        self.btn_potwierdz_recznie = QPushButton()
-        self.btn_potwierdz_recznie.clicked.connect(self._potwierdz_pole_ai)
-        przyciski_korekty.addWidget(self.btn_potwierdz_recznie)
-        self.btn_dodaj_kategorie_ai = QPushButton()
-        self.btn_dodaj_kategorie_ai.clicked.connect(self._dodaj_kategorie)
-        przyciski_korekty.addWidget(self.btn_dodaj_kategorie_ai)
-        self.btn_komentarz_pola = QPushButton()
-        self.btn_komentarz_pola.clicked.connect(self._dodaj_komentarz_wzorca)
-        uklad.addLayout(przyciski_korekty)
-        # Osobny wiersz: trzy szerokie przyciski nie mogą ucinać tabeli AI.
-        uklad.addWidget(self.btn_komentarz_pola)
+        agent_uklad.addLayout(wzorce_uklad)
 
         self.etykieta_notatek_wzorca = QLabel()
-        uklad.addWidget(self.etykieta_notatek_wzorca)
+        self.etykieta_notatek_wzorca.setWordWrap(True)
+        agent_uklad.addWidget(self.etykieta_notatek_wzorca)
         self.notatki_wzorca = QPlainTextEdit()
-        self.notatki_wzorca.setMaximumHeight(75)
         self.notatki_wzorca.setObjectName("wskazowkiWzorca")
-        uklad.addWidget(self.notatki_wzorca)
+        self.notatki_wzorca.setMinimumHeight(140)
+        agent_uklad.addWidget(self.notatki_wzorca, 1)
+        self.info_notatek_agenta = QLabel()
+        self.info_notatek_agenta.setObjectName("podpowiedz")
+        self.info_notatek_agenta.setWordWrap(True)
+        agent_uklad.addWidget(self.info_notatek_agenta)
 
-        self.btn_przenies = QPushButton("Przenieś zweryfikowane pola do formularza")
-        self.btn_przenies.setToolTip("Nie zapisuje rachunku w SQLite")
-        self.btn_przenies.clicked.connect(self._przenies_sugestie)
-        uklad.addWidget(self.btn_przenies)
-        self.hint_ai_stopka = QLabel("Następnie sprawdź wszystkie dane i użyj Zapisz rachunek w karcie Rachunek.")
-        self.hint_ai_stopka.setWordWrap(True)
-        uklad.addWidget(self.hint_ai_stopka)
+        self.zakladki_ai.addTab(self.karta_ai_dane, "")
+        self.zakladki_ai.addTab(self.karta_ai_agent, "")
         return panel
+
+    def _pokaz_info_ai(self) -> None:
+        """Pełna instrukcja dostępna pod INFO, bez zabierania miejsca tabeli."""
+        QMessageBox.information(
+            self, t("ai.info_title"),
+            "\n\n".join((t("ai.hint"), t("ai.edit_hint"), t("ai.next_step"))),
+        )
+
+    def _podwojny_klik_ai(self, element: QTableWidgetItem) -> None:
+        """Kolumna komentarza jest edytowana w wygodnym oknie tekstowym."""
+        if element.column() == 4:
+            self.tabela_ai.setCurrentCell(element.row(), 4)
+            self._dodaj_komentarz_wzorca()
+
+    def _odswiez_komentarze_ai(self) -> None:
+        """Komentarze są przypisane do pola, nie do numeru wiersza ani OCR."""
+        self._aktualizuje_tabele_ai = True
+        try:
+            for row, field in enumerate(POLA):
+                note = self._komentarze_wzorca.get(field, "")
+                element = self._element_tabeli_ai(note or "—")
+                element.setToolTip(note or t("patterns.no_field_note"))
+                self.tabela_ai.setItem(row, 4, element)
+        finally:
+            self._aktualizuje_tabele_ai = False
 
     @staticmethod
     def _element_tabeli_ai(tekst: str, edytowalny: bool = False) -> QTableWidgetItem:
@@ -910,7 +956,6 @@ class OknoGlowne(QMainWindow):
         )
         self.btn_potwierdz_recznie.setEnabled(not zajete and analiza_dokumentu)
         self.btn_dodaj_kategorie_ai.setEnabled(not zajete and analiza_dokumentu)
-        self.btn_komentarz_pola.setEnabled(not zajete and analiza_dokumentu)
 
     def _start_analizy(self) -> None:
         if self._zadanie_ai is not None or self._zadanie_odczytu is not None:
@@ -955,6 +1000,7 @@ class OknoGlowne(QMainWindow):
         self._wyczysc_analize()
         self._zadanie_ai = zadanie
         self.karty.setCurrentIndex(self.ETAP_ANALIZA)
+        self.zakladki_ai.setCurrentIndex(0)
         self._message(self.info_ai, "ai.working", model=model)
         zadanie.sygnaly.gotowe.connect(self._analiza_gotowa)
         zadanie.sygnaly.blad.connect(self._analiza_blad)
@@ -990,6 +1036,7 @@ class OknoGlowne(QMainWindow):
         finally:
             self._aktualizuje_tabele_ai = False
         self._message(self.info_ai, "ai.done", model=wynik.model, count=ile, total=len(POLA))
+        self.zakladki_ai.setCurrentIndex(0)
         self._aktualizuj_odczyt()
 
     def _analiza_blad(self, dokument_id: int, komunikat: str) -> None:
@@ -1214,7 +1261,9 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_info_wzorca()
 
     def _dodaj_komentarz_wzorca(self) -> None:
-        if self._analiza is None or self._analiza_dokument_id != self.aktualny_dokument_id:
+        # Komentarze można przygotować jeszcze przed analizą; zapis wzorca
+        # następuje dopiero po świadomej decyzji użytkownika.
+        if self.aktualny_dokument_id is None:
             return
         row = self.tabela_ai.currentRow()
         if not 0 <= row < len(POLA):
@@ -1233,9 +1282,7 @@ class OknoGlowne(QMainWindow):
                 self._komentarze_wzorca[pole] = text.strip()
             else:
                 self._komentarze_wzorca.pop(pole, None)
-            self.tabela_ai.item(row, 0).setToolTip(
-                self._komentarze_wzorca.get(pole, t("patterns.no_field_note"))
-            )
+            self._odswiez_komentarze_ai()
 
     def _aktualizuj_tekst_propozycji(self) -> None:
         if not hasattr(self, "btn_proponuj_wzorzec"):
@@ -1384,6 +1431,7 @@ class OknoGlowne(QMainWindow):
         self._wybrany_obszar = None
         self._wyczysc_analize()
         self._komentarze_wzorca.clear()
+        self._odswiez_komentarze_ai()
         self.notatki_wzorca.clear()
         self._dopasowanie_wzorca = None
         self._aktywny_wzorzec = None

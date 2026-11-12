@@ -277,5 +277,10 @@
   "qr.error": "QR reading failed.",
   "qr.cancelled": "QR reading cancelled.",
   "qr.confirm": "Apply amount {amount} PLN and bank account {account} to the form?\n\nExisting values in these two fields will be replaced. Verify against the invoice before saving. The program does NOT initiate a transfer.",
-  "qr.applied": "QR data copied to the form; verify before saving."
+  "qr.applied": "QR data copied to the form; verify before saving.",
+  "ai.tab_data": "DATA",
+  "ai.tab_agent": "AGENT",
+  "ai.table.comment": "Comment",
+  "ai.info_title": "INFO — AI analysis workflow",
+  "ai.notes_scope": "General notes and field comments are used when proposing a template after approving an invoice. The current analysis uses the selected approved template. Double-click the Comment column to add a field-specific hint."
 }

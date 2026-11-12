@@ -80,6 +80,10 @@ ollama list
 
 Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działania zależą od komputera. Domyślny model można skonfigurować w menu **Ustawienia**.
 
+## Analiza AI — DANE i AGENT
+
+Zakładka **Analiza AI** dzieli prawy panel na dwie karty: **DANE** (tabela pól, komentarze, walidacja, przyciski akcji i przycisk INFO) oraz **AGENT** (model Ollama, wybrany wzorzec i wskazówki). Podwójne kliknięcie kolumny **Komentarz** umożliwia edycję wskazówki konkretnego pola. Wskazówki te służą do przygotowania wzorca przy jego późniejszym zatwierdzaniu — nie zmieniają w locie polecenia bieżącej analizy.
+
 ## Jak to działa
 
 1. **Importuj PDF** — dokument trafia do prywatnego archiwum, a Świstak pokazuje jego podgląd.

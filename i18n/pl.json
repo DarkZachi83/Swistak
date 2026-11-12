@@ -277,5 +277,10 @@
   "qr.error": "Odczyt QR nie powiódł się.",
   "qr.cancelled": "Odczyt QR anulowany.",
   "qr.confirm": "Przenieść kwotę {amount} zł i numer konta {account} do formularza?\n\nObecne wartości tych dwóch pól zostaną zastąpione. Przed zapisem koniecznie porównaj je z fakturą. Program NIE wykonuje przelewu.",
-  "qr.applied": "Dane z QR przeniesione do formularza; wymagają sprawdzenia przed zapisem."
+  "qr.applied": "Dane z QR przeniesione do formularza; wymagają sprawdzenia przed zapisem.",
+  "ai.tab_data": "DANE",
+  "ai.tab_agent": "AGENT",
+  "ai.table.comment": "Komentarz",
+  "ai.info_title": "INFO — przebieg analizy AI",
+  "ai.notes_scope": "Wskazówki ogólne i komentarze pól posłużą do zaproponowania wzorca po zatwierdzeniu faktury. Bieżąca analiza wykorzystuje wybrany, zatwierdzony wzorzec. Dwuklik w kolumnie Komentarz pozwala dodać opis dla konkretnego pola."
 }
