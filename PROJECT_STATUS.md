@@ -2,7 +2,7 @@
 
 **Ostatnia weryfikacja:** 2026-11-12  
 **Repozytorium:** `DarkZachi83/Swistak` · **gałąź:** `main`  
-**Punkt odniesienia:** commit `e73d6cde661a9f23fa4b3fe5978fa836fc24f0a5` (porządkowanie kategorii i testy, przed aktualizacją tego dokumentu).  
+**Punkt odniesienia:** commit `b9ff2bec217fe5b65d2df34cf7feb5fe3360ab15` (kompletne kopie ZIP, odtwarzanie z GUI, testy; przed aktualizacją statusu).  
 **Wersja w `wersja.py`:** `0.1.0b1` / `0.1.0 Beta 1`.
 
 > To dokument przekazania prac między sesjami programistycznymi i asystentami AI. **Kod na bieżącym HEAD `main` jest nadrzędny**; przed wznowieniem trzeba porównać ten dokument z repozytorium i ostatnimi commitami. Sam wpis „wykonane” nie zastępuje testu na komputerze użytkownika.
@@ -35,6 +35,8 @@
 **Pasek pracy Agenta:** GitHub Actions `43199521730` — pełny zestaw testów ukończony pomyślnie na Pythonie 3.11 i 3.13 (commit `e69c1bf42464ab8f2eb33a45e09b6c6f57325b28`). Etapy pochodzą z lokalnego procesu analizy, a animacja pracy Ollamy nie udaje rzeczywistych procentów. Testy na danych fikcyjnych, bez prywatnych faktur.
 
 **Kategorie i statystyki:** nowy dialog wyboru / dodawania / scalania kategorii, blokada przypadkowych duplikatów i osobne potwierdzenie tworzenia podobnych nazw; pełny GitHub Actions `43202906583` zakończył się sukcesem na Pythonie 3.11 i 3.13. Szybkie testy SQLite: `43202274153` — sukces. Przed operacją na rzeczywistych fakturach wykonać kopię całego lokalnego katalogu danych; nie przenoszono ani nie publikowano danych użytkownika.
+
+**Kopie zapasowe — weryfikacja:** GitHub Actions `43212824122` — sukces na Pythonie 3.11 i 3.13. Przetestowano syntetyczne PDF-y, zapisy SQLite i wzorców, przywracanie z GUI, odmowę, SHA-256, brak nadpisania archiwum, zabezpieczenia przed ścieżkami niebezpiecznymi, zachowanie poprzedniego katalogu i cofanie po symulowanej awarii. Zwykłe testy bazodanowe: `43212441790` — sukces. Kopia ZIP nie jest szyfrowana; test na komputerze użytkownika pozostaje do wykonania.
 
 ## Dystrybucja i licencje
 
