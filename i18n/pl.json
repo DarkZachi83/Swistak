@@ -299,5 +299,9 @@
   "models.no_disk": "Nie znaleziono dodatkowych modeli w sprawdzonych folderach.",
   "models.no_service": "Nie można odczytać listy modeli z Ollamy: {error}. Możesz zobaczyć pliki na dysku, ale uruchom Ollamę przed analizą.",
   "models.found": "Ollama: {count} modeli · Dysk: {disk} wpisów",
-  "models.selected": "Wybrano lokalny model Ollama: {name}"
+  "models.selected": "Wybrano lokalny model Ollama: {name}",
+  "ai.progress.accessible": "Postęp pracy Agenta AI",
+  "ai.progress.prepare": "Agent przygotowuje lokalną analizę faktury…",
+  "ai.progress.ollama": "Ollama ({model}) przetwarza tekst faktury — oczekiwanie na odpowiedź…",
+  "ai.progress.validate": "Sprawdzanie odpowiedzi Agenta: JSON, dane i dowody z PDF…"
 }

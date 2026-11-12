@@ -11,6 +11,7 @@ from uslugi.analiza_llm import analizuj_lokalnie
 
 
 class SygnalyAnalizy(QObject):
+    etap = Signal(int, str)  # prepare / ollama / validate
     gotowe = Signal(int, object)  # dokument_id, AnalizaModelu
     blad = Signal(int, str)
     anulowano = Signal(int)
@@ -34,8 +35,10 @@ class ZadanieAnalizy(QRunnable):
             self.sygnaly.anulowano.emit(self.dokument_id)
             return
         try:
+            self.sygnaly.etap.emit(self.dokument_id, "prepare")
             wynik = analizuj_lokalnie(
-                self.tekst, self.kategorie, self.model, wzorzec=self.wzorzec
+                self.tekst, self.kategorie, self.model, wzorzec=self.wzorzec,
+                postep=lambda etap: self.sygnaly.etap.emit(self.dokument_id, etap),
             )
         except Exception as blad:
             if self.przerwij.is_set():

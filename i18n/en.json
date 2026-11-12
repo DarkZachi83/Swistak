@@ -299,5 +299,9 @@
   "models.no_disk": "No other models were found in the searched folders.",
   "models.no_service": "Cannot read the Ollama model list: {error}. Disk files can still be viewed, but start Ollama before analysis.",
   "models.found": "Ollama: {count} models · Disk: {disk} entries",
-  "models.selected": "Selected local Ollama model: {name}"
+  "models.selected": "Selected local Ollama model: {name}",
+  "ai.progress.accessible": "AI agent progress",
+  "ai.progress.prepare": "Agent is preparing local invoice analysis…",
+  "ai.progress.ollama": "Ollama ({model}) is processing the invoice — waiting for response…",
+  "ai.progress.validate": "Validating agent response: JSON, fields, and PDF evidence…"
 }

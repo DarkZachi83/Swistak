@@ -10,7 +10,7 @@ from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
-    QPushButton, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
+    QPushButton, QProgressBar, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
     QWidget, QComboBox, QTabWidget,
 )
@@ -468,6 +468,7 @@ class OknoGlowne(QMainWindow):
         self.zakladki_ai.setTabText(0, t("ai.tab_data"))
         self.zakladki_ai.setTabText(1, t("ai.tab_agent"))
         self.btn_info_ai.setToolTip(t("ai.info_title"))
+        self.postep_ai.setAccessibleName(t("ai.progress.accessible"))
         self.btn_wybierz_wzorzec.setText(t("patterns.choose"))
         self.etykieta_notatek_wzorca.setText(t("patterns.notes"))
         self.notatki_wzorca.setPlaceholderText(t("patterns.notes_placeholder"))
@@ -786,6 +787,22 @@ class OknoGlowne(QMainWindow):
         status_uklad.addWidget(self.btn_info_ai)
         dane_uklad.addLayout(status_uklad)
 
+        # Pasek pod tabelą, nad przyciskami. Ollama (stream=False) nie
+        # podaje procentów; nie symulujemy ich zegarem ani animowanym licznikiem.
+        self.postep_ai = QProgressBar()
+        self.postep_ai.setObjectName("postepPracyAgenta")
+        self.postep_ai.setRange(0, 100)
+        self.postep_ai.setValue(0)
+        self.postep_ai.setTextVisible(False)
+        self.postep_ai.setFixedHeight(14)
+        self.postep_ai.setStyleSheet(
+            "QProgressBar { border: 1px solid #45484b; border-radius: 5px;"
+            " background: #2b3035; }"
+            "QProgressBar::chunk { background: #3fa66b; border-radius: 4px; }"
+        )
+        self.postep_ai.hide()
+        dane_uklad.addWidget(self.postep_ai)
+
         analiza_akcje = QHBoxLayout()
         self.btn_analizuj = QPushButton()
         self.btn_analizuj.clicked.connect(self._start_analizy)
@@ -886,7 +903,28 @@ class OknoGlowne(QMainWindow):
         element.setToolTip(tekst)
         return element
 
+    def _start_postep_ai(self) -> None:
+        """Nieznany czas odpowiedzi Ollamy: animacja bez fikcyjnego procentu."""
+        self.postep_ai.setRange(0, 0)
+        self.postep_ai.show()
+
+    def _etap_postepu_ai(self, dokument_id: int, etap: str) -> None:
+        """Etapy pochodzą z pracującego wątku; GUI aktualizuje wyłącznie Qt."""
+        if (self._zadanie_ai is None or
+                dokument_id != self.aktualny_dokument_id or
+                self._zadanie_ai.przerwij.is_set()):
+            return
+        if etap in ("prepare", "ollama", "validate"):
+            self._message(self.info_ai, "ai.progress." + etap,
+                          model=self._zadanie_ai.model)
+
+    def _koniec_postepu_ai(self, sukces: bool) -> None:
+        self.postep_ai.setRange(0, 100)
+        self.postep_ai.setValue(100 if sukces else 0)
+        self.postep_ai.setVisible(sukces)
+
     def _wyczysc_analize(self) -> None:
+        self._koniec_postepu_ai(False)
         self._analiza = None
         self._analiza_dokument_id = None
         self._pola_potwierdzone_recznie.clear()
@@ -1033,7 +1071,9 @@ class OknoGlowne(QMainWindow):
         self._zadanie_ai = zadanie
         self.karty.setCurrentIndex(self.ETAP_ANALIZA)
         self.zakladki_ai.setCurrentIndex(0)
-        self._message(self.info_ai, "ai.working", model=model)
+        self._message(self.info_ai, "ai.progress.prepare", model=model)
+        self._start_postep_ai()
+        zadanie.sygnaly.etap.connect(self._etap_postepu_ai)
         zadanie.sygnaly.gotowe.connect(self._analiza_gotowa)
         zadanie.sygnaly.blad.connect(self._analiza_blad)
         zadanie.sygnaly.anulowano.connect(self._analiza_anulowana)
@@ -1043,8 +1083,10 @@ class OknoGlowne(QMainWindow):
     def _analiza_gotowa(self, dokument_id: int, wynik: AnalizaModelu) -> None:
         self._zadanie_ai = None
         if dokument_id != self.aktualny_dokument_id:
+            self._koniec_postepu_ai(False)
             self._aktualizuj_odczyt()
             return
+        self._koniec_postepu_ai(True)
         self._analiza = wynik
         self._analiza_dokument_id = dokument_id
         self._pola_potwierdzone_recznie.clear()
@@ -1072,6 +1114,7 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_odczyt()
 
     def _analiza_blad(self, dokument_id: int, komunikat: str) -> None:
+        self._koniec_postepu_ai(False)
         self._zadanie_ai = None
         self._message(self.info_ai, "ai.failed")
         self._aktualizuj_odczyt()
@@ -1079,6 +1122,7 @@ class OknoGlowne(QMainWindow):
             QMessageBox.warning(self, t("msg.ai_error"), komunikat)
 
     def _analiza_anulowana(self, dokument_id: int) -> None:
+        self._koniec_postepu_ai(False)
         self._zadanie_ai = None
         self._message(self.info_ai, "ai.cancelled")
         self._aktualizuj_odczyt()

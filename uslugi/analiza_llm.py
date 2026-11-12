@@ -11,7 +11,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 
@@ -226,6 +226,7 @@ def ocena_json(wynik: dict, tekst: str, kategorie: list[str],
 def analizuj_lokalnie(
     tekst: str, kategorie: list[str], model: str = "gemma3:4b",
     timeout: int = 180, *, wzorzec: dict | None = None,
+    postep: Callable[[str], None] | None = None,
 ) -> AnalizaModelu:
     """Wyślij tekst TYLKO na localhost; odbierz JSON i ocenę każdej sugestii."""
     if not tekst.strip():
@@ -279,6 +280,8 @@ def analizuj_lokalnie(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    if postep is not None:
+        postep("ollama")
     try:
         # Bez proxy: także przy skonfigurowanym http_proxy nie wyślemy
         # rachunku do zewnętrznego serwera.
@@ -288,6 +291,8 @@ def analizuj_lokalnie(
         raise RuntimeError(f"Ollama HTTP {blad.code}. Sprawdź model: {model}") from blad
     except (OSError, URLError, TimeoutError) as blad:
         raise RuntimeError("Brak odpowiedzi lokalnej Ollamy (127.0.0.1:11434).") from blad
+    if postep is not None:
+        postep("validate")
     try:
         dane = json.loads(response["message"]["content"])
     except (KeyError, TypeError, ValueError) as blad:
