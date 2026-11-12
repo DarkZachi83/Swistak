@@ -328,5 +328,20 @@
   "categories.merge.action": "Merge categories",
   "categories.merge.confirm": "Move {count} linked invoices from “{source}” to “{target}”?\n\nThis changes category assignments in your database. “{source}” will be retired from active categories. Amounts, invoice numbers and PDF files are unchanged.\n\nBack up important data before merging. Do you confirm?",
   "categories.merge.pattern_error": "Cannot safely inspect stored templates: {error}. Merge cancelled.",
-  "categories.merge.pattern_block": "Templates still reference the old category: {names}.\n\nUpdate the category in those templates first, then retry the merge."
+  "categories.merge.pattern_block": "Templates still reference the old category: {names}.\n\nUpdate the category in those templates first, then retry the merge.",
+  "backup.title": "Świstak backups",
+  "backup.menu_create": "Create backup…",
+  "backup.menu_restore": "Restore backup…",
+  "backup.create_title": "Create full data backup",
+  "backup.restore_title": "Restore data from backup",
+  "backup.file_filter": "Świstak backups (*.zip)",
+  "backup.busy": "Wait until AI analysis or document reading finishes before creating or restoring a backup.",
+  "backup.private_warning": "The backup includes financial records, original PDF invoices, templates and local settings. The ZIP archive IS NOT ENCRYPTED.\n\nSave it in a private, secure location outside the Świstak data folder.\n\nCreate backup now?",
+  "backup.create_error": "Could not create backup:\n{error}\n\nExisting backups were not changed.",
+  "backup.created": "Backup created:\n{path}\n\nPDF documents: {pdf}\nTemplate files (including history): {templates}\n\nKeep this file secure: it contains private data and is not encrypted.",
+  "backup.restore_invalid": "Cannot restore this backup. Security or integrity validation failed:\n{error}\n\nYour current data was not changed.",
+  "backup.restore_confirm": "SHA-256 checks, SQLite integrity, PDF references and archive contents passed validation.\n\nBackup date: {date}\nPDF documents: {pdf}\nTemplate files: {templates}\n\nWARNING: restoring will replace CURRENT data with backup data. The current data directory will be preserved nearby for rollback. Open PDF files will be closed and a fresh Świstak window opened.\n\nRestore now?",
+  "backup.restore_error": "Could not restore data:\n{error}\n\nŚwistak rolled back to the previous data directory.",
+  "backup.restore_critical": "Restoration and automatic rollback failed.\n\nError: {error}\nRollback problem: {rollback}\n\nDo not save new invoices! Close the application and inspect data directories and the ZIP backup.",
+  "backup.restored": "Backup restored. A fresh Świstak window has opened.\n\nYour previous data remains in:\n{previous}\n\nDo not delete it until you verify invoices, PDFs and templates."
 }

@@ -76,6 +76,17 @@ def _data(tekst: str) -> str | None:
 class RejestrRachunkow:
     def __init__(self, katalog: Path | None = None):
         self.katalog = Path(katalog if katalog is not None else katalog_danych()).resolve()
+        # Awaria między zmianą nazw przy przywracaniu mogłaby sprawić, że
+        # brakujący katalog zostałby pomylony z pierwszym uruchomieniem.
+        # Nie twórz pustej bazy, gdy obok leży zachowany stary katalog.
+        if not self.katalog.exists() and list(self.katalog.parent.glob(
+            self.katalog.name + "-przed-przywroceniem-*"
+        )):
+            raise RuntimeError(
+                "Wykryto przerwane przywracanie kopii. "
+                "Nie utworzono pustej bazy. Sprawdź sąsiedni katalog "
+                "'przed-przywroceniem' i odzyskaj poprzednie dane."
+            )
         self.katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
         sciezka_bazy = self.katalog / "swistak.sqlite3"
         byla_baza = sciezka_bazy.is_file() and sciezka_bazy.stat().st_size > 0

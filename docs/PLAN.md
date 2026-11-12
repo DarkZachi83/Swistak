@@ -86,11 +86,17 @@ bezpośrednio z lokalnej Ollamy. Szczegóły:
 [WYBOR_MODELU_AI_BOBR.md](WYBOR_MODELU_AI_BOBR.md).
 
 ## Etap 4 — historia, statystyki i kopie zapasowe
-Filtrowanie rachunków, sumy miesięczne; kopia spójnej migawki SQLite
-i oryginałów PDF z manifestem SHA-256 oraz sprawdzane przywracanie.
-**Przed zapisaniem prawdziwych danych finansowych trzeba zapewnić
-bezpieczną kopię zapasową** — nawet jeśli pełny interfejs backupu
-zostanie wykonany na tym etapie.
+
+**Kopie zapasowe — wdrożone:** spójna migawka SQLite + dokumenty PDF +
+wzorce i historia + ustawienia, jedno archiwum ZIP z manifestem SHA-256.
+Przywracanie sprawdza zawartość, wymaga zgody i zachowuje poprzedni
+katalog na wypadek potrzeby cofnięcia operacji. Menu **Plik** w PL/EN.
+Szczegóły: [KOPIE_ZAPASOWE.md](KOPIE_ZAPASOWE.md).
+
+**Historia i statystyki — dalszy etap:** filtrowanie rachunków,
+sumy miesięczne, zestawienia według kategorii i dostawców.
+Przed użyciem na ważnych danych przetestować kopię i przywrócenie
+na komputerze docelowym.
 
 ## Etap 5 — szablony dostawców
 Zapamiętywanie układu dokumentu, potwierdzanie odczytu,

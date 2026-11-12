@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import sqlite3
+import zipfile
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThreadPool
-from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtGui import QAction, QActionGroup, QCursor
 from PySide6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
@@ -32,6 +34,10 @@ from gui.dialog_kategorie import DialogKategorie
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
+from uslugi.kopie_zapasowe import (
+    BladKopii, utworz_kopie, przygotuj_przywracanie, podmien_dane,
+    cofnij_podmiane,
+)
 from i18n import LANGUAGES, current_language, set_language, system_language, t
 import ustawienia
 
@@ -274,6 +280,9 @@ class OknoGlowne(QMainWindow):
         self.akcja_import = self.menu_pliki.addAction("", self.wybierz_plik)
         self.akcja_odswiez = self.menu_pliki.addAction("", self._odswiez_liste)
         self.menu_pliki.addSeparator()
+        self.akcja_kopia = self.menu_pliki.addAction("", self._utworz_kopie)
+        self.akcja_przywroc = self.menu_pliki.addAction("", self._przywroc_kopie)
+        self.menu_pliki.addSeparator()
         self.akcja_zakoncz = self.menu_pliki.addAction("", self.close)
 
         self.menu_ustawienia = menu.addMenu("")
@@ -341,6 +350,136 @@ class OknoGlowne(QMainWindow):
         self.prefs = updated
         self.ed_model.setText(name)
         self._status("models.selected", name=name)
+
+    def _czy_mozna_przywracac(self) -> bool:
+        if (self._zadanie_odczytu is not None or self._zadanie_ai is not None):
+            QMessageBox.warning(self, t("backup.title"), t("backup.busy"))
+            return False
+        return True
+
+    def _utworz_kopie(self) -> None:
+        """Zapisz prywatną, spójną kopię danych bez nadpisania innych kopii."""
+        if not self._czy_mozna_przywracac():
+            return
+        default = Path.home() / (
+            "Swistak-kopia-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".zip"
+        )
+        path, _ = QFileDialog.getSaveFileName(
+            self, t("backup.create_title"), str(default),
+            t("backup.file_filter"),
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".zip"):
+            path += ".zip"
+        confirmed = QMessageBox.question(
+            self, t("backup.title"), t("backup.private_warning"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if confirmed != QMessageBox.StandardButton.Yes:
+            return
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            opis = utworz_kopie(
+                self.rejestr, path, ustawienia=ustawienia.path_settings()
+            )
+        except (BladKopii, OSError, sqlite3.Error, ValueError) as exc:
+            QMessageBox.warning(self, t("backup.title"),
+                                t("backup.create_error", error=str(exc)))
+        else:
+            QMessageBox.information(
+                self, t("backup.title"),
+                t("backup.created", path=str(path), pdf=opis.dokumenty_pdf,
+                  templates=opis.wzorce_json),
+            )
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _przywroc_kopie(self) -> None:
+        """Sprawdź kopię przed potwierdzeniem i zachowaj oryginał do cofnięcia."""
+        if not self._czy_mozna_przywracac():
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, t("backup.restore_title"), str(Path.home()),
+            t("backup.file_filter"),
+        )
+        if not path:
+            return
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            kopia = przygotuj_przywracanie(path, self.rejestr.katalog)
+        except (BladKopii, OSError, sqlite3.Error, ValueError, zipfile.BadZipFile) as exc:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, t("backup.title"),
+                                t("backup.restore_invalid", error=str(exc)))
+            return
+        QApplication.restoreOverrideCursor()
+        try:
+            answer = QMessageBox.question(
+                self, t("backup.restore_title"),
+                t("backup.restore_confirm",
+                  date=kopia.opis.utworzona_utc,
+                  pdf=kopia.opis.dokumenty_pdf,
+                  templates=kopia.opis.wzorce_json),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+            folder = self.rejestr.katalog
+            original_prefs = ustawienia.load()
+            previous = None
+            new_window = None
+            # Windows: PDFium i SQLite nie mogą trzymać otwartych uchwytów
+            # podczas zmiany nazwy katalogu danych.
+            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+            try:
+                self.podglad.zamknij_dokument()
+                self.rejestr.zamknij()
+                previous = podmien_dane(kopia, folder)
+                self.rejestr.__init__(folder)
+                if kopia.ustawienia is not None:
+                    ustawienia.save(kopia.ustawienia)
+                new_window = OknoGlowne(self.rejestr)
+            except Exception as exc:
+                if new_window is not None:
+                    new_window.close()
+                try:
+                    self.rejestr.zamknij()
+                except sqlite3.Error:
+                    pass
+                try:
+                    if previous is not None:
+                        cofnij_podmiane(folder, previous)
+                    self.rejestr.__init__(folder)
+                    ustawienia.save(original_prefs)
+                    self._odswiez_liste()
+                except Exception as rollback:
+                    QMessageBox.critical(
+                        self, t("backup.title"),
+                        t("backup.restore_critical",
+                          error=str(exc), rollback=str(rollback)),
+                    )
+                    return
+                QMessageBox.warning(
+                    self, t("backup.title"),
+                    t("backup.restore_error", error=str(exc)),
+                )
+                return
+            finally:
+                QApplication.restoreOverrideCursor()
+            # Najpierw pokaż nowe okno, potem zamknij poprzednie.
+            # Ten sam obiekt RejestrRachunkow pozostaje pod opieką main.py.
+            self._okno_po_przywroceniu = new_window
+            new_window.show()
+            QMessageBox.information(
+                new_window, t("backup.title"),
+                t("backup.restored", previous=str(previous)),
+            )
+            self.close()
+        finally:
+            kopia.sprzataj()
 
     def _open_settings(self) -> None:
         box = QDialog(self)
@@ -411,6 +550,8 @@ class OknoGlowne(QMainWindow):
         for action, key in (
             (self.akcja_import, "menu.import"),
             (self.akcja_odswiez, "menu.refresh"),
+            (self.akcja_kopia, "backup.menu_create"),
+            (self.akcja_przywroc, "backup.menu_restore"),
             (self.akcja_zakoncz, "menu.exit"),
             (self.akcja_konfiguruj, "menu.configure"),
             (self.akcja_wzorce, "patterns.manage"),

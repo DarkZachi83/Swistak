@@ -328,5 +328,20 @@
   "categories.merge.action": "Scal kategorie",
   "categories.merge.confirm": "Przenieść {count} przypisanych faktur z „{source}” do „{target}”?\n\nTa operacja zmienia przypisania kategorii w bazie. Kategoria „{source}” zostanie wycofana z listy. Numery, kwoty i pliki PDF pozostaną bez zmian.\n\nOperacja wymaga wcześniejszej kopii bezpieczeństwa ważnych danych. Czy potwierdzasz?",
   "categories.merge.pattern_error": "Nie można bezpiecznie sprawdzić zapisanych wzorców: {error}. Scalanie przerwano.",
-  "categories.merge.pattern_block": "Wzorce nadal używają nazwy błędnej kategorii: {names}.\n\nNajpierw zmień kategorię w tych wzorcach w menedżerze, a potem ponów scalanie."
+  "categories.merge.pattern_block": "Wzorce nadal używają nazwy błędnej kategorii: {names}.\n\nNajpierw zmień kategorię w tych wzorcach w menedżerze, a potem ponów scalanie.",
+  "backup.title": "Kopie zapasowe Świstaka",
+  "backup.menu_create": "Utwórz kopię zapasową…",
+  "backup.menu_restore": "Przywróć kopię zapasową…",
+  "backup.create_title": "Utwórz pełną kopię danych",
+  "backup.restore_title": "Przywróć dane z kopii zapasowej",
+  "backup.file_filter": "Kopie Świstaka (*.zip)",
+  "backup.busy": "Poczekaj, aż zakończy się analiza AI lub odczyt dokumentu, zanim rozpoczniesz tworzenie albo przywracanie kopii.",
+  "backup.private_warning": "Kopia zawiera bazę finansową, oryginalne faktury PDF, wzorce oraz lokalne ustawienia. Plik ZIP NIE JEST SZYFROWANY.\n\nZapisuj kopie w prywatnej, bezpiecznej lokalizacji, poza katalogiem danych Świstaka.\n\nCzy utworzyć kopię?",
+  "backup.create_error": "Nie udało się wykonać kopii:\n{error}\n\nPoprzednich kopii nie zmieniono.",
+  "backup.created": "Utworzono kopię:\n{path}\n\nDokumenty PDF: {pdf}\nPliki wzorców (wraz z historią): {templates}\n\nZabezpiecz plik — zawiera prywatne dane i nie jest szyfrowany.",
+  "backup.restore_invalid": "Nie można przywrócić danych. Kopia nie przeszła kontroli bezpieczeństwa i integralności:\n{error}\n\nDotychczasowych danych nie zmieniono.",
+  "backup.restore_confirm": "Sprawdzono sumy SHA-256, bazę SQLite, powiązania z PDF i zawartość archiwum.\n\nData kopii: {date}\nDokumenty PDF: {pdf}\nPliki wzorców: {templates}\n\nUWAGA: przywrócenie zastąpi BIEŻĄCE dane danymi z kopii. Dotychczasowy katalog zachowamy obok jako kopię awaryjną. Otwarte PDF zostaną zamknięte, a okno Świstaka uruchomione ponownie.\n\nCzy na pewno przywrócić?",
+  "backup.restore_error": "Nie udało się przywrócić danych:\n{error}\n\nŚwistak odtworzył poprzedni katalog danych.",
+  "backup.restore_critical": "Nie udało się przywrócić danych i automatycznie wrócić do wcześniejszego stanu.\n\nBłąd: {error}\nProblem cofnięcia: {rollback}\n\nNie zapisuj nowych faktur! Zamknij program i sprawdź katalogi danych oraz kopię ZIP.",
+  "backup.restored": "Dane zostały pomyślnie przywrócone. Świstak otworzył nowe okno.\n\nDotychczasowe dane zachowano w:\n{previous}\n\nNie usuwaj tego katalogu, dopóki nie sprawdzisz faktur, PDF-ów i wzorców."
 }

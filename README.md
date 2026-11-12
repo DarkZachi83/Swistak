@@ -21,6 +21,7 @@
 | --- | --- |
 | **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. Osobna zakładka **Faktury** pokazuje zapisane rekordy w tabeli: sortowanie, wyszukiwanie, filtr statusu, suma widocznych i otwieranie do edycji. |
 | **Archiwum PDF** | Przechowuje niezmienione oryginały, używa **SHA-256** do kontroli integralności i wykrywa ponowny import identycznego dokumentu. |
+| **Kopie zapasowe** | **Plik → Utwórz kopię zapasową… / Przywróć kopię zapasową…**: ZIP z migawką SQLite, PDF-ami, wzorcami z historią i ustawieniami. Manifest SHA-256, kontrola przed przywróceniem i zachowanie poprzedniego katalogu. |
 | **PDF i OCR** | Odczytuje warstwę tekstową PDF albo rozpoznaje skany przez **Tesseract**. Pozwala również zaznaczać i odczytywać fragment dokumentu. |
 | **Kody QR** | Lokalnie dekoduje QR na stronach PDF, rozpoznaje wybrane polskie formaty płatności i umożliwia przeniesienie kwoty i konta do formularza po osobnym potwierdzeniu. |
 | **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
@@ -116,7 +117,8 @@ Więcej informacji: [odczyt QR](docs/KODY_QR.md) · [analiza przez Ollamę](docs
 - **Dokumenty i baza danych pozostają lokalnie** — nie są przesyłane na GitHub.
 - Analiza AI korzysta z **lokalnej usługi Ollama**. Brak modelu nie powoduje automatycznego wysłania rachunku do chmury.
 - Archiwum przechowuje oryginalne PDF-y bez modyfikacji i weryfikuje je za pomocą SHA-256.
-- **Pełna funkcja tworzenia i przywracania kopii zapasowych jest planowana.** Obecnie wykonuj kopię całego katalogu danych po zamknięciu programu. Przy migracji schematu aplikacja tworzy dodatkowo kopię samej bazy SQLite.
+- **Kopie zapasowe** są dostępne w menu **Plik**. Świstak używa API backupu SQLite, kopiuje prywatne PDF-y i wzorce, a przed przywróceniem kontroluje SHA-256, spójność SQLite i powiązania z dokumentami. Oryginalny katalog pozostaje obok pod nazwą Swistak-przed-przywroceniem-….
+- **Kopie ZIP nie są szyfrowane.** Trzymaj je w chronionym katalogu lub zaszyfrowanym nośniku, poza katalogiem danych Świstaka. Regularnie próbnie przywracaj kopię na odrębnych danych testowych. Szczegóły: [Kopie zapasowe — instrukcja](docs/KOPIE_ZAPASOWE.md).
 - Nie publikuj prawdziwych rachunków, plików bazy ani zrzutów pokazujących prywatne dane finansowe.
 
 | System | Domyślny katalog danych |

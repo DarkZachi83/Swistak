@@ -51,6 +51,12 @@ class PodgladPDF(QGraphicsView):
     def strona(self) -> int:
         return self._strona
 
+    def zamknij_dokument(self) -> None:
+        """Zwolnij uchwyt do PDF przed przywróceniem kopii na Windows."""
+        self._pdf.close()
+        self._obraz.setPixmap(QPixmap())
+        self._prostokat.hide()
+
     def otworz(self, sciezka: str | Path) -> None:
         sciezka = Path(sciezka).expanduser()
         if not sciezka.is_file():
