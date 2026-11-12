@@ -96,6 +96,8 @@ class TestTabelaFaktur(unittest.TestCase):
 
 
     def test_kwoty_sortuja_sie_liczbowo(self):
+        # Niezależność od języka ustawionego przez poprzednie testy.
+        set_language("pl")
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             db = RejestrRachunkow(root / "dane")
