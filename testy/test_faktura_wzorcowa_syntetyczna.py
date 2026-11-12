@@ -12,9 +12,10 @@ from unittest.mock import patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPainter, QPdfWriter
-from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 import ustawienia
+from gui.dialog_kategorie import DialogKategorie
 from gui.okno_glowne import OknoGlowne
 from uslugi.analiza_llm import POLA, AnalizaModelu, ocena_json, normalizuj_date
 from uslugi.rachunki import RejestrRachunkow
@@ -180,8 +181,13 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
 
                     # Nowa kategoria zdefiniowana przez użytkownika na ekranie AI.
                     win.karty.setCurrentIndex(win.ETAP_ANALIZA)
-                    with patch.object(QInputDialog, "getText",
-                                      return_value=("Internet", True)):
+                    def utworz_fikcyjna_kategorie(dialog):
+                        dialog.nowa.setText("Internet")
+                        dialog._dodaj()  # świadomy wybór formularza, bez modalu Qt
+                        return dialog.result()
+
+                    with patch.object(DialogKategorie, "exec",
+                                      utworz_fikcyjna_kategorie):
                         win._dodaj_kategorie()
                     self.assertEqual(win.tabela_ai.item(row_category, 1).text(),
                                      "Internet")
