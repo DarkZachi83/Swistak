@@ -30,7 +30,8 @@ class MiesiacRozliczenia:
 
 
 def _uprosc(text: str) -> str:
-    value = unicodedata.normalize("NFKD", text.lower())
+    # NFKD nie rozkłada polskiego ł; bez tego etykieta "Usługa" znika z kontekstu.
+    value = unicodedata.normalize("NFKD", text.lower()).replace("ł", "l")
     return "".join(letter for letter in value if not unicodedata.combining(letter))
 
 
