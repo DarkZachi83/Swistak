@@ -377,7 +377,7 @@
   "agent.overdue": "Faktury po terminie: {count}",
   "agent.due_soon": "Płatne w ciągu 7 dni (łącznie z dziś): {count}",
   "agent.paid_without_date": "Opłacone bez znanej daty płatności: {count}",
-  "agent.missing": "Oczekiwane dokumenty wymagające wyjaśnienia: {count}",
+  "agent.missing": "Zarejestrowane oczekiwane dokumenty wymagające wyjaśnienia: {count}",
   "agent.model.local_only": "Model niedostępny lub brak danych — analiza lokalna bez LLM",
   "agent.model.model_ready": "Lokalny model ukończył analizę z narzędziami",
   "agent.model.model_error": "Analiza modelu nie powiodła się — pokazano pewne dane lokalne",

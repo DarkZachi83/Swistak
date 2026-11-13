@@ -55,7 +55,8 @@ class AgentLog:
     def append(self, mode: str, event: str, invoice_id: int | None = None) -> None:
         if mode not in MODES or event not in {
             "queued", "started", "local_done", "ai_done", "offline",
-            "cancelled", "error", "stale",
+            "cancelled", "error", "stale", "local_check",
+            "model_check", "model_run",
         }:
             raise ValueError("Nieznane zdarzenie dziennika")
         stamp = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -87,7 +88,7 @@ class HybridAgent:
         # Data jest wyznaczana przez aplikację, nie przez model.
         from datetime import date
         date.fromisoformat(self.reference_date)
-        self.provider_factory = provider_factory or (lambda: OllamaProvider(timeout=30))
+        self.provider_factory = provider_factory or (lambda: OllamaProvider(timeout=120))
         self._cancel = threading.Event()
         self._lock = threading.RLock()
         self._orchestrator: AgentOrchestrator | None = None
@@ -221,7 +222,12 @@ class HybridAgent:
         try:
             provider = self.provider_factory()
             self._check()
-            if not provider.health_check(self.model_id):
+            if isinstance(provider, OllamaProvider):
+                # Test dostępności 2,5 s; generowanie zachowuje swój budżet.
+                available = provider.health_check(self.model_id, timeout=2.5)
+            else:
+                available = provider.health_check(self.model_id)
+            if not available:
                 return MonitorReport(**base, model_status="local_only")
             self._check()
             if progress:
@@ -245,7 +251,12 @@ class HybridAgent:
             if self.gateway.revision() != revision:
                 raise InvalidResponse("Dane zmieniły się podczas analizy AI")
             return MonitorReport(
-                **base, model_status="model_ready", model_id=self.model_id,
+                **base,
+                model_status=(
+                    "model_ready" if response["status"] in ("completed", "partial")
+                    else "model_error"
+                ),
+                model_id=self.model_id,
                 findings=tuple(response["findings"][:20]),
                 proposals=tuple(response["proposed_actions"][:20]),
                 uncertainties=tuple(response["uncertainties"][:20]),

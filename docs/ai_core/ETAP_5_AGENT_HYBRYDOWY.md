@@ -34,6 +34,8 @@ i dwóch kart wewnątrz ANALIZA AI pozostaje bez zmian.
 
 Kolejka ma limit 16 oczekujących prac. Zamknięcie okna lub świadome
 anulowanie przerywa pracę best-effort i odrzuca spóźnione wyniki.
+Sprawdzenie dostępności Ollamy ma osobny limit 2,5 s; generowanie LLM
+zachowuje limit budżetu zadania, bez blokowania wątku GUI.
 
 ## Tryb awaryjny i deterministyczne liczby
 
@@ -59,7 +61,8 @@ dla istniejących rachunków.
 4. Propozycje `mark_paid`, `withdraw_invoice` itd. wyświetlane są
    **wyłącznie jako tekst do przeglądu**. Nie dodano przycisku ich
    wykonania ani ścieżki zapisu.
-5. Dziennik zawiera UTC, tryb, rodzaj zdarzenia i opcjonalne ID faktury.
+5. Dziennik zawiera UTC, tryb, kroki (kontrola SQLite, stan Ollamy,
+   analiza LLM), rodzaj zdarzenia i opcjonalne ID faktury.
    Nie przechowuje treści PDF, OCR, kont, SQL ani odpowiedzi modelu.
    Jest pamięciowy (bieżąca sesja), z limitowanym buforem 100 wpisów;
    użytkownik może skopiować lub ręcznie zapisać log do pliku TXT.

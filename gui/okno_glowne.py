@@ -319,7 +319,16 @@ class OknoGlowne(QMainWindow):
         if self._agent_closed:
             return
         if stage in {"local", "health", "llm"}:
+            job = self._agent_current_job
+            if job is not None:
+                event = {
+                    "local": "local_check",
+                    "health": "model_check",
+                    "llm": "model_run",
+                }[stage]
+                self._agent_log.append(job.mode, event, job.invoice_id)
             self._agent_set_status("agent.state." + stage)
+            self._agent_refresh_panel()
 
     def _agent_finish(self, state: str, report: MonitorReport | None = None) -> None:
         if self._agent_closed:

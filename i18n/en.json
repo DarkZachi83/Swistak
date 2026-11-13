@@ -377,7 +377,7 @@
   "agent.overdue": "Overdue invoices: {count}",
   "agent.due_soon": "Due in the next 7 days (including today): {count}",
   "agent.paid_without_date": "Paid invoices with unknown payment date: {count}",
-  "agent.missing": "Expected documents requiring investigation: {count}",
+  "agent.missing": "Registered expected documents needing investigation: {count}",
   "agent.model.local_only": "Model unavailable or no records — local-only check",
   "agent.model.model_ready": "Local model completed its tool-based analysis",
   "agent.model.model_error": "Model analysis failed — reliable local totals shown",

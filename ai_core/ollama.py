@@ -114,14 +114,14 @@ class OllamaProvider:
             except OSError:
                 pass
 
-    def health_check(self, model_id: str) -> bool:
+    def health_check(self, model_id: str, *, timeout: float | None = None) -> bool:
         try:
-            return model_id in self.list_models()
-        except ModelUnavailable:
+            return model_id in self.list_models(timeout=timeout)
+        except (ModelUnavailable, TaskTimeout):
             return False
 
-    def list_models(self) -> list[str]:
-        data = self._request("/api/tags")
+    def list_models(self, *, timeout: float | None = None) -> list[str]:
+        data = self._request("/api/tags", timeout=timeout)
         models = data.get("models", [])
         if not isinstance(models, list):
             raise InvalidResponse("Ollama zwróciła nieprawidłową listę modeli")
