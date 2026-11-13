@@ -136,20 +136,25 @@ class TestToolGateway(unittest.TestCase):
             self.assertEqual(bad["error"]["code"], "permission_denied")
         self.assertEqual(self.register.db.execute("SELECT COUNT(*) FROM rachunki").fetchone()[0], 3)
 
-    def test_niedostepne_przyszle_moduly_nie_zwracaja_fikcyjnych_danych(self):
+    def test_nowe_tabele_nie_generuja_fikcyjnych_dokumentow_i_dat(self):
+        # Od Etapu 3 mamy harmonogramy, daty płatności i cykle, ale
+        # brak profili nie oznacza fikcyjnych oczekiwań.
         self.task["allowed_tools"] = ["plan.expected", "cycle.evaluate", "finance.aggregate"]
         with self.gateway.session(self.task) as session:
             plan = self.execute(session, "plan.expected", {"cycle": "2026-10"}, "plan")
-            self.assertEqual(plan["status"], "error")
-            self.assertEqual(plan["error"]["code"], "provider_unavailable")
-            self.assertEqual(plan["data"], {})
+            self.assertEqual(plan["status"], "ok")
+            self.assertEqual(plan["data"]["expected"], [])
             cycle = self.execute(session, "cycle.evaluate", {"cycle": "2026-10"}, "cycle")
-            self.assertEqual(cycle["status"], "error")
+            self.assertEqual(cycle["status"], "ok")
+            self.assertFalse(cycle["data"]["closed"])
+            self.assertFalse(cycle["data"]["documents_confirmed"])
             payments = self.execute(session, "finance.aggregate", {
                 "basis": "paid_date", "period_from": "2026-11-01",
                 "period_to": "2026-11-30"
             }, "payment")
-            self.assertEqual(payments["error"]["code"], "provider_unavailable")
+            self.assertEqual(payments["status"], "ok")
+            # Legacy paid bez faktycznej daty nie trafia na wykres płatności.
+            self.assertEqual(payments["data"]["total_grosze"], 0)
 
     def test_model_nie_podmienia_daty_na_przyszlosc(self):
         with self.gateway.session(self.task) as session:
