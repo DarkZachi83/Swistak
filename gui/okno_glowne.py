@@ -1424,7 +1424,7 @@ class OknoGlowne(QMainWindow):
 
     def _anuluj_analize(self) -> None:
         if self._zadanie_ai is not None:
-            self._zadanie_ai.przerwij.set()
+            self._zadanie_ai.anuluj()
             self._message(self.info_ai, "ai.cancelling")
 
     def _przenies_sugestie(self) -> None:

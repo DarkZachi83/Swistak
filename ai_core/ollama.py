@@ -300,6 +300,59 @@ class OllamaProvider:
         finally:
             self._forget(task_id)
 
+    def generate_structured(
+        self, *, task_id: str, model_id: str, messages: list[dict[str, str]],
+        schema: dict[str, Any], timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Zadanie ekstrakcji: wynik w schemacie pól, bez Tool Gateway i zapisu.
+
+        Przepływ PDF/OCR → modele jest oddzielny od AnalysisResult agenta;
+        format ekstrakcji nie może być mylony z decyzją finansową.
+        """
+        from jsonschema import Draft202012Validator, FormatChecker
+
+        if not task_id or not model_id or not isinstance(schema, dict):
+            raise ValueError("Nieprawidłowy kontrakt ekstrakcji")
+        if not isinstance(messages, list) or not messages or any(
+            not isinstance(msg, dict)
+            or msg.get("role") not in ("system", "user")
+            or not isinstance(msg.get("content"), str)
+            for msg in messages
+        ):
+            raise ValueError("Nieprawidłowe wiadomości ekstrakcji")
+        Draft202012Validator.check_schema(schema)
+        if self._is_cancelled(task_id):
+            raise TaskCancelled("Zadanie zostało anulowane")
+        limit = min(self.timeout, float(timeout) if timeout is not None else self.timeout)
+        if limit <= 0:
+            raise ValueError("Nieprawidłowy limit czasu")
+        payload = {
+            "model": model_id, "stream": False, "format": schema,
+            "options": {"temperature": 0, "num_ctx": 8192},
+            "messages": messages,
+        }
+        try:
+            data = self._request("/api/chat", payload, task_id=task_id, timeout=limit)
+            if self._is_cancelled(task_id):
+                raise TaskCancelled("Zadanie zostało anulowane")
+            message = data.get("message")
+            if not isinstance(message, dict) or message.get("tool_calls"):
+                raise InvalidResponse("Ekstrakcja nie pozwala na wywoływanie narzędzi")
+            content = message.get("content")
+            if not isinstance(content, str):
+                raise InvalidResponse("Brak danych JSON ekstrakcji")
+            try:
+                parsed = json.loads(content)
+            except (UnicodeError, ValueError) as exc:
+                raise InvalidResponse("Model nie zwrócił poprawnego JSON pól") from exc
+            if not isinstance(parsed, dict):
+                raise InvalidResponse("Model nie zwrócił obiektu pól")
+            if not Draft202012Validator(schema, format_checker=FormatChecker()).is_valid(parsed):
+                raise InvalidResponse("Model nie zachował schematu pól faktury")
+            return parsed
+        finally:
+            self._forget(task_id)
+
     def stream(self, task: dict[str, Any], model_id: str) -> Iterator[StreamEvent]:
         payload = self._payload(task, model_id, stream=True)
         task_id = task["task_id"]
