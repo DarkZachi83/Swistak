@@ -130,6 +130,13 @@ class TestFinanseEtap3(unittest.TestCase):
         self.assertEqual(self.rejestr.sciezka_pdf(self.doc).read_bytes(),pdf_bytes)
         self.assertIn("przywrocenie",[e["operacja"] for e in self.finanse.dziennik("invoice",ident)])
 
+    def test_korekta_daty_oplacenia_ma_odrebny_wpis(self):
+        ident=self.rejestr.zapisz_rachunek(self.invoice())
+        self.finanse.ustaw_oplacona(ident,"2026-11-09")
+        self.finanse.ustaw_oplacona(ident,"2026-11-10")
+        events=self.finanse.dziennik("invoice",ident)
+        self.assertIn("korekta_daty_oplacenia",[e["operacja"] for e in events])
+
     def test_wersja_rekordu_chroni_przed_starym_formularzem(self):
         ident=self.rejestr.zapisz_rachunek(self.invoice())
         with self.assertRaisesRegex(ValueError,"odśwież"):
@@ -256,6 +263,20 @@ class TestFinanseEtap3(unittest.TestCase):
         self.assertFalse(state["closed"])
         self.assertIn("uniewaznienie_kompletnosci",
                       [e["operacja"] for e in self.finanse.dziennik("cycle","2026-10")])
+
+    def test_audyt_scalania_kategorii(self):
+        ident=self.rejestr.zapisz_rachunek(self.invoice())
+        category=self.rejestr.dodaj_kategorie("TEST specjalna kategoria")
+        self.db.execute(
+            "UPDATE pozycje_rachunku SET kategoria_id=? WHERE rachunek_id=?",
+            (category,ident)
+        )
+        before_version=self.rejestr.rachunek(self.doc)["wersja_rekordu"]
+        count=self.rejestr.scal_kategorie(category,self.category)
+        self.assertEqual(count,1)
+        self.assertGreater(self.rejestr.rachunek(self.doc)["wersja_rekordu"],before_version)
+        self.assertIn("scalenie_kategorii",
+                      [r["operacja"] for r in self.finanse.dziennik("invoice",ident)])
 
     def test_wersjonowane_harmonogramy_nie_nadpisuja_starych(self):
         profile=self.plan.utworz_profil(

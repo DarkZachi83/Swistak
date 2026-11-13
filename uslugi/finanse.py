@@ -123,7 +123,8 @@ class Finanse:
                 (dzien,ident),
             )
             after = self._faktura(ident)
-            zdarzenie(self.db, "invoice", ident, "oplacenie",
+            zdarzenie(self.db, "invoice", ident,
+                      "korekta_daty_oplacenia" if before["status"] == "oplacony" else "oplacenie",
                       przed=_faktura_pola(before), po=_faktura_pola(after))
 
     def cofnij_oplacenie(
@@ -165,6 +166,15 @@ class Finanse:
                       po=_faktura_pola(self._faktura(ident)), powod=powod)
             uniewaznij_kompletnosc(self.db, cykl_faktury(before),
                                    "Wycofano fakturę " + str(ident))
+            for cycle_row in self.db.execute(
+                "SELECT DISTINCT o.cykl FROM powiazania_oczekiwanych l "
+                "JOIN oczekiwane_dokumenty o ON o.id=l.oczekiwany_id "
+                "WHERE l.rachunek_id=?", (ident,)
+            ).fetchall():
+                uniewaznij_kompletnosc(
+                    self.db, cycle_row["cykl"],
+                    "Wycofanie faktury zmieniło realizację oczekiwania " + str(ident)
+                )
 
     def przywroc(self, ident: int, *, powod: str, expected_version: int | None = None) -> None:
         if not powod.strip():
@@ -195,6 +205,15 @@ class Finanse:
                       po=_faktura_pola(self._faktura(ident)), powod=powod)
             uniewaznij_kompletnosc(self.db, cykl_faktury(before),
                                    "Przywrócono fakturę " + str(ident))
+            for cycle_row in self.db.execute(
+                "SELECT DISTINCT o.cykl FROM powiazania_oczekiwanych l "
+                "JOIN oczekiwane_dokumenty o ON o.id=l.oczekiwany_id "
+                "WHERE l.rachunek_id=?", (ident,)
+            ).fetchall():
+                uniewaznij_kompletnosc(
+                    self.db, cycle_row["cykl"],
+                    "Przywrócenie faktury zmieniło realizację oczekiwania " + str(ident)
+                )
 
     def ocena_cyklu(self, cykl: str, *, dzisiaj: str | None = None) -> dict:
         cykl_miesiaca(cykl)

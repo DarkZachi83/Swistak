@@ -278,6 +278,10 @@ class RejestrRachunkow:
                 "SELECT COUNT(*) FROM pozycje_rachunku WHERE kategoria_id = ?",
                 (zrodlo_id,)
             ).fetchone()[0])
+            dotkniete = [int(r["rachunek_id"]) for r in self.db.execute(
+                "SELECT DISTINCT rachunek_id FROM pozycje_rachunku "
+                "WHERE kategoria_id=?", (zrodlo_id,)
+            ).fetchall()]
             self.db.execute(
                 "UPDATE pozycje_rachunku SET kategoria_id = ? WHERE kategoria_id = ?",
                 (cel_id, zrodlo_id)
@@ -285,6 +289,18 @@ class RejestrRachunkow:
             self.db.execute(
                 "UPDATE kategorie SET aktywna = 0 WHERE id = ?", (zrodlo_id,)
             )
+            for rachunek_id in dotkniete:
+                self.db.execute(
+                    "UPDATE rachunki SET wersja_rekordu=wersja_rekordu+1, "
+                    "zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+                    (rachunek_id,)
+                )
+                zdarzenie(
+                    self.db,"invoice",rachunek_id,"scalenie_kategorii",
+                    przed={"kategoria_id":zrodlo_id},
+                    po={"kategoria_id":cel_id},
+                    powod="Świadome scalenie kategorii"
+                )
             return count
 
     def rachunek(self, dokument_id: int) -> sqlite3.Row | None:
