@@ -221,9 +221,29 @@ class ToolSession:
             return self._aggregate(args, call_id)
         if name in {"document.verify", "document.extract"}:
             return self._document(name, args, call_id)
-        # Brak tabel odpowiednich dla tych domen w aktualnych migracjach 001/002.
-        if name in {"plan.expected", "plan.match", "cycle.evaluate", "audit.read"}:
-            raise NotImplementedError("Moduł wymaga przyszłego schematu bazy")
+        if name == "plan.expected":
+            return self._expected(args, call_id)
+        if name == "plan.match":
+            return self._matches(args, call_id)
+        if name == "cycle.evaluate":
+            from uslugi.finanse import Finanse
+            evaluation = Finanse(self.db).ocena_cyklu(
+                args["cycle"], dzisiaj=self.task["context"].get("reference_date")
+            )
+            return evaluation, [self._evidence("cycle", args["cycle"], call_id)]
+        if name == "audit.read":
+            typ = args["entity_type"]
+            ident = args["entity_id"]
+            limit = min(args.get("limit",50),100,self.task["limits"]["max_records"])
+            rows = self.db.execute(
+                "SELECT id,utworzono_utc,obiekt_typ,obiekt_id,operacja,"
+                "przed_json,po_json,powod,zrodlo FROM dziennik_zdarzen "
+                "WHERE obiekt_typ=? AND obiekt_id=? ORDER BY id DESC LIMIT ?",
+                (typ,ident,limit)
+            ).fetchall()
+            return {"events":[dict(x) for x in rows]}, [
+                self._evidence("audit", str(x["id"]), call_id) for x in rows
+            ]
         raise ValueError("Nieobsługiwana operacja")
 
     def _search(self, args, call_id):
@@ -310,27 +330,82 @@ class ToolSession:
                 "source_untrusted": True, "pages": len(found.strony)}, [
                     self._evidence("document", str(row["id"]), call_id)]
 
-    def trusted_evidence(self, finding: dict[str, Any]) -> bool:
-        """Weryfikuje tylko obsługiwane, deterministyczne kody biznesowe.
+    def _expected(self, args: dict[str, Any], call_id: str):
+        cycle = args["cycle"]
+        now = self.task["context"].get("reference_date")
+        if not now:
+            raise ValueError("Brak dnia referencyjnego")
+        date.fromisoformat(now)
+        rows = self.db.execute(
+            "SELECT o.id, o.profil_id, p.nazwa, p.dostawca, o.cykl, "
+            "o.oczekiwany_od, o.wyjatek, o.powod_wyjatku, "
+            "(SELECT COUNT(*) FROM powiazania_oczekiwanych l "
+            " JOIN rachunki r ON r.id=l.rachunek_id "
+            " WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL) AS otrzymano "
+            "FROM oczekiwane_dokumenty o JOIN profile_rachunkow p ON p.id=o.profil_id "
+            "WHERE o.cykl=? AND p.aktywny=1 ORDER BY o.id LIMIT ?",
+            (cycle,min(100,self.task["limits"]["max_records"])),
+        ).fetchall()
+        results=[]
+        for r in rows:
+            item=dict(r)
+            if item["otrzymano"]:
+                status="otrzymano"
+            elif item["wyjatek"] == "nie_wystawiono":
+                status="nie_wystawiono"
+            elif item["wyjatek"] == "niepewne":
+                status="niepewne"
+            elif item["oczekiwany_od"] <= now:
+                status="brak"
+            else:
+                status="oczekiwanie"
+            item["status"]=status
+            results.append(item)
+        return {"cycle":cycle, "expected":results}, [
+            self._evidence("profile",str(r["profil_id"]),call_id) for r in rows
+        ]
 
-        Samo powołanie się na dowód nie potwierdza tezy modelu.
-        """
+    def _matches(self, args: dict[str, Any], call_id: str):
+        invoice = self._get_invoice(args["invoice_id"])
+        if invoice is None:
+            raise LookupError("Nie znaleziono faktury")
+        month = (invoice["okres_do"] or invoice["data_wystawienia"] or "")[:7]
+        rows = self.db.execute(
+            "SELECT o.id AS expected_id, o.profil_id, p.nazwa, p.dostawca, "
+            "o.cykl, o.oczekiwany_od, "
+            "CASE WHEN EXISTS(SELECT 1 FROM powiazania_oczekiwanych l "
+            "WHERE l.oczekiwany_id=o.id AND l.rachunek_id=?) THEN 1 ELSE 0 END AS linked "
+            "FROM oczekiwane_dokumenty o JOIN profile_rachunkow p ON p.id=o.profil_id "
+            "WHERE o.cykl=? AND p.aktywny=1 ORDER BY linked DESC,o.id LIMIT ?",
+            (invoice["id"],month,min(100,self.task["limits"]["max_records"])),
+        ).fetchall()
+        return {"invoice_id":invoice["id"],"cycle":month,
+                "supplier":invoice["dostawca"],"candidates":[dict(r) for r in rows]}, [
+            self._evidence("invoice",str(invoice["id"]),call_id)
+        ]
+
+    def trusted_evidence(self, finding: dict[str, Any]) -> bool:
+        """Potwierdza wyłącznie wąski zbiór kodów mających dowód w wyniku narzędzia."""
         proof = finding.get("evidence", [])
         if len(proof) != 1:
             return False
         e = proof[0]
         record = self.results.get(e["tool_call_id"])
-        if (record is None or record["status"] != "ok"
-                or e not in record["evidence"]):
+        if record is None or record["status"] != "ok" or e not in record["evidence"]:
             return False
         data = record["data"]
-        if record["tool_name"] != "payment.inspect":
-            return False
-        if e["source_type"] != "invoice" or e["source_id"] != str(data["invoice_id"]):
-            return False
-        return {
-            "INVOICE_OVERDUE": data["overdue"] is True,
-            "INVOICE_UNPAID": data["status"] == "do_zaplaty",
-            "INVOICE_PAID": data["status"] == "oplacony",
-            "PAYMENT_DUE_SOON": data["due_soon_7_days"] is True,
-        }.get(finding["code"], False)
+        if record["tool_name"] == "payment.inspect":
+            if e["source_type"] != "invoice" or e["source_id"] != str(data["invoice_id"]):
+                return False
+            return {
+                "INVOICE_OVERDUE": data["overdue"] is True,
+                "INVOICE_UNPAID": data["status"] == "do_zaplaty",
+                "INVOICE_PAID": data["status"] == "oplacony",
+                "PAYMENT_DUE_SOON": data["due_soon_7_days"] is True,
+            }.get(finding["code"], False)
+        if record["tool_name"] == "cycle.evaluate":
+            return (finding["code"] == "CYCLE_CLOSED"
+                    and e["source_type"] == "cycle"
+                    and e["source_id"] == data["cycle"]
+                    and data["closed"] is True)
+        return False
