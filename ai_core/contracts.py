@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -35,25 +36,33 @@ def validate(kind: str, payload: Any) -> dict[str, Any]:
     return payload
 
 
-def sanitize_result(payload: dict[str, Any], task: dict[str, Any], model: str) -> dict[str, Any]:
-    """W Etapie 1 brak Tool Gateway: model nie może sam potwierdzać dowodów."""
+def sanitize_result(
+    payload: dict[str, Any], task: dict[str, Any], model: str, *,
+    verifier=None,
+) -> dict[str, Any]:
+    """Weryfikuje wynik; wyłącznie wykonane narzędzia mogą poświadczyć tezę.
+
+    Samo wskazanie prawidłowego ID faktury NIE dowodzi dowolnego stwierdzenia.
+    Bez deterministycznego potwierdzenia wynik pozostaje niezweryfikowany.
+    """
     validate("AnalysisResult", payload)
     if payload["task_id"] != task["task_id"] or payload["data_revision"] != task["data_revision"]:
         raise InvalidResponse("Odpowiedź dotyczy innego zadania lub wersji danych")
     if payload["model_id"] != model:
         raise InvalidResponse("Odpowiedź pochodzi od innego modelu")
-    # Model nie może przyznać sobie statusu 'verified'. Referencje do
-    # dowodów bez wykonania narzędzi nie mają podstawy zaufania.
-    for finding in payload["findings"]:
-        finding["verification"] = "unverified"
-        finding["evidence"] = []
-    for action in payload["proposed_actions"]:
+    result = copy.deepcopy(payload)
+    for finding in result["findings"]:
+        proven = bool(verifier and verifier(finding))
+        finding["verification"] = "verified" if proven else "unverified"
+        if not proven:
+            finding["evidence"] = []
+    for action in result["proposed_actions"]:
         if action["expected_data_revision"] != task["data_revision"]:
             raise InvalidResponse("Propozycja odnosi się do nieaktualnej wersji danych")
         if action["requires_confirmation"] is not True:
             raise InvalidResponse("Operacja nie posiada wymaganej zgody")
-    validate("AnalysisResult", payload)
-    return payload
+    validate("AnalysisResult", result)
+    return result
 
 
 def analysis_schema() -> dict[str, Any]:

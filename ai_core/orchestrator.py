@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import threading
+from contextlib import nullcontext
 from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable
 
 from .contracts import sanitize_result, validate
+from .gateway import ToolGateway, ToolSession
 from .errors import AICoreError, ModelUnavailable, TaskCancelled, ToolGatewayPending
 from .provider import StreamEvent
 from .router import ModelRouter
@@ -22,10 +24,12 @@ class AgentOrchestrator:
     narzędzi są odrzucane zamiast symulować dostęp do SQLite.
     """
 
-    def __init__(self, router: ModelRouter, *, max_workers: int = 1):
+    def __init__(self, router: ModelRouter, *, max_workers: int = 1,
+                 gateway: ToolGateway | None = None):
         if max_workers < 1 or max_workers > 4:
             raise ValueError("Nieprawidłowy limit równoległych zadań")
         self.router = router
+        self.gateway = gateway
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="swistak-ai")
         self._lock = threading.RLock()
         self._futures: dict[str, Future[dict[str, Any]]] = {}
@@ -41,33 +45,42 @@ class AgentOrchestrator:
         provider, binding = self.router.select(task["role"])
         with self._lock:
             self._active[task_id] = provider
+        session_context = (self.gateway.session(task) if task["allowed_tools"] else nullcontext(None))
         try:
-            if self._is_cancelled(task_id):
-                raise TaskCancelled("Zadanie zostało anulowane")
-            try:
-                result = self._invoke(provider, binding.model_id, task, progress)
-            except ModelUnavailable:
-                backup = self.router.fallback_main(task["role"])
-                if backup is None:
-                    raise
-                provider, binding = backup
-                with self._lock:
-                    self._active[task_id] = provider
+            with session_context as session:
                 if self._is_cancelled(task_id):
                     raise TaskCancelled("Zadanie zostało anulowane")
-                result = self._invoke(provider, binding.model_id, task, progress)
-            if self._is_cancelled(task_id):
-                raise TaskCancelled("Wynik anulowanego zadania został odrzucony")
-            # Bezpieczeństwo obowiązuje dla WSZYSTKICH adapterów, również
-            # zastępczych: nigdy nie ufaj 'verified' nadanemu przez LLM.
-            return sanitize_result(result, task, binding.model_id)
+                try:
+                    result = self._invoke(provider, binding.model_id, task, progress, session)
+                except ModelUnavailable:
+                    backup = self.router.fallback_main(task["role"])
+                    if backup is None:
+                        raise
+                    provider, binding = backup
+                    with self._lock:
+                        self._active[task_id] = provider
+                    if self._is_cancelled(task_id):
+                        raise TaskCancelled("Zadanie zostało anulowane")
+                    result = self._invoke(provider, binding.model_id, task, progress, session)
+                if self._is_cancelled(task_id):
+                    raise TaskCancelled("Wynik anulowanego zadania został odrzucony")
+                return sanitize_result(
+                    result, task, binding.model_id,
+                    verifier=session.trusted_evidence if session else None,
+                )
         finally:
             with self._lock:
                 self._active.pop(task_id, None)
 
     @staticmethod
     def _invoke(provider, model_id: str, task: dict[str, Any],
-                progress: ProgressCallback | None) -> dict[str, Any]:
+                progress: ProgressCallback | None,
+                session: ToolSession | None = None) -> dict[str, Any]:
+        if session is not None:
+            fn = getattr(provider, "run_tools", None)
+            if fn is None:
+                raise ModelUnavailable("Adapter nie obsługuje narzędzi")
+            return fn(task, model_id, session, progress)
         if progress is None:
             return provider.generate(task, model_id)
         result = None
@@ -92,8 +105,8 @@ class AgentOrchestrator:
     def submit(self, task: dict[str, Any],
                progress: ProgressCallback | None = None) -> Future[dict[str, Any]]:
         validate("TaskRequest", task)
-        if task["allowed_tools"]:
-            raise ToolGatewayPending("Wywołania narzędzi uruchomimy w Etapie 2")
+        if task["allowed_tools"] and self.gateway is None:
+            raise ToolGatewayPending("Brak skonfigurowanego Tool Gateway")
         task_id = task["task_id"]
         with self._lock:
             if task_id in self._futures or task_id in self._recent_ids:

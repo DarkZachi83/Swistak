@@ -144,7 +144,9 @@ class ToolSession:
             if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > MAX_TOOL_OUTPUT_BYTES:
                 return self._error(call, "invalid_arguments", "Wynik narzędzia przekracza limit rozmiaru")
             result = self._envelope(call, "ok", data, evidence, None)
-        except (ValueError, LookupError, OSError, sqlite3.Error) as exc:
+        except NotImplementedError:
+            result = self._error(call, "provider_unavailable", "Ten moduł wymaga przyszłej migracji")
+        except (ValueError, LookupError, OSError, sqlite3.Error):
             # Nie ujawniamy ścieżek, numerów kont ani SQL w błędach modelu.
             result = self._error(call, "internal_error", "Narzędzie nie mogło zwrócić danych")
         self.results[call["call_id"]] = result
@@ -210,7 +212,7 @@ class ToolSession:
             return self._document(name, args, call_id)
         # Brak tabel odpowiednich dla tych domen w aktualnych migracjach 001/002.
         if name in {"plan.expected", "plan.match", "cycle.evaluate", "audit.read"}:
-            raise LookupError("Moduł wymaga przyszłego schematu bazy")
+            raise NotImplementedError("Moduł wymaga przyszłego schematu bazy")
         raise ValueError("Nieobsługiwana operacja")
 
     def _search(self, args, call_id):
@@ -246,7 +248,7 @@ class ToolSession:
         basis = args["basis"]
         group = args.get("group_by", "none")
         if basis == "paid_date" and "data_oplacenia" not in self.columns("rachunki"):
-            raise LookupError("Brak rzeczywistych dat opłacenia w obecnej bazie")
+            raise NotImplementedError("Brak rzeczywistych dat opłacenia w obecnej bazie")
         date_expr = ("r.data_oplacenia" if basis == "paid_date"
                      else "COALESCE(r.okres_do,r.data_wystawienia)")
         where = (f"{date_expr} BETWEEN ? AND ? AND " + self._active_clause())
