@@ -529,13 +529,20 @@ class OknoGlowne(QMainWindow):
         Dodatkowy skan dysku jest podglądem, nie próbą uruchomienia
         przypadkowego GGUF przez API Ollamy.
         """
-        dialog = DialogModeleLokalne(self)
+        dialog = DialogModeleLokalne(
+            self, katalog_uzytkownika=self.prefs.get("model_scan_dir", "")
+        )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         name = dialog.wybrany_model
         if not isinstance(name, str) or not name.strip() or len(name) > 120:
             return
-        updated = dict(self.prefs, ollama_model=name)
+        scan_dir = dialog.katalog_uzytkownika
+        updated = dict(
+            self.prefs, ollama_model=name,
+            model_scan_dir=scan_dir if isinstance(scan_dir, str)
+                           else self.prefs.get("model_scan_dir", ""),
+        )
         try:
             ustawienia.save(updated)
         except (OSError, ValueError) as error:
@@ -823,16 +830,67 @@ class OknoGlowne(QMainWindow):
 
     def _open_settings(self) -> None:
         box = QDialog(self)
+        box.setObjectName("ustawieniaSwistaka")
         box.setWindowTitle(t("settings.title"))
+        box.setMinimumWidth(660)
         layout = QVBoxLayout(box)
-        layout.addWidget(QLabel(t("settings.help")))
+        hint = QLabel(t("settings.help"))
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
         form = QFormLayout()
-        model = QLineEdit(self.ed_model.text())
-        form.addRow(t("settings.model"), model)
+
+        # Edytowalna lista zachowuje możliwość ręcznego wskazania modelu,
+        # np. gdy Ollama jest chwilowo wyłączona.
+        model = QComboBox()
+        model.setObjectName("ustawieniaListaModeli")
+        model.setEditable(True)
+        model.addItem(self.ed_model.text())
+        model.setCurrentText(self.ed_model.text())
+        model_line = QWidget()
+        model_row = QHBoxLayout(model_line)
+        model_row.setContentsMargins(0, 0, 0, 0)
+        model_row.addWidget(model, 1)
+        scan_button = QPushButton(t("models.search"))
+        scan_button.setObjectName("ustawieniaSzukajLokalnie")
+        model_row.addWidget(scan_button)
+        form.addRow(t("settings.model"), model_line)
+
+        scan_dir = self.prefs.get("model_scan_dir", "")
+        custom_folder = QLineEdit(scan_dir)
+        custom_folder.setObjectName("ustawieniaKatalogModeli")
+        custom_folder.setReadOnly(True)
+        custom_folder.setToolTip(t("models.custom_hint"))
+        form.addRow(t("settings.model_scan_dir"), custom_folder)
+
+        def find_models() -> None:
+            nonlocal scan_dir
+            picker = DialogModeleLokalne(box, katalog_uzytkownika=scan_dir)
+            result = picker.exec()
+            scan_dir = picker.katalog_uzytkownika
+            custom_folder.setText(scan_dir)
+            if result != QDialog.DialogCode.Accepted:
+                return
+            name = picker.wybrany_model
+            if not isinstance(name, str) or not name.strip():
+                return
+            names = picker.dostepne_modele
+            current = model.currentText().strip()
+            model.clear()
+            for value in dict.fromkeys([current, *names]):
+                if value:
+                    model.addItem(value)
+            model.setCurrentText(name)
+
+        scan_button.clicked.connect(find_models)
+        note = QLabel(t("settings.model_hint"))
+        note.setWordWrap(True)
+        layout.addLayout(form)
+        layout.addWidget(note)
         folder = QLineEdit(str(self.rejestr.katalog))
         folder.setReadOnly(True)
-        form.addRow(t("settings.data_dir"), folder)
-        layout.addLayout(form)
+        data_form = QFormLayout()
+        data_form.addRow(t("settings.data_dir"), folder)
+        layout.addLayout(data_form)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
@@ -844,11 +902,11 @@ class OknoGlowne(QMainWindow):
         layout.addWidget(buttons)
         if box.exec() != QDialog.DialogCode.Accepted:
             return
-        name = model.text().strip()
+        name = model.currentText().strip()
         if not name or len(name) > 120:
             QMessageBox.warning(self, t("settings.title"), t("settings.invalid"))
             return
-        updated = dict(self.prefs, ollama_model=name)
+        updated = dict(self.prefs, ollama_model=name, model_scan_dir=scan_dir)
         try:
             ustawienia.save(updated)
         except (OSError, ValueError) as error:

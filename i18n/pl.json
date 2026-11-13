@@ -505,5 +505,12 @@
   "closing.too_early": "Można potwierdzić wyłącznie zakończony miesiąc.",
   "closing.resolve_first": "Najpierw rozstrzygnij wszystkie oczekiwane dokumenty.",
   "closing.empty_required": "Zaznacz świadome potwierdzenie braku rachunków.",
-  "closing.confirm.question": "Czy na pewno wszystkie dokumenty za {cycle} zostały otrzymane lub świadomie wyjaśnione? Faktury: {count}; nieopłacone: {unpaid}. Potwierdzisz tylko KOMPLETNOŚĆ, nie płatności."
+  "closing.confirm.question": "Czy na pewno wszystkie dokumenty za {cycle} zostały otrzymane lub świadomie wyjaśnione? Faktury: {count}; nieopłacone: {unpaid}. Potwierdzisz tylko KOMPLETNOŚĆ, nie płatności.",
+  "settings.model_scan_dir": "Dodatkowy katalog modeli",
+  "settings.model_hint": "Szukaj lokalnie: lista modeli Ollamy i plików znalezionych na dysku. Do analizy wybieramy model dostępny w Ollamie. Własny folder możesz wskazać w oknie wyszukiwania; zapisanie ustawień zapamięta go na kolejne uruchomienia.",
+  "models.standard_locations": "Przeszukuj standardowe lokalizacje (Ollama, LM Studio, Hugging Face, llama.cpp, GPT4All)",
+  "models.custom_empty": "Nie wybrano dodatkowego katalogu",
+  "models.custom_hint": "Własny katalog będzie skanowany lokalnie, bez wysyłania plików i bez importowania modeli do Ollamy.",
+  "models.browse_folder": "Wskaż katalog…",
+  "models.clear_folder": "Wyczyść"
 }

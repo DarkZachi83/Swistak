@@ -505,5 +505,12 @@
   "closing.too_early": "Only a completed month can be confirmed.",
   "closing.resolve_first": "Resolve all expected documents first.",
   "closing.empty_required": "Explicitly confirm there were no invoices.",
-  "closing.confirm.question": "Have all documents for {cycle} been received or explicitly explained? Invoices: {count}; unpaid: {unpaid}. You will confirm COMPLETENESS, not payments."
+  "closing.confirm.question": "Have all documents for {cycle} been received or explicitly explained? Invoices: {count}; unpaid: {unpaid}. You will confirm COMPLETENESS, not payments.",
+  "settings.model_scan_dir": "Additional model folder",
+  "settings.model_hint": "Find locally: lists Ollama models and disk files. Invoice analysis only uses models available through Ollama. Select a custom folder in the search dialog; saving the settings remembers it for next time.",
+  "models.standard_locations": "Scan standard locations (Ollama, LM Studio, Hugging Face, llama.cpp, GPT4All)",
+  "models.custom_empty": "No additional folder selected",
+  "models.custom_hint": "Your chosen folder is scanned locally; no files are uploaded and models are not imported into Ollama.",
+  "models.browse_folder": "Choose folder…",
+  "models.clear_folder": "Clear"
 }
