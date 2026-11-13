@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QProgressBar, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
-    QWidget, QComboBox, QTabWidget,
+    QWidget, QComboBox, QTabWidget, QSizePolicy,
 )
 
 from gui.okno_o_programie import OknoOProgramie
@@ -36,6 +36,7 @@ from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
 from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
 from gui.dialog_wzorca import zaakceptuj_wzorzec
 from gui.dialog_modele_lokalne import DialogModeleLokalne
+from gui.modele_worker import ZadanieListyOllama
 from gui.dialog_kategorie import DialogKategorie
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
@@ -832,35 +833,91 @@ class OknoGlowne(QMainWindow):
         box = QDialog(self)
         box.setObjectName("ustawieniaSwistaka")
         box.setWindowTitle(t("settings.title"))
-        box.setMinimumWidth(660)
+        box.setMinimumSize(780, 400)
+        box.resize(860, 430)
         layout = QVBoxLayout(box)
+        layout.setContentsMargins(24, 20, 24, 18)
+        layout.setSpacing(12)
+
         hint = QLabel(t("settings.help"))
         hint.setWordWrap(True)
         layout.addWidget(hint)
-        form = QFormLayout()
 
-        # Edytowalna lista zachowuje możliwość ręcznego wskazania modelu,
-        # np. gdy Ollama jest chwilowo wyłączona.
+        # Oddzielna linia etykiety i szeroka lista — żadnego ściskania
+        # przyciskiem, nawet przy większej czcionce/DPI i długim modelu.
+        label_modelu = QLabel(t("settings.model"))
+        layout.addWidget(label_modelu)
         model = QComboBox()
         model.setObjectName("ustawieniaListaModeli")
         model.setEditable(True)
-        model.addItem(self.ed_model.text())
-        model.setCurrentText(self.ed_model.text())
-        model_line = QWidget()
-        model_row = QHBoxLayout(model_line)
-        model_row.setContentsMargins(0, 0, 0, 0)
-        model_row.addWidget(model, 1)
-        scan_button = QPushButton(t("models.search"))
+        model.setMinimumHeight(32)
+        model.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        model.setMinimumContentsLength(22)
+        current_name = self.ed_model.text().strip()
+        if current_name:
+            model.addItem(current_name)
+        model.setCurrentText(current_name)
+        layout.addWidget(model)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        scan_button = QPushButton(t("settings.find_models"))
         scan_button.setObjectName("ustawieniaSzukajLokalnie")
-        model_row.addWidget(scan_button)
-        form.addRow(t("settings.model"), model_line)
+        scan_button.setToolTip(t("models.search_hint"))
+        # sizeHint uwzględnia motyw i font; minimum gwarantuje pełny napis.
+        scan_button.setMinimumWidth(max(200, scan_button.sizeHint().width() + 20))
+        row.addWidget(scan_button)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        status_modeli = QLabel(t("settings.models_loading"))
+        status_modeli.setObjectName("ustawieniaStatusModeli")
+        status_modeli.setWordWrap(True)
+        layout.addWidget(status_modeli)
+
+        # QComboBox aktualizujemy również po znalezieniu modeli w drugim
+        # oknie. Zachowujemy wybrany/wpisywany model nawet po spóźnionej
+        # odpowiedzi Ollamy — nigdy nie zastępujemy go pierwszym z listy.
+        def add_available_models(names: list[str]) -> None:
+            selected = model.currentText()
+            existing = [model.itemText(i) for i in range(model.count())]
+            unique: dict[str, str] = {}
+            for item in [selected, *existing, *names]:
+                if isinstance(item, str) and item.strip() and len(item.strip()) <= 120:
+                    unique.setdefault(item.strip().casefold(), item.strip())
+            model.blockSignals(True)
+            try:
+                model.clear()
+                for value in unique.values():
+                    model.addItem(value)
+                model.setCurrentText(selected)
+            finally:
+                model.blockSignals(False)
 
         scan_dir = self.prefs.get("model_scan_dir", "")
+        folder_label = QLabel(t("settings.model_scan_dir"))
+        layout.addWidget(folder_label)
         custom_folder = QLineEdit(scan_dir)
         custom_folder.setObjectName("ustawieniaKatalogModeli")
         custom_folder.setReadOnly(True)
+        custom_folder.setPlaceholderText(t("models.custom_empty"))
         custom_folder.setToolTip(t("models.custom_hint"))
-        form.addRow(t("settings.model_scan_dir"), custom_folder)
+        layout.addWidget(custom_folder)
+
+        # Krótka wskazówka, łamana w pełnej szerokości okna.
+        note = QLabel(t("settings.model_hint"))
+        note.setObjectName("ustawieniaOpisModeli")
+        note.setWordWrap(True)
+        note.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
+        )
+        layout.addWidget(note)
+
+        data_label = QLabel(t("settings.data_dir"))
+        layout.addWidget(data_label)
+        folder = QLineEdit(str(self.rejestr.katalog))
+        folder.setReadOnly(True)
+        layout.addWidget(folder)
 
         def find_models() -> None:
             nonlocal scan_dir
@@ -868,29 +925,22 @@ class OknoGlowne(QMainWindow):
             result = picker.exec()
             scan_dir = picker.katalog_uzytkownika
             custom_folder.setText(scan_dir)
+            names = picker.dostepne_modele
+            if isinstance(names, list):
+                add_available_models(names)
             if result != QDialog.DialogCode.Accepted:
                 return
             name = picker.wybrany_model
             if not isinstance(name, str) or not name.strip():
                 return
-            names = picker.dostepne_modele
-            current = model.currentText().strip()
-            model.clear()
-            for value in dict.fromkeys([current, *names]):
-                if value:
-                    model.addItem(value)
+            add_available_models([name])
             model.setCurrentText(name)
+            status_modeli.setText(
+                t("settings.models_found", count=model.count())
+            )
 
         scan_button.clicked.connect(find_models)
-        note = QLabel(t("settings.model_hint"))
-        note.setWordWrap(True)
-        layout.addLayout(form)
-        layout.addWidget(note)
-        folder = QLineEdit(str(self.rejestr.katalog))
-        folder.setReadOnly(True)
-        data_form = QFormLayout()
-        data_form.addRow(t("settings.data_dir"), folder)
-        layout.addLayout(data_form)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
@@ -900,7 +950,31 @@ class OknoGlowne(QMainWindow):
         buttons.accepted.connect(box.accept)
         buttons.rejected.connect(box.reject)
         layout.addWidget(buttons)
-        if box.exec() != QDialog.DialogCode.Accepted:
+
+        # Samo otwarcie Ustawień pobiera gotowe modele z /api/tags.
+        # Wolniejsze przeszukiwanie plików jest nadal świadomym wyborem.
+        task = ZadanieListyOllama()
+        active = True
+
+        def models_ready(names: list[str], error: str) -> None:
+            if not active:
+                return
+            add_available_models(names)
+            if error:
+                status_modeli.setText(t("settings.models_unavailable"))
+            elif names:
+                status_modeli.setText(
+                    t("settings.models_found", count=len(names))
+                )
+            else:
+                status_modeli.setText(t("settings.models_empty"))
+
+        task.sygnaly.gotowe.connect(models_ready)
+        QThreadPool.globalInstance().start(task)
+        result = box.exec()
+        active = False
+        task.przerwij.set()
+        if result != QDialog.DialogCode.Accepted:
             return
         name = model.currentText().strip()
         if not name or len(name) > 120:

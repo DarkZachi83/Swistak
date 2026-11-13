@@ -507,10 +507,15 @@
   "closing.empty_required": "Zaznacz świadome potwierdzenie braku rachunków.",
   "closing.confirm.question": "Czy na pewno wszystkie dokumenty za {cycle} zostały otrzymane lub świadomie wyjaśnione? Faktury: {count}; nieopłacone: {unpaid}. Potwierdzisz tylko KOMPLETNOŚĆ, nie płatności.",
   "settings.model_scan_dir": "Dodatkowy katalog modeli",
-  "settings.model_hint": "Szukaj lokalnie: lista modeli Ollamy i plików znalezionych na dysku. Do analizy wybieramy model dostępny w Ollamie. Własny folder możesz wskazać w oknie wyszukiwania; zapisanie ustawień zapamięta go na kolejne uruchomienia.",
+  "settings.model_hint": "Do analizy faktur służą modele dostępne w Ollamie. Własny katalog wybierzesz przez „Szukaj lokalnie…”.",
   "models.standard_locations": "Przeszukuj standardowe lokalizacje (Ollama, LM Studio, Hugging Face, llama.cpp, GPT4All)",
   "models.custom_empty": "Nie wybrano dodatkowego katalogu",
   "models.custom_hint": "Własny katalog będzie skanowany lokalnie, bez wysyłania plików i bez importowania modeli do Ollamy.",
   "models.browse_folder": "Wskaż katalog…",
-  "models.clear_folder": "Wyczyść"
+  "models.clear_folder": "Wyczyść",
+  "settings.find_models": "Szukaj lokalnie…",
+  "settings.models_loading": "Sprawdzanie modeli dostępnych w Ollamie…",
+  "settings.models_found": "Dostępne w Ollamie: {count}. Wybierz z listy lub wpisz nazwę ręcznie.",
+  "settings.models_empty": "Brak modeli w Ollamie. Możesz wpisać nazwę ręcznie lub przeszukać dysk.",
+  "settings.models_unavailable": "Ollama jest niedostępna. Możesz wpisać nazwę lub przeszukać pliki na dysku."
 }

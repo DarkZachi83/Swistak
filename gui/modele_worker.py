@@ -15,6 +15,29 @@ class SygnalyModeli(QObject):
     gotowe = Signal(object, object, str)
 
 
+class SygnalyListyOllama(QObject):
+    gotowe = Signal(object, str)
+
+
+class ZadanieListyOllama(QRunnable):
+    """Lista do comboboxa Ustawień: szybkie /api/tags, bez skanu dysku."""
+
+    def __init__(self):
+        super().__init__()
+        self.przerwij = threading.Event()
+        self.sygnaly = SygnalyListyOllama()
+
+    @Slot()
+    def run(self) -> None:
+        names, error = [], ""
+        try:
+            names = modele_ollama(timeout=2.5)
+        except BladOllama as exc:
+            error = str(exc)
+        if not self.przerwij.is_set():
+            self.sygnaly.gotowe.emit(names, error)
+
+
 class ZadanieModeli(QRunnable):
     def __init__(self, *, standardowe: bool = True, dodatkowy: str = ""):
         super().__init__()
