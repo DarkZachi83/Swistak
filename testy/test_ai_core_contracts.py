@@ -119,6 +119,8 @@ class TestAICoreContracts(unittest.TestCase):
             self.assertTrue(set(spec["required"]) <= spec["properties"].keys())
         self.assertEqual(self.examples["tool_call"]["tool_name"], "payment.inspect")
         self.assertIn(self.examples["tool_call"]["tool_name"], names)
+        search = next(t for t in entries if t["name"] == "invoice.search")
+        self.assertEqual(search["input_schema"]["properties"]["include_withdrawn"]["type"], "boolean")
 
     def test_fikcyjne_rachunki_i_granice_policzone_deterministycznie(self):
         case = self.examples["finance_case"]

@@ -6,7 +6,7 @@
 
 **Przygotowane w Etapie 0:** [docs/ai_core/README.md](docs/ai_core/README.md), kontrakt JSON Schema v1, katalog narzędzi tylko do odczytu, syntetyczne przykłady i testy `testy/test_ai_core_contracts.py`. To **projekt kontraktów**; runtime agenta, adapter Ollamy, migracje, GUI i operacje finansowe **nie zostały zmienione**.
 
-**Do zweryfikowania:** wyniki nowego testu w GitHub Actions dla Python 3.11 i 3.13, następnie odbiór Etapu 0 przez użytkownika. Kolejny etap po odbiorze: orkiestrator i adapter Ollamy. Pełne kryteria: [docs/ai_core/ETAP_0_ODBIOR.md](docs/ai_core/ETAP_0_ODBIOR.md).
+**Sprawdzone:** GitHub Actions `43408966854` zakończone sukcesem na Python 3.11 i 3.13 po commicie `731fdf3`. **Pozostaje:** odbiór Etapu 0 przez użytkownika. Kolejny etap po odbiorze: orkiestrator i adapter Ollamy. Pełne kryteria: [docs/ai_core/ETAP_0_ODBIOR.md](docs/ai_core/ETAP_0_ODBIOR.md).
 
 **Uwaga:** poniższe fragmenty dotyczą wcześniejszych etapów importu. Nazwa „Etap 0” w historycznym `docs/PLAN.md` odnosi się do podglądu PDF, nie do nowego AI Core.
 

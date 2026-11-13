@@ -12,7 +12,7 @@
 - [x] Oddzielono proponowane akcje od wykonywania operacji finansowych.
 - [x] Przygotowano syntetyczne faktury i oczekiwane wyniki.
 - [x] Dodano automatyczne testy formatu i niezmienników.
-- [ ] Potwierdzono wynik nowych testów w CI dla Python 3.11 i 3.13.
+- [x] GitHub Actions `43408966854` — sukces na Python 3.11 i 3.13 (commit `731fdf3`).
 - [ ] Zatwierdzono odbiór Etapu 0 przez użytkownika.
 
 ## Testy
@@ -30,4 +30,4 @@ Testy w Etapie 0 sprawdzają schematy, przykłady i reguły liczenia fikcyjnych 
 
 ## Definicja zakończenia
 
-Po zielonym CI (lub jawnie udokumentowanym braku jego uruchomienia), weryfikacji zmian na `main` i akceptacji użytkownika oznaczamy Etap 0 jako zakończony. Nie rozpoczynamy Etapu 1 automatycznie.
+CI dla kontraktów przeszło na Python 3.11 i 3.13. Po akceptacji użytkownika oznaczamy Etap 0 jako zakończony. Nie rozpoczynamy Etapu 1 automatycznie.

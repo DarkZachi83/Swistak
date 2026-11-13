@@ -6,7 +6,7 @@
       "name": "invoice.search",
       "version": "1.0",
       "effect": "read",
-      "description": "Filtrowany, stronicowany odczyt aktywnych faktur; wycofane tylko przy jawnym parametrze.",
+      "description": "Filtrowany, stronicowany odczyt faktur. Wycofane tylko przy include_withdrawn=true (domyślnie false).",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -39,6 +39,9 @@
           "offset": {
             "type": "integer",
             "minimum": 0
+          },
+          "include_withdrawn": {
+            "type": "boolean"
           }
         }
       },
