@@ -151,6 +151,21 @@ class TestToolGateway(unittest.TestCase):
             }, "payment")
             self.assertEqual(payments["error"]["code"], "provider_unavailable")
 
+    def test_model_nie_podmienia_daty_na_przyszlosc(self):
+        with self.gateway.session(self.task) as session:
+            wrong = self.execute(session, "payment.inspect", {
+                "invoice_id": 2, "reference_date": "2028-11-13"
+            }, "future")
+            self.assertEqual(wrong["error"]["code"], "invalid_arguments")
+            self.assertEqual(wrong["evidence"], [])
+
+    def test_limit_rekordow_na_zadanie(self):
+        self.task["limits"]["max_records"] = 1
+        with self.gateway.session(self.task) as session:
+            result = self.execute(session, "invoice.search", {"limit": 200}, "limited")
+            self.assertEqual(result["data"]["limit"], 1)
+            self.assertEqual(len(result["data"]["invoices"]), 1)
+
     def test_aggregate_grosze_i_pdf_sha(self):
         self.task["allowed_tools"] = ["finance.aggregate", "document.verify", "date.evaluate"]
         with self.gateway.session(self.task) as session:

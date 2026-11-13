@@ -1,5 +1,13 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 2 (13.11.2026)
+
+**Wdrożono:** `ai_core/gateway.py`, odczyt istniejącej bazy przez narzędzia kontraktu v1, kontrolę dowodów, pętlę natywnych `tool_calls` w Ollamie i testy syntetyczne `testy/test_ai_core_stage2.py`. Dokumentacja: [docs/ai_core/ETAP_2_TOOL_GATEWAY.md](docs/ai_core/ETAP_2_TOOL_GATEWAY.md).
+
+**Bezpieczeństwo:** brak dowolnego SQL, brak operacji zapisu, kontrola dnia odniesienia i rewizji bazy, brak fikcyjnych wyników dla niedostępnych tabel. Nie zmieniono migracji, GUI ani starszego importu.
+
+**Weryfikacja:** pierwsze GitHub Actions po implementacji `43415835779` — sukces na Pythonie 3.11 i 3.13. Ostateczny commit wymaga ponownego CI. Test rzeczywistej Ollamy na komputerze użytkownika pozostaje do wykonania. Odbiór etapu przez użytkownika — oczekiwany.
+
 ## AI Core 1.0 — Etap 1 (13.11.2026)
 
 **Wdrożono szkielet:** `ai_core/` — kontrakty, adapter lokalnej Ollamy, router modeli i orkiestrator (kolejka/anulowanie/stream). Testy syntetyczne: `testy/test_ai_core_stage1.py`. Opis: [docs/ai_core/ETAP_1_OLLAMA.md](docs/ai_core/ETAP_1_OLLAMA.md). 

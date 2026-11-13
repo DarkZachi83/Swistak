@@ -91,7 +91,12 @@ class ToolSession:
         self.gateway, self.task, self.db = gateway, task, db
         self.results: dict[str, dict[str, Any]] = {}
         self._seen: set[str] = set()
+        self._issued = 0
         self._schema_cache: dict[str, set[str]] = {}
+
+    def issue_call_id(self) -> str:
+        self._issued += 1
+        return f"{self.task['task_id']}:tool-{self._issued}"
 
     def columns(self, table: str) -> set[str]:
         if table not in {"rachunki", "dokumenty", "pozycje_rachunku", "kategorie"}:
@@ -138,6 +143,12 @@ class ToolSession:
         validator = Draft202012Validator(entry["input_schema"], format_checker=FormatChecker())
         if not validator.is_valid(call["arguments"]):
             return self._error(call, "invalid_arguments", "Nieprawidłowe parametry narzędzia")
+        # Terminowość jest liczona WYŁĄCZNIE dla dnia dostarczonego
+        # przez hosta (task.context), nie dowolnej daty wymyślonej przez LLM.
+        if name == "payment.inspect":
+            host_date = self.task["context"].get("reference_date")
+            if not host_date or call["arguments"]["reference_date"] != host_date:
+                return self._error(call, "invalid_arguments", "Data kontroli musi odpowiadać dacie zadania")
         try:
             data, evidence = self._dispatch(name, call["arguments"], call["call_id"])
             # Nie przekazuj nieograniczonych danych finansowych do kontekstu modelu.
@@ -187,7 +198,7 @@ class ToolSession:
             rows = self.db.execute(
                 "SELECT p.id, p.rachunek_id, p.opis, p.kwota_grosze, k.nazwa AS kategoria "
                 "FROM pozycje_rachunku p JOIN kategorie k ON k.id=p.kategoria_id "
-                "WHERE p.rachunek_id=? ORDER BY p.id LIMIT 100", (inv["id"],)
+                "WHERE p.rachunek_id=? ORDER BY p.id LIMIT ?", (inv["id"], min(100, self.task["limits"]["max_records"]))
             ).fetchall()
             return {"invoice_id": inv["id"], "lines": [dict(row) for row in rows]}, [
                 self._evidence("invoice", str(inv["id"]), call_id)]
@@ -230,7 +241,7 @@ class ToolSession:
         if args.get("period_to"):
             where.append("COALESCE(r.okres_do,r.data_wystawienia)<=?")
             params.append(args["period_to"])
-        limit = min(args.get("limit", 50), 200)
+        limit = min(args.get("limit", 50), 200, self.task["limits"]["max_records"])
         offset = args.get("offset", 0)
         paid = "r.data_oplacenia" if "data_oplacenia" in self.columns("rachunki") else "NULL"
         sql = ("SELECT r.id, r.dostawca, r.numer, r.kwota_grosze, r.status, "
@@ -259,13 +270,13 @@ class ToolSession:
             sql = ("SELECT k.nazwa AS label, COALESCE(SUM(p.kwota_grosze),0) AS total_grosze "
                    "FROM rachunki r JOIN pozycje_rachunku p ON p.rachunek_id=r.id "
                    "JOIN kategorie k ON k.id=p.kategoria_id "
-                   "WHERE " + where + " GROUP BY k.id,k.nazwa ORDER BY k.nazwa LIMIT 100")
+                   "WHERE " + where + " GROUP BY k.id,k.nazwa ORDER BY k.nazwa LIMIT " + str(min(100, self.task["limits"]["max_records"])))
         else:
             key = {"month": f"substr({date_expr},1,7)",
                    "supplier": "r.dostawca", "none": "'total'"}[group]
             sql = ("SELECT " + key + " AS label, COALESCE(SUM(r.kwota_grosze),0) AS total_grosze "
                    "FROM rachunki r WHERE " + where +
-                   " GROUP BY " + key + " ORDER BY label LIMIT 100")
+                   " GROUP BY " + key + " ORDER BY label LIMIT " + str(min(100, self.task["limits"]["max_records"])))
         rows = [dict(r) for r in self.db.execute(sql, (start, end))]
         return {"basis": basis, "group_by": group, "groups": rows,
                 "total_grosze": sum(r["total_grosze"] for r in rows)}, []

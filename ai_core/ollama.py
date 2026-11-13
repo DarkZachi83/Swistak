@@ -270,7 +270,7 @@ class OllamaProvider:
                     for item in clean:
                         calls += 1
                         name = item["function"]["name"]
-                        call_id = f"{task_id}:call-{calls}"
+                        call_id = session.issue_call_id()
                         call = {
                             "contract_version": "1.0", "task_id": task_id,
                             "call_id": call_id, "tool_name": name, "tool_version": "1.0",
