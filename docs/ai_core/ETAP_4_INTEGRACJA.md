@@ -73,7 +73,7 @@ automatycznego łączenia pól QR z odpowiedzią modelu.
 - [x] Anulowanie żądania Ollamy na poziomie workera i odrzucanie spóźnionego wyniku.
 - [x] Syntetyczne testy wymiany modeli, specjalisty, błędnego JSON,
       niedozwolonych narzędzi, W1–W4, QR i anulowania.
-- [ ] Końcowe testy GitHub Actions Python 3.11 i 3.13.
+- [x] GitHub Actions `43443677093`: **256 testów OK** na Pythonie 3.11 i 3.13 (commit `ff50bef`).
 - [ ] Test lokalny Python 3.14.10 użytkownika.
 - [ ] Odbiór użytkownika i dopiero potem Etap 5.
 
