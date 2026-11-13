@@ -49,6 +49,25 @@ def report_text(report: MonitorReport | None) -> str:
         lines.append(t("agent.uncertainties"))
         for value in report.uncertainties[:20]:
             lines.append("- " + value)
+    if report.specialists:
+        lines.append("")
+        lines.append(t("agent.specialists.title"))
+        for item in report.specialists:
+            role = item["role"]
+            lines.append(
+                "- " + t("agent.specialists." + role) + " — " + item["model_id"]
+                + ": " + t("agent.specialists." + item["status"])
+            )
+            if item["status"] == "ready":
+                for finding in item["findings"]:
+                    certainty = (
+                        t("agent.verified") if finding["verification"] == "verified"
+                        else t("agent.unverified")
+                    )
+                    lines.append("  • [" + certainty + "] " + finding["summary"])
+                for uncertainty in item["uncertainties"]:
+                    lines.append("  • " + uncertainty)
+        lines.append(t("agent.specialists.no_authority"))
     return "\n".join(lines)
 
 
