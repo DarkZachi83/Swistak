@@ -1,5 +1,13 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 3 (13.11.2026)
+
+**Wdrożono model finansowy i Plan rachunków:** migracje `003_platnosci_wycofanie.sql`, `004_plan_rachunkow.sql`, `005_cykle_audyt.sql`, usługi `uslugi/finanse.py` i `uslugi/plan_rachunkow.py`, integrację rejestru i pełny audyt materiałowych operacji. Tool Gateway ma odczyt nowych tabel. Przed zmianą schematu wykonywany jest snapshot istniejącej SQLite.
+
+**Reguły:** wyłącznie logiczne wycofanie, daty płatności podaje człowiek, brak utraty opłacenia podczas ponownego importu, niezmienne migracje 001/002, profile bez tworzenia fikcyjnych należności, potwierdzenie kompletności oddzielone od płatności. Wszystkie nowe funkcje przetestowano na danych syntetycznych.
+
+**Stan:** kod i testy etapu 3 na `main`; GitHub Actions końcowego commita i lokalny test Python 3.14 do potwierdzenia; wymagana akceptacja użytkownika. Dokumentacja: [docs/ai_core/ETAP_3_FINANSE.md](docs/ai_core/ETAP_3_FINANSE.md).
+
 ## AI Core 1.0 — Etap 2 (13.11.2026)
 
 **Wdrożono:** `ai_core/gateway.py`, odczyt istniejącej bazy przez narzędzia kontraktu v1, kontrolę dowodów, pętlę natywnych `tool_calls` w Ollamie i testy syntetyczne `testy/test_ai_core_stage2.py`. Dokumentacja: [docs/ai_core/ETAP_2_TOOL_GATEWAY.md](docs/ai_core/ETAP_2_TOOL_GATEWAY.md).

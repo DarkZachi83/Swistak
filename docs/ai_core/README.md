@@ -39,6 +39,10 @@
 
 Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowania i testów kompatybilności. Dokumentacja nie oznacza, że opisywane funkcje już działają.
 
+## Etap 3 — model finansowy, Plan rachunków i Historia
+
+[Dokumentacja migracji, operacji finansowych i kryteria odbioru](ETAP_3_FINANSE.md).
+
 ## Etap 2 — narzędzia kontrolowanego odczytu
 
 [Tool Gateway, dostęp do SQLite i weryfikacja dowodów](ETAP_2_TOOL_GATEWAY.md).
