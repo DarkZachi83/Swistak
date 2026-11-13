@@ -141,6 +141,12 @@ class ToolSession:
                 or entry["effect"] != "read" or call["tool_version"] != "1.0"):
             return self._error(call, "permission_denied", "Narzędzie nie jest dozwolone")
         validator = Draft202012Validator(entry["input_schema"], format_checker=FormatChecker())
+        # Zadanie po zapisie może dotyczyć wyłącznie zmienionej faktury.
+        restricted_id = self.task["context"].get("scope_invoice_id")
+        if (restricted_id is not None
+                and name in {"invoice.details", "invoice.lines", "payment.inspect"}
+                and call["arguments"].get("invoice_id") != restricted_id):
+            return self._error(call, "permission_denied", "Narzędzie poza zakresem zadania")
         if not validator.is_valid(call["arguments"]):
             return self._error(call, "invalid_arguments", "Nieprawidłowe parametry narzędzia")
         # Terminowość jest liczona WYŁĄCZNIE dla dnia dostarczonego

@@ -8,7 +8,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThreadPool
+from PySide6.QtCore import Qt, QThreadPool, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QCursor
 from PySide6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
@@ -23,6 +23,10 @@ from gui.podglad_pdf import PodgladPDF
 from gui.odczyt_worker import ZadanieOdczytu
 from gui.dialog_qr import DialogQR
 from gui.analiza_worker import ZadanieAnalizy
+from gui.agent_worker import ZadanieMonitora
+from gui.panel_agenta import PanelAgenta
+from ai_core.hybrid import AgentLog, MonitorReport
+from ai_core.hybrid_queue import MonitorJob, MonitorQueue
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import WynikOdczytu
 from uslugi.analiza_llm import AnalizaModelu, ETYKIETY, POLA, ocena_json
@@ -80,6 +84,18 @@ class OknoGlowne(QMainWindow):
         self._analiza_dokument_id: int | None = None
         self._aktualizuje_tabele_ai = False
         self._pola_potwierdzone_recznie: set[str] = set()
+        self._agent_log = AgentLog()
+        self._agent_queue = MonitorQueue()
+        self._agent_task: ZadanieMonitora | None = None
+        self._agent_current_job: MonitorJob | None = None
+        self._agent_report: MonitorReport | None = None
+        self._agent_panel: PanelAgenta | None = None
+        self._agent_closed = False
+        self._agent_startup_scheduled = False
+        self._agent_status_key = "agent.state.waiting"
+        self._agent_timer = QTimer(self)
+        self._agent_timer.setSingleShot(True)
+        self._agent_timer.timeout.connect(lambda: self._agent_submit("startup"))
         self.setWindowTitle("Świstak — rachunki i analiza AI (etap 3)")
         self.resize(1450, 860)
         self.setMinimumSize(990, 570)
@@ -100,6 +116,14 @@ class OknoGlowne(QMainWindow):
         opis.setObjectName("podpowiedz")
         naglowek.addWidget(opis)
         naglowek.addStretch()
+        self.agent_status = QLabel()
+        self.agent_status.setObjectName("stanAgenta")
+        self.agent_status.setWordWrap(True)
+        naglowek.addWidget(self.agent_status)
+        self.btn_panel_agenta_header = QPushButton()
+        self.btn_panel_agenta_header.setObjectName("otworzPanelAgenta")
+        self.btn_panel_agenta_header.clicked.connect(self._agent_show_panel)
+        naglowek.addWidget(self.btn_panel_agenta_header)
         pion.addLayout(naglowek)
 
         pasek = QFrame()
@@ -214,6 +238,131 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_odczyt()
         self._build_menu()
         self._retranslate_ui()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if not self._agent_startup_scheduled and not self._agent_closed:
+            self._agent_startup_scheduled = True
+            # Po pokazaniu okna, nigdy nie blokuj jego inicjalizacji.
+            self._agent_timer.start(1200)
+
+    def _agent_set_status(self, key: str) -> None:
+        self._agent_status_key = key
+        self.agent_status.setText(t(key))
+
+    def _agent_refresh_panel(self) -> None:
+        if self._agent_panel is not None:
+            self._agent_panel.update_content(
+                self._agent_report, self._agent_log.text(),
+                self._agent_task is not None,
+            )
+
+    def _agent_show_panel(self) -> None:
+        if self._agent_panel is None:
+            self._agent_panel = PanelAgenta(self)
+            self._agent_panel.manualRequested.connect(
+                lambda: self._agent_submit("manual")
+            )
+            self._agent_panel.cancelRequested.connect(self._agent_cancel)
+        self._agent_refresh_panel()
+        self._agent_panel.show()
+        self._agent_panel.raise_()
+        self._agent_panel.activateWindow()
+
+    def _agent_submit(self, mode: str, invoice_id: int | None = None) -> None:
+        if self._agent_closed:
+            return
+        job = MonitorJob(mode, invoice_id)
+        # Nawet jeśli użytkownik ręcznie uruchamia analizę, tylko jego
+        # świadomy zapis formularza może zmieniać SQLite.
+        if mode == "change":
+            self._agent_report = None
+        if self._agent_current_job == job:
+            return
+        if self._agent_queue.add(job):
+            self._agent_log.append(mode, "queued", invoice_id)
+        if mode == "manual" and self._agent_task is not None:
+            # Ręczne polecenie ma pierwszeństwo przed długim LLM w tle.
+            if self._agent_current_job and self._agent_current_job.mode != "manual":
+                self._agent_task.anuluj()
+        self._agent_dispatch()
+        self._agent_refresh_panel()
+
+    def _agent_dispatch(self) -> None:
+        if self._agent_closed or self._agent_task is not None:
+            return
+        job = self._agent_queue.take()
+        if job is None:
+            self._agent_set_status("agent.state.ready")
+            self._agent_refresh_panel()
+            return
+        model = self.ed_model.text().strip() or self.prefs.get("ollama_model", "gemma3:4b")
+        worker = ZadanieMonitora(
+            self.rejestr.katalog / "swistak.sqlite3",
+            model, job, locale=current_language(),
+        )
+        self._agent_task = worker
+        self._agent_current_job = job
+        self._agent_log.append(job.mode, "started", job.invoice_id)
+        self._agent_set_status("agent.state.working")
+        worker.sygnaly.etap.connect(self._agent_progress)
+        worker.sygnaly.gotowe.connect(self._agent_completed)
+        worker.sygnaly.blad.connect(self._agent_error)
+        worker.sygnaly.anulowano.connect(self._agent_cancelled)
+        QThreadPool.globalInstance().start(worker)
+
+    def _agent_progress(self, stage: str) -> None:
+        if self._agent_closed:
+            return
+        if stage in {"local", "health", "llm"}:
+            self._agent_set_status("agent.state." + stage)
+
+    def _agent_finish(self, state: str, report: MonitorReport | None = None) -> None:
+        if self._agent_closed:
+            return
+        job = self._agent_current_job
+        self._agent_task = None
+        self._agent_current_job = None
+        if job is not None:
+            self._agent_log.append(job.mode, state, job.invoice_id)
+        if report is not None:
+            self._agent_report = report
+        if state == "error":
+            self._agent_set_status("agent.state.error")
+        elif state == "cancelled":
+            self._agent_set_status("agent.state.cancelled")
+        elif report is not None and report.model_status == "local_only":
+            self._agent_set_status("agent.state.offline")
+        elif report is not None and report.model_status == "model_error":
+            self._agent_set_status("agent.state.model_error")
+        else:
+            self._agent_set_status("agent.state.ready")
+        self._agent_refresh_panel()
+        # Jedno zadanie na raz: następne startuje dopiero po zakończeniu
+        # poprzedniego. Użytkownik może je anulować w dowolnym momencie.
+        if len(self._agent_queue):
+            self._agent_dispatch()
+
+    def _agent_completed(self, report: MonitorReport) -> None:
+        if report.model_status == "model_ready":
+            event = "ai_done"
+        elif report.model_status == "local_only":
+            event = "offline"
+        else:
+            event = "local_done"
+        self._agent_finish(event, report)
+
+    def _agent_error(self, _code: str) -> None:
+        self._agent_finish("error")
+
+    def _agent_cancelled(self) -> None:
+        self._agent_finish("cancelled")
+
+    def _agent_cancel(self) -> None:
+        self._agent_queue.clear()
+        if self._agent_task is not None:
+            self._agent_task.anuluj()
+        self._agent_refresh_panel()
 
     # UI localization is done IN PLACE: no destruction of the current PDF,
     # input widgets, list selection, OCR output or AI suggestions.
@@ -359,7 +508,8 @@ class OknoGlowne(QMainWindow):
         self._status("models.selected", name=name)
 
     def _czy_mozna_przywracac(self) -> bool:
-        if (self._zadanie_odczytu is not None or self._zadanie_ai is not None):
+        if (self._zadanie_odczytu is not None or self._zadanie_ai is not None
+                or self._agent_task is not None):
             QMessageBox.warning(self, t("backup.title"), t("backup.busy"))
             return False
         return True
@@ -691,6 +841,11 @@ class OknoGlowne(QMainWindow):
         self.setWindowTitle(t("app.title"))
         self.tytul.setText(t("app.header"))
         self.opis_aplikacji.setText(t("app.subtitle"))
+        self.agent_status.setText(t(self._agent_status_key))
+        self.btn_panel_agenta_header.setText(t("agent.open_short"))
+        self.btn_panel_agenta.setText(t("agent.open"))
+        if self._agent_panel is not None:
+            self._agent_panel.przetlumacz()
         for menu, key in (
             (self.menu_pliki, "menu.file"),
             (self.menu_ustawienia, "menu.settings"),
@@ -1161,6 +1316,11 @@ class OknoGlowne(QMainWindow):
         self.info_notatek_agenta.setWordWrap(True)
         agent_uklad.addWidget(self.info_notatek_agenta)
 
+        self.btn_panel_agenta = QPushButton()
+        self.btn_panel_agenta.setObjectName("panelAgentaWAnalizie")
+        self.btn_panel_agenta.clicked.connect(self._agent_show_panel)
+        agent_uklad.addWidget(self.btn_panel_agenta)
+
         self.zakladki_ai.addTab(self.karta_ai_dane, "")
         self.zakladki_ai.addTab(self.karta_ai_agent, "")
         return panel
@@ -1567,10 +1727,15 @@ class OknoGlowne(QMainWindow):
             self._message(self.info_odczytu, "msg.read_cancelling")
 
     def closeEvent(self, event) -> None:
+        self._agent_closed = True
+        self._agent_timer.stop()
+        self._agent_queue.clear()
+        if self._agent_task is not None:
+            self._agent_task.anuluj()
         if self._zadanie_odczytu is not None:
             self._zadanie_odczytu.przerwij.set()
         if self._zadanie_ai is not None:
-            self._zadanie_ai.przerwij.set()
+            self._zadanie_ai.anuluj()
         super().closeEvent(event)
 
     def _aktualizuj_info_wzorca(self) -> None:
@@ -1933,7 +2098,8 @@ class OknoGlowne(QMainWindow):
                     self._status("invoice.overwrite_cancelled")
                     return
                 nadpisz_id = int(istniejaca["id"])
-            self.rejestr.zapisz_rachunek(dane, nadpisz_id=nadpisz_id)
+            zapisany_id = self.rejestr.zapisz_rachunek(dane, nadpisz_id=nadpisz_id)
+            self._agent_submit("change", zapisany_id)
             self._odswiez_liste()
             self._aktualizuj_podsumowanie()
             self.btn_proponuj_wzorzec.show()
