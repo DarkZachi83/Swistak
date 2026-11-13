@@ -53,6 +53,23 @@ class TestCustomModelScan(unittest.TestCase):
             self.assertEqual([(m.nazwa,m.program) for m in disk],
                              [("demo:latest","Ollama")])
 
+    def test_hugging_face_transformers_safetensors_tylko_podglad(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)/"hub"
+            snapshot=root/"models--example--local-llm"/"snapshots"/"abc"
+            snapshot.mkdir(parents=True)
+            (snapshot/"config.json").write_text(json.dumps({
+                "architectures":["DemoForCausalLM"],"model_type":"demo"
+            }))
+            (snapshot/"model.safetensors").write_bytes(b"synthetic weights")
+            disk=modele_na_dysku(lokalizacje=[("Hugging Face",root)])
+            self.assertEqual([(x.nazwa,x.program) for x in disk],
+                             [("example/local-llm","Hugging Face")])
+            (snapshot/"config.json").write_text(json.dumps({
+                "architectures":["DemoForImageClassification"]
+            }))
+            self.assertEqual(modele_na_dysku(lokalizacje=[("Hugging Face",root)]),[])
+
     def test_ustawienia_zapis_i_czytanie_starego_pliku(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/"settings.json"
@@ -87,9 +104,10 @@ class TestModelSettingsGUI(unittest.TestCase):
             self.assertEqual(initial.dodatkowy,"/tmp/syntetyczny")
             dialog._gotowe(["gemma3:4b"],[],"")
             dialog.standardowe.setChecked(False)
+            self.assertFalse(dialog.standardowe.isChecked())
             with patch("gui.dialog_modele_lokalne.QFileDialog.getExistingDirectory",
                        return_value="/tmp/modele-testowe"):
-                dialog.btn_katalog.click()
+                dialog._wybierz_katalog()
             latest=pool.return_value.start.call_args.args[0]
             self.assertFalse(latest.standardowe)
             self.assertEqual(latest.dodatkowy,"/tmp/modele-testowe")

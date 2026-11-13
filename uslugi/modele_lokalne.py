@@ -229,6 +229,41 @@ def lokalizacje_skanowania(
     return unique
 
 
+def _transformers_katalog(config_path: Path, app: str) -> ModelNaDysku | None:
+    """Transformers z lokalnymi wagami, bez otwierania safetensors/pickle.
+
+    Nie zakładamy, że plik można podać do Ollamy. Sprawdzamy tylko
+    config.json i istnienie plików wag; nie importujemy kodu z modelu.
+    """
+    try:
+        if config_path.stat().st_size > _MAX_MANIFEST:
+            return None
+        with config_path.open("rb") as source:
+            info = json.loads(source.read(_MAX_MANIFEST))
+        if not isinstance(info, dict):
+            return None
+        architectures = info.get("architectures")
+        if not isinstance(architectures, list) or not any(
+            isinstance(arch, str) and (
+                arch.endswith(("ForCausalLM", "ForConditionalGeneration", "LMHeadModel"))
+            ) for arch in architectures
+        ):
+            return None
+        folder = config_path.parent
+        if not any(
+            p.is_file() and (p.suffix.lower() == ".safetensors"
+                             or (p.name.startswith("pytorch_model") and p.suffix == ".bin"))
+            for p in folder.iterdir()
+        ):
+            return None
+        repo = next((x[len("models--"):] for x in folder.parts
+                     if x.startswith("models--")), "")
+        name = _nazwa_modelu(repo.replace("--", "/") if repo else folder.name)
+        return ModelNaDysku(name, app, folder) if name else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def modele_na_dysku(
     *, lokalizacje: Iterable[tuple[str, Path]] | None = None,
     stop: threading.Event | None = None,
@@ -248,6 +283,11 @@ def modele_na_dysku(
             for path in _pliki(root, stop=stop):
                 if len(items) >= _MAX_ITEMS:
                     break
+                if path.name == "config.json":
+                    grouped = _transformers_katalog(path, app)
+                    if grouped:
+                        items.append(grouped)
+                    continue
                 if path.suffix.lower() != ".gguf" or "-partial" in path.name.lower():
                     continue
                 try:
