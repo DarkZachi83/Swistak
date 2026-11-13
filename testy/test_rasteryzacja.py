@@ -32,6 +32,26 @@ class TestRasteryzacja(unittest.TestCase):
     def tearDownClass(cls):
         cls.temp.cleanup()
 
+    def test_generowanie_skanu_bez_systemowego_dejavu(self):
+        """Generator działa również bez DejaVuSans.ttf w katalogach systemowych."""
+        from unittest.mock import patch
+        from PIL import ImageFont
+
+        oryginalny_truetype = ImageFont.truetype
+
+        def bez_dejavu(font, size, *args, **kwargs):
+            if font == "DejaVuSans.ttf":
+                raise OSError("cannot open resource")
+            return oryginalny_truetype(font, size, *args, **kwargs)
+
+        cel = Path(self.temp.name) / "bez-dejavu.pdf"
+        with patch("tools.porownaj_ocr.ImageFont.truetype", side_effect=bez_dejavu):
+            generuj_skan(cel, self.wiersze, rozmiar_pisma=34)
+        self.assertTrue(cel.is_file())
+        with rasteryzuj_strone(cel, 0, 220, "pdfium") as obraz:
+            self.assertGreater(obraz.width, 1000)
+            self.assertGreater(obraz.height, 1200)
+
     def test_strona_jest_obrazem_pdfium(self):
         with rasteryzuj_strone(self.pdf, 0, 220, "pdfium") as obraz:
             self.assertGreater(obraz.width, 1000)

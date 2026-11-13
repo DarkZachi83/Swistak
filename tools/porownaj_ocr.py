@@ -55,7 +55,14 @@ def generuj_skan(
     rozmiar_pisma: int = 34, szarosc: int = 0,
 ) -> None:
     """Wygeneruj jednostronicowy PDF zawierający tylko obraz, bez tekstu."""
-    font = ImageFont.truetype("DejaVuSans.ttf", rozmiar_pisma)
+    # DejaVuSans nie zawsze jest dostępny pod samą nazwą pliku
+    # (np. Arch Linux z minimalnym zestawem czcionek).
+    # Pillow >= 12 udostępnia własną czcionkę skalowalną bez zależności
+    # od ścieżek systemowych; zachowujemy zadany rozmiar do testów OCR.
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", rozmiar_pisma)
+    except OSError:
+        font = ImageFont.load_default(size=rozmiar_pisma)
     with Image.new("RGB", (1500, 2000), "white") as obraz:
         rysuj = ImageDraw.Draw(obraz)
         for numer, wiersz in enumerate(wiersze):
