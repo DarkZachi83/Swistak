@@ -73,14 +73,15 @@ class ToolGateway:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA query_only=ON")
         db.execute("PRAGMA foreign_keys=ON")
-        db.execute("BEGIN")
+        # NIE utrzymuj BEGIN na czas generowania LLM: długi read-lock
+        # w SQLite DELETE journal zablokowałby GUI przy zapisie faktury.
+        # Każdy SELECT wykonuje krótką transakcję tylko do czasu fetch.
         current = ToolSession(self, task, db)
         try:
             yield current
             if task["data_revision"] != self.revision():
                 raise InvalidResponse("Baza zmieniła się podczas analizy; wynik jest nieaktualny")
         finally:
-            db.rollback()
             db.close()
 
 
@@ -92,6 +93,7 @@ class ToolSession:
         self.results: dict[str, dict[str, Any]] = {}
         self._seen: set[str] = set()
         self._issued = 0
+        self._data_version = db.execute("PRAGMA data_version").fetchone()[0]
         self._schema_cache: dict[str, set[str]] = {}
 
     def issue_call_id(self) -> str:
@@ -129,6 +131,10 @@ class ToolSession:
                 "tool_call_id": call_id, "data_revision": self.task["data_revision"]}
 
     def execute(self, call: dict[str, Any]) -> dict[str, Any]:
+        # Zmiana przez inne połączenie po rozpoczęciu analizy
+        # oznacza nieaktualność dowodów. Nie mieszaj wersji bazy.
+        if self.db.execute("PRAGMA data_version").fetchone()[0] != self._data_version:
+            raise InvalidResponse("Baza zmieniła się podczas wykonywania narzędzi")
         validate("ToolCall", call)
         if call["task_id"] != self.task["task_id"] or call["data_revision"] != self.task["data_revision"]:
             raise InvalidResponse("Wywołanie narzędzia pochodzi z innego zadania lub wersji danych")

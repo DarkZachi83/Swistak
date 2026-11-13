@@ -159,6 +159,27 @@ class TestHybridAgent(unittest.TestCase):
             self.assertEqual(result["error"]["code"], "permission_denied")
             self.assertEqual(result["evidence"], [])
 
+    def test_odczyt_gateway_nie_blokuje_zapisu_i_odrzuca_stare_wyniki(self):
+        gateway = ToolGateway(self.path)
+        agent = self._agent(UnavailableProvider())
+        task = agent._task("manual", None, gateway.revision(), tools=True)
+        with self.assertRaises(Exception) as captured:
+            with gateway.session(task) as session:
+                self.register.db.execute(
+                    "UPDATE rachunki SET kwota_grosze=kwota_grosze+1 WHERE id=?",
+                    (self.invoice_id,),
+                )
+                # Gdyby sesja przytrzymywała BEGIN, zapis powyżej
+                # zgłosiłby database is locked (lub zwlekał do timeout).
+                session.execute({
+                    "contract_version":"1.0","task_id":task["task_id"],
+                    "call_id":"stale","tool_name":"invoice.details",
+                    "tool_version":"1.0","data_revision":task["data_revision"],
+                    "arguments":{"invoice_id":self.invoice_id}
+                })
+        from ai_core.errors import InvalidResponse
+        self.assertIsInstance(captured.exception, InvalidResponse)
+
     def test_anulowanie_przed_startem_nie_dotyka_bazy(self):
         agent = self._agent(UnavailableProvider())
         agent.cancel()

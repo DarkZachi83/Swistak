@@ -272,6 +272,10 @@ class OknoGlowne(QMainWindow):
     def _agent_submit(self, mode: str, invoice_id: int | None = None) -> None:
         if self._agent_closed:
             return
+        if mode == "manual":
+            # Nie uruchamiaj ponownie kontroli startowej tuż po zakończeniu
+            # pełnej analizy ręcznej.
+            self._agent_timer.stop()
         job = MonitorJob(mode, invoice_id)
         # Nawet jeśli użytkownik ręcznie uruchamia analizę, tylko jego
         # świadomy zapis formularza może zmieniać SQLite.
@@ -1498,6 +1502,11 @@ class OknoGlowne(QMainWindow):
         if not model:
             QMessageBox.warning(self, t("tab.ai"), t("msg.model_required"))
             return
+        # Analiza żądana przez użytkownika ma pierwszeństwo nad monitorem
+        # uruchomionym automatycznie w tle.
+        if (self._agent_task is not None and self._agent_current_job is not None
+                and self._agent_current_job.mode != "manual"):
+            self._agent_task.anuluj()
         if (self._wzorzec_dokument_id != self.aktualny_dokument_id
                 or self._tekst_dopasowania != tekst):
             self._wykryj_wzorzec(tekst)
