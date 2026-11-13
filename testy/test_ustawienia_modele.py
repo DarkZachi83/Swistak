@@ -8,10 +8,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication, QDialog, QPushButton
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QLabel, QPushButton
 
 import ustawienia
 from gui.dialog_modele_lokalne import DialogModeleLokalne
+from gui.modele_worker import ZadanieListyOllama
+from uslugi.modele_lokalne import BladOllama
 from gui.okno_glowne import OknoGlowne
 from uslugi.modele_lokalne import lokalizacje_skanowania, modele_na_dysku
 from uslugi.rachunki import RejestrRachunkow
@@ -122,6 +124,85 @@ class TestModelSettingsGUI(unittest.TestCase):
                 self.assertEqual(pool.return_value.start.call_count,3)
             finally:
                 dialog.close()
+
+    def test_quick_ollama_worker_does_not_scan_files(self):
+        worker=ZadanieListyOllama()
+        events=[]
+        worker.sygnaly.gotowe.connect(lambda names,error: events.append((names,error)))
+        with patch("gui.modele_worker.modele_ollama",
+                   return_value=["gemma3:4b","qwen3:8b"]) as api,patch(
+                   "gui.modele_worker.modele_na_dysku") as disk:
+            worker.run()
+        api.assert_called_once_with(timeout=2.5)
+        disk.assert_not_called()
+        self.assertEqual(events,[(["gemma3:4b","qwen3:8b"],"")])
+
+    def test_quick_ollama_worker_reports_offline(self):
+        worker=ZadanieListyOllama()
+        events=[]
+        worker.sygnaly.gotowe.connect(lambda names,error: events.append((names,error)))
+        with patch("gui.modele_worker.modele_ollama",
+                   side_effect=BladOllama("Lokalna Ollama niedostępna")):
+            worker.run()
+        self.assertEqual(events,[([],"Lokalna Ollama niedostępna")])
+
+    def test_ustawienia_szerokie_bez_uciec_i_lista_automatyczna(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            registry=RejestrRachunkow(root/"dane")
+            try:
+                with patch.object(ustawienia,"path_settings",
+                                  return_value=root/"settings.json"):
+                    ustawienia.save({"language":"pl","ollama_model":"gemma2:9b"})
+                    win=OknoGlowne(registry)
+                    try:
+                        with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
+                            def inspect_dialog():
+                                box=next(w for w in QApplication.topLevelWidgets()
+                                         if w.objectName()=="ustawieniaSwistaka")
+                                self.assertGreaterEqual(box.minimumWidth(),780)
+                                self.assertGreaterEqual(box.width(),820)
+                                combo=box.findChild(QComboBox,"ustawieniaListaModeli")
+                                button=box.findChild(QPushButton,"ustawieniaSzukajLokalnie")
+                                note=box.findChild(QLabel,"ustawieniaOpisModeli")
+                                status=box.findChild(QLabel,"ustawieniaStatusModeli")
+                                self.assertIsNotNone(combo)
+                                self.assertIsNotNone(button)
+                                self.assertIsNotNone(note)
+                                self.assertTrue(note.wordWrap())
+                                self.assertIn("Szukaj lokalnie",button.text())
+                                self.assertGreaterEqual(
+                                    button.minimumWidth(),button.sizeHint().width()
+                                )
+                                self.assertNotEqual(
+                                    box.layout().indexOf(combo),
+                                    box.layout().indexOf(button),
+                                )
+                                self.assertEqual(combo.currentText(),"gemma2:9b")
+                                self.assertEqual(combo.count(),1)
+                                self.assertEqual(pool.return_value.start.call_count,1)
+                                task=pool.return_value.start.call_args.args[0]
+                                self.assertIsInstance(task,ZadanieListyOllama)
+                                task.sygnaly.gotowe.emit(
+                                    ["gemma3:4b","qwen3:8b","gemma2:9b"],""
+                                )
+                                self.assertEqual(combo.count(),3)
+                                self.assertEqual(combo.currentText(),"gemma2:9b")
+                                self.assertIn("3",status.text())
+                                combo.setEditText("my-custom-model:7b")
+                                task.sygnaly.gotowe.emit(["qwen3:8b","gemma3:4b"],"")
+                                self.assertEqual(combo.currentText(),"my-custom-model:7b")
+                                self.assertEqual(combo.count(),4)
+                                return QDialog.DialogCode.Rejected
+
+                            with patch("gui.okno_glowne.QDialog.exec",
+                                       side_effect=inspect_dialog):
+                                win._open_settings()
+                            self.assertEqual(ustawienia.load()["ollama_model"],"gemma2:9b")
+                    finally:
+                        win.close()
+            finally:
+                registry.zamknij()
 
     def test_settings_search_list_saves_only_after_confirm(self):
         with tempfile.TemporaryDirectory() as tmp:
