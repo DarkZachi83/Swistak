@@ -195,6 +195,40 @@ def _magazyn_ollama(store: Path, stop: threading.Event | None = None) -> list[Mo
     return found
 
 
+def lokalizacje_skanowania(
+    *, standardowe: bool = True, dodatkowy: Path | str | None = None,
+) -> list[tuple[str, Path]]:
+    """Znane miejsca plus folder wskazany przez użytkownika, bez duplikatów.
+
+    Magazyn Ollamy rozpoznajemy po manifests/ i blobs/; wybranie
+    samego folderu magazynu nie wymaga uruchamiania API.
+    """
+    result = znane_lokalizacje() if standardowe else []
+    if dodatkowy:
+        root = Path(dodatkowy).expanduser()
+        if not root.is_dir():
+            raise ValueError("Wybrany katalog modeli nie istnieje")
+        store = root if (root / "manifests").is_dir() and (root / "blobs").is_dir() else (
+            root / "models" if (root / "models" / "manifests").is_dir()
+            and (root / "models" / "blobs").is_dir() else None
+        )
+        if store is not None:
+            result.append(("Ollama", store))
+        else:
+            result.append(("Wskazany katalog", root))
+    unique: list[tuple[str, Path]] = []
+    seen: set[Path] = set()
+    for label, root in result:
+        try:
+            resolved = Path(root).resolve()
+        except (OSError, ValueError):
+            continue
+        if resolved not in seen and resolved.is_dir():
+            unique.append((label, Path(root)))
+            seen.add(resolved)
+    return unique
+
+
 def modele_na_dysku(
     *, lokalizacje: Iterable[tuple[str, Path]] | None = None,
     stop: threading.Event | None = None,

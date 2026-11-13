@@ -6,7 +6,9 @@ import threading
 
 from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 
-from uslugi.modele_lokalne import BladOllama, modele_na_dysku, modele_ollama
+from uslugi.modele_lokalne import (
+    BladOllama, lokalizacje_skanowania, modele_na_dysku, modele_ollama,
+)
 
 
 class SygnalyModeli(QObject):
@@ -14,8 +16,10 @@ class SygnalyModeli(QObject):
 
 
 class ZadanieModeli(QRunnable):
-    def __init__(self):
+    def __init__(self, *, standardowe: bool = True, dodatkowy: str = ""):
         super().__init__()
+        self.standardowe = standardowe
+        self.dodatkowy = dodatkowy
         self.przerwij = threading.Event()
         self.sygnaly = SygnalyModeli()
 
@@ -29,8 +33,13 @@ class ZadanieModeli(QRunnable):
         if self.przerwij.is_set():
             return
         try:
-            disk = modele_na_dysku(stop=self.przerwij)
-        except OSError:
+            locations = lokalizacje_skanowania(
+                standardowe=self.standardowe,
+                dodatkowy=self.dodatkowy,
+            )
+            disk = modele_na_dysku(lokalizacje=locations, stop=self.przerwij)
+        except (OSError, ValueError) as exc:
             disk = []
+            error = error or str(exc)
         if not self.przerwij.is_set():
             self.sygnaly.gotowe.emit(names, disk, error)

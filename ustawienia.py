@@ -8,7 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-DEFAULTS = {"language": "", "ollama_model": "gemma3:4b"}
+DEFAULTS = {"language": "", "ollama_model": "gemma3:4b", "model_scan_dir": ""}
 
 
 def path_settings() -> Path:
@@ -30,9 +30,12 @@ def load(path: Path | None = None) -> dict[str, str]:
         data = {}
     language = data.get("language", "")
     model = data.get("ollama_model", "gemma3:4b")
+    location = data.get("model_scan_dir", "")
     return {
         "language": language if language in ("", "pl", "en") else "",
         "ollama_model": model if isinstance(model, str) and 0 < len(model.strip()) <= 120 else "gemma3:4b",
+        "model_scan_dir": location if isinstance(location, str) and len(location) <= 2048
+                          and not any(ord(c) < 32 for c in location) else "",
     }
 
 
@@ -40,13 +43,17 @@ def save(prefs: dict[str, str], path: Path | None = None) -> None:
     dest = Path(path) if path is not None else path_settings()
     lang = prefs.get("language", "")
     model = prefs.get("ollama_model", "gemma3:4b").strip()
-    if lang not in ("", "pl", "en") or not model or len(model) > 120:
-        raise ValueError("Invalid language or model")
+    location = prefs.get("model_scan_dir", "")
+    if (lang not in ("", "pl", "en") or not isinstance(model, str)
+            or not model or len(model) > 120 or not isinstance(location, str)
+            or len(location) > 2048 or any(ord(c) < 32 for c in location)):
+        raise ValueError("Invalid language, model or scan location")
     dest.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd, tmp = tempfile.mkstemp(prefix=".settings-", dir=dest.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump({"language": lang, "ollama_model": model}, handle, ensure_ascii=False, indent=2)
+            json.dump({"language": lang, "ollama_model": model,
+                       "model_scan_dir": location}, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
