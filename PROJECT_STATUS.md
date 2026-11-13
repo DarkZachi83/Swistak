@@ -6,6 +6,12 @@
 
 **Testy:** `testy/test_ustawienia_modele.py`, `testy/test_modele_lokalne.py`, `testy/test_dialog_modele_lokalne.py`. Odbiór lokalny na Pythonie 3.14.10 i kontrola UX pozostają do wykonania. [Instrukcja](docs/MODELE_LOKALNE.md).
 
+## AI Core 1.0 — Etap 7 (13.11.2026)
+
+**Wdrożono:** cztery opcjonalne role modeli lokalnych Ollamy w Ustawieniach (`extractor`, `verifier`, `financial_analyst`, `cycle_analyst`) z trwałymi przypisaniami w `settings.json`. Ekstrakcja PDF korzysta już z wybranego eksperta; Agent hybrydowy najpierw uruchamia model główny, a następnie kolejne kontrole specjalistyczne. Ustalenia specjalistów trafiają do Panelu Agenta osobno; ich propozycje akcji nie są w ogóle przekazywane do UI.
+
+**Reguły:** brak specjalisty = bez zmian w dotychczasowym działaniu; specjalista niedostępny = zachowanie wyniku głównego. Każda kontrola tylko przez Tool Gateway, osobny task i wersję danych; brak dostępu do zapisu SQLite. Analiza pojedynczej faktury wyklucza całościowego specjalistę cykli. Testy syntetyczne: `testy/test_ai_core_stage7.py`. CI końcowego commita i lokalny odbiór Python 3.14.10 do potwierdzenia. [Dokumentacja](docs/ai_core/ETAP_7_SPECJALISCI.md).
+
 ## AI Core 1.0 — Etap 6 (13.11.2026)
 
 **Wdrożone:** GUI `gui/dialog_plan_historia.py` (trzy karty Plan / Historia / Zamknięcie), `uslugi/historia.py` (sumy, kalendarz płatności, audit, statusy oczekiwań), uzupełnione operacje `PlanRachunkow.ustaw_aktywnosc`, `anuluj_wyjatek` oraz granice powiązań. Historia rozróżnia miesiąc usługi od rzeczywistego miesiąca płatności, pokazuje wycofane dokumenty bez zaliczania ich do bieżących sum.
