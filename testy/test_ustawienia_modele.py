@@ -96,29 +96,32 @@ class TestModelSettingsGUI(unittest.TestCase):
         set_language("pl")
 
     def test_dialog_standardowe_i_wskazany_katalog_zadanie_w_tle(self):
+        # Patch musi obejmować ponowne skanowanie — nie uruchamiaj
+        # prawdziwych skanów katalogów w syntetycznym teście Qt.
         with patch("gui.dialog_modele_lokalne.QThreadPool.globalInstance") as pool:
             dialog=DialogModeleLokalne(katalog_uzytkownika="/tmp/syntetyczny")
-        try:
-            initial=pool.return_value.start.call_args.args[0]
-            self.assertTrue(initial.standardowe)
-            self.assertEqual(initial.dodatkowy,"/tmp/syntetyczny")
-            dialog._gotowe(["gemma3:4b"],[],"")
-            dialog.standardowe.setChecked(False)
-            self.assertFalse(dialog.standardowe.isChecked())
-            with patch("gui.dialog_modele_lokalne.QFileDialog.getExistingDirectory",
-                       return_value="/tmp/modele-testowe"):
-                dialog._wybierz_katalog()
-            latest=pool.return_value.start.call_args.args[0]
-            self.assertFalse(latest.standardowe)
-            self.assertEqual(latest.dodatkowy,"/tmp/modele-testowe")
-            self.assertEqual(dialog.katalog_uzytkownika,"/tmp/modele-testowe")
-            dialog._gotowe(["gemma3:4b"],[],"")
-            dialog.btn_wyczysc_katalog.click()
-            latest=pool.return_value.start.call_args.args[0]
-            self.assertEqual(latest.dodatkowy,"")
-            self.assertEqual(dialog.katalog_uzytkownika,"")
-        finally:
-            dialog.close()
+            try:
+                initial=pool.return_value.start.call_args.args[0]
+                self.assertTrue(initial.standardowe)
+                self.assertEqual(initial.dodatkowy,"/tmp/syntetyczny")
+                dialog._gotowe(["gemma3:4b"],[],"")
+                dialog.standardowe.setChecked(False)
+                self.assertFalse(dialog.standardowe.isChecked())
+                with patch("gui.dialog_modele_lokalne.QFileDialog.getExistingDirectory",
+                           return_value="/tmp/modele-testowe"):
+                    dialog._wybierz_katalog()
+                latest=pool.return_value.start.call_args.args[0]
+                self.assertFalse(latest.standardowe)
+                self.assertEqual(latest.dodatkowy,"/tmp/modele-testowe")
+                self.assertEqual(dialog.katalog_uzytkownika,"/tmp/modele-testowe")
+                dialog._gotowe(["gemma3:4b"],[],"")
+                dialog.btn_wyczysc_katalog.click()
+                latest=pool.return_value.start.call_args.args[0]
+                self.assertEqual(latest.dodatkowy,"")
+                self.assertEqual(dialog.katalog_uzytkownika,"")
+                self.assertEqual(pool.return_value.start.call_count,3)
+            finally:
+                dialog.close()
 
     def test_settings_search_list_saves_only_after_confirm(self):
         with tempfile.TemporaryDirectory() as tmp:
