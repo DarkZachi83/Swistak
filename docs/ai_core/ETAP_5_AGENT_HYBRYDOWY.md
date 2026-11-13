@@ -100,7 +100,7 @@ oraz dostępność Panelu Agenta w Qt. Używają wyłącznie syntetycznych danyc
 - [x] Lokalny LLM korzysta z kontroli narzędzi i rewizji danych.
 - [x] Panel z metadanymi i logiem, bez zapisów finansowych.
 - [x] Zachowane działające formularze faktur, OCR, QR i W1–W4.
-- [ ] Pełne CI na Pythonie 3.11 i 3.13.
+- [x] GitHub Actions `43447801954`: **266 testów OK** na Pythonie 3.11 i 3.13 (commit `463eedc`).
 - [ ] Test lokalny Python 3.14.10.
 - [ ] Akceptacja użytkownika.
 

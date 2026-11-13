@@ -6,7 +6,7 @@
 
 **Bez Ollamy** działają sumy, zaległości, terminy i oczekiwane dokumenty z SQLite. **Z Ollamą** agent może tylko czytać przez Tool Gateway i pokazać propozycje bez możliwości zapisania ich z panelu. Brak zmian schematu SQLite i istniejącego formularza OCR.
 
-**Testy i odbiór:** `testy/test_ai_core_stage5.py`, CI na końcowym commicie i lokalny Python 3.14.10 do sprawdzenia; szczegóły: [docs/ai_core/ETAP_5_AGENT_HYBRYDOWY.md](docs/ai_core/ETAP_5_AGENT_HYBRYDOWY.md).
+**Testy i odbiór:** GitHub Actions `43447801954`: **266 testów OK na Pythonie 3.11 i 3.13** (commit `463eedc`). Pozostaje lokalny test Python 3.14.10 i odbiór użytkownika. Dokumentacja: [docs/ai_core/ETAP_5_AGENT_HYBRYDOWY.md](docs/ai_core/ETAP_5_AGENT_HYBRYDOWY.md).
 
 ## AI Core 1.0 — Etap 4 (13.11.2026)
 
