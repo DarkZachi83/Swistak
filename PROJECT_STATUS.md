@@ -1,5 +1,11 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 1 (13.11.2026)
+
+**Wdrożono szkielet:** `ai_core/` — kontrakty, adapter lokalnej Ollamy, router modeli i orkiestrator (kolejka/anulowanie/stream). Testy syntetyczne: `testy/test_ai_core_stage1.py`. Opis: [docs/ai_core/ETAP_1_OLLAMA.md](docs/ai_core/ETAP_1_OLLAMA.md). 
+
+**Granice:** wciąż brak Tool Gateway, integracji z GUI, nowych migracji i zapisu finansów. Stary import pozostaje niezmieniony. Stan testów należy potwierdzić w CI; następny etap wymaga odbioru użytkownika.
+
 ## NOWY PROGRAM PRAC — AI Core 1.0 / Etap 0 (13.11.2026)
 
 **Zatwierdzone przez użytkownika:** specyfikacja AI Core 1.0; jeden główny LLM + opcjonalne modele specjalistyczne; hybrydowa analiza (start / zmiana / ręcznie); lokalna praca i tryb ograniczony bez LLM; użytkownik potwierdza zmiany finansowe.

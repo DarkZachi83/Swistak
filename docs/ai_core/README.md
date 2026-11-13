@@ -38,3 +38,9 @@
 | 8 | Integracja, bezpieczeństwo, odbiór |
 
 Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowania i testów kompatybilności. Dokumentacja nie oznacza, że opisywane funkcje już działają.
+
+## Etap 1 — uruchamialny szkielet AI Core
+
+[Ollama, router, orkiestrator, testy i kryteria odbioru](ETAP_1_OLLAMA.md).
+
+Adaptery i orkiestrator znajdują się w `ai_core/`. Nie są jeszcze podłączone do GUI i nie mają dostępu do narzędzi bazy — ten dostęp powstanie w Etapie 2.

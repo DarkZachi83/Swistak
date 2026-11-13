@@ -5,3 +5,4 @@ pypdfium2>=5.9,<6
 pytesseract>=0.3.13,<1
 Pillow>=12.2,<14
 zxing-cpp>=3.1.1,<4
+jsonschema>=4.23,<5
