@@ -6,7 +6,7 @@
 
 **Bezpieczeństwo:** brak dowolnego SQL, brak operacji zapisu, kontrola dnia odniesienia i rewizji bazy, brak fikcyjnych wyników dla niedostępnych tabel. Nie zmieniono migracji, GUI ani starszego importu.
 
-**Weryfikacja:** pierwsze GitHub Actions po implementacji `43415835779` — sukces na Pythonie 3.11 i 3.13. Ostateczny commit wymaga ponownego CI. Test rzeczywistej Ollamy na komputerze użytkownika pozostaje do wykonania. Odbiór etapu przez użytkownika — oczekiwany.
+**Weryfikacja:** pierwsze GitHub Actions po implementacji `43415835779` — sukces na Pythonie 3.11 i 3.13. Końcowe GitHub Actions `43416285049` — **sukces na Pythonie 3.11 i 3.13** (commit `58439b5`). Test rzeczywistej Ollamy na komputerze użytkownika pozostaje do wykonania. Odbiór etapu przez użytkownika — oczekiwany.
 
 ## AI Core 1.0 — Etap 1 (13.11.2026)
 

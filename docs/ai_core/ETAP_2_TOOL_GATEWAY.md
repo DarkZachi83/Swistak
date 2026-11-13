@@ -50,7 +50,7 @@ Testy używają wyłącznie syntetycznej bazy SQLite, fikcyjnych dokumentów i l
 - [x] Ochrona przed dowolnym SQL, złą datą, nieautoryzowanymi narzędziami i błędnymi parametrami.
 - [x] Dowody weryfikowane przez aplikację, nie przez LLM.
 - [x] Niewdrożone funkcje jasno oznaczane jako niedostępne.
-- [ ] Zielone GitHub Actions na Pythonie 3.11 i 3.13 dla końcowego commita.
+- [x] GitHub Actions `43416285049` — pełny zestaw testów i regresja zaliczone na Pythonie 3.11 i 3.13 (commit `58439b5`).
 - [ ] Test lokalny z prawdziwą Ollamą na fikcyjnych rachunkach (może być przeprowadzony podczas kolejnej akceptacji end-to-end).
 - [ ] Odbiór przez użytkownika.
 
