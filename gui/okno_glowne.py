@@ -25,6 +25,7 @@ from gui.dialog_qr import DialogQR
 from gui.analiza_worker import ZadanieAnalizy
 from gui.agent_worker import ZadanieMonitora
 from gui.panel_agenta import PanelAgenta
+from gui.dialog_plan_historia import DialogPlanHistoria
 from ai_core.hybrid import AgentLog, MonitorReport
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
 from uslugi.geometria import Zaznaczenie
@@ -124,6 +125,10 @@ class OknoGlowne(QMainWindow):
         self.btn_panel_agenta_header.setObjectName("otworzPanelAgenta")
         self.btn_panel_agenta_header.clicked.connect(self._agent_show_panel)
         naglowek.addWidget(self.btn_panel_agenta_header)
+        self.btn_plan_historia = QPushButton()
+        self.btn_plan_historia.setObjectName("otworzPlanHistoria")
+        self.btn_plan_historia.clicked.connect(self._open_plan_historia)
+        naglowek.addWidget(self.btn_plan_historia)
         pion.addLayout(naglowek)
 
         pasek = QFrame()
@@ -268,6 +273,23 @@ class OknoGlowne(QMainWindow):
         self._agent_panel.show()
         self._agent_panel.raise_()
         self._agent_panel.activateWindow()
+
+    def _open_plan_historia(self) -> None:
+        """Plan, Historia i rozliczenia bez kolejnego katalogu worktree."""
+        dialog = DialogPlanHistoria(self.rejestr, self)
+        dialog.daneZmienione.connect(self._plan_financial_change)
+        dialog.exec()
+
+    def _plan_financial_change(self, invoice_id) -> None:
+        # Płatności/profil/plan zaktualizowano transakcyjnie. Natychmiast
+        # odśwież istniejące ekrany, następnie analizę w tle.
+        self._odswiez_liste()
+        self.tabela_faktur.odswiez()
+        self._aktualizuj_podsumowanie()
+        if isinstance(invoice_id, int) and not isinstance(invoice_id, bool):
+            self._agent_submit("change", invoice_id)
+        else:
+            self._agent_submit("manual")
 
     def _agent_submit(self, mode: str, invoice_id: int | None = None) -> None:
         if self._agent_closed:
@@ -458,6 +480,10 @@ class OknoGlowne(QMainWindow):
         self.akcja_konfiguruj = self.menu_ustawienia.addAction("", self._open_settings)
         self.akcja_wzorce = self.menu_ustawienia.addAction(
             "", self._open_patterns_manager
+        )
+        self.menu_ustawienia.addSeparator()
+        self.akcja_plan_historia = self.menu_ustawienia.addAction(
+            "", self._open_plan_historia
         )
 
         self.menu_jezyki = menu.addMenu("")
@@ -856,6 +882,7 @@ class OknoGlowne(QMainWindow):
         self.opis_aplikacji.setText(t("app.subtitle"))
         self.agent_status.setText(t(self._agent_status_key))
         self.btn_panel_agenta_header.setText(t("agent.open_short"))
+        self.btn_plan_historia.setText(t("plan.open_short"))
         self.btn_panel_agenta.setText(t("agent.open"))
         if self._agent_panel is not None:
             self._agent_panel.przetlumacz()
@@ -875,6 +902,7 @@ class OknoGlowne(QMainWindow):
             (self.akcja_zakoncz, "menu.exit"),
             (self.akcja_konfiguruj, "menu.configure"),
             (self.akcja_wzorce, "patterns.manage"),
+            (self.akcja_plan_historia, "plan.open"),
             (self.akcja_informacje, "menu.about_dialog"),
         ):
             action.setText(t(key))
