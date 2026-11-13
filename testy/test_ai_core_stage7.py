@@ -68,7 +68,8 @@ class FakeRoleProvider:
             # dowód musi zostać zdegradowany przez sanitize_result.
             "evidence": proof if task["role"] != "cycle_analyst"
                         else [{"source_type":"invoice","source_id":"1",
-                               "locator":"fake"}],
+                               "tool_call_id":"forged-proof",
+                               "data_revision":task["data_revision"]}],
         }]
         actions = ([{
             "action_id":"proposal-"+task["role"],"kind":"mark_paid",
