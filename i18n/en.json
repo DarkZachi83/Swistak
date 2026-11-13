@@ -517,5 +517,20 @@
   "settings.models_loading": "Checking models available in Ollama…",
   "settings.models_found": "Available in Ollama: {count}. Choose from the list or enter a name manually.",
   "settings.models_empty": "No models found in Ollama. Enter a name manually or search your disk.",
-  "settings.models_unavailable": "Ollama is unavailable. Enter a name manually or search model files on disk."
+  "settings.models_unavailable": "Ollama is unavailable. Enter a name manually or search model files on disk.",
+  "settings.specialists.title": "Specialist models (optional)",
+  "settings.specialists.default": "No specialist — use main model",
+  "settings.specialists.extractor": "Invoice extraction:",
+  "settings.specialists.verifier": "Finding verification:",
+  "settings.specialists.financial_analyst": "Payment analysis:",
+  "settings.specialists.cycle_analyst": "Billing cycles:",
+  "agent.specialists.title": "Optional specialist reviews (read-only)",
+  "agent.specialists.verifier": "Finding verification",
+  "agent.specialists.financial_analyst": "Payment analysis",
+  "agent.specialists.cycle_analyst": "Cycle analysis",
+  "agent.specialists.ready": "Advisory findings — not a replacement for the main agent",
+  "agent.specialists.unavailable": "Specialist unavailable — main result retained",
+  "agent.specialists.error": "Specialist error — main result retained",
+  "agent.specialists.scope": "Skipped: role is not relevant to a single invoice",
+  "agent.specialists.no_authority": "Specialists cannot perform actions or record payments."
 }

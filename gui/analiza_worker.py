@@ -19,12 +19,14 @@ class SygnalyAnalizy(QObject):
 
 class ZadanieAnalizy(QRunnable):
     def __init__(self, dokument_id: int, tekst: str, kategorie: list[str],
-                 model: str, wzorzec: dict | None = None):
+                 model: str, wzorzec: dict | None = None,
+                 model_ekstrakcji: str | None = None):
         super().__init__()
         self.dokument_id = dokument_id
         self.tekst = tekst
         self.kategorie = list(kategorie)
         self.model = model
+        self.model_ekstrakcji = model_ekstrakcji
         self.wzorzec = copy.deepcopy(wzorzec)
         self.przerwij = threading.Event()
         self._lock = threading.Lock()
@@ -57,6 +59,7 @@ class ZadanieAnalizy(QRunnable):
             self.sygnaly.etap.emit(self.dokument_id, "prepare")
             wynik = analizuj_przez_ai_core(
                 self.tekst, self.kategorie, self.model, wzorzec=self.wzorzec,
+                model_ekstrakcji=self.model_ekstrakcji,
                 postep=lambda etap: self.sygnaly.etap.emit(self.dokument_id, etap),
                 przerwij=self.przerwij, podlacz_provider=self._podlacz_provider,
             )

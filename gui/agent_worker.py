@@ -20,12 +20,14 @@ class SygnalyMonitora(QObject):
 
 
 class ZadanieMonitora(QRunnable):
-    def __init__(self, database_path: Path, model: str, job: MonitorJob, locale: str = "pl"):
+    def __init__(self, database_path: Path, model: str, job: MonitorJob,
+                 locale: str = "pl", specialists: dict[str, str] | None = None):
         super().__init__()
         self.database_path = Path(database_path)
         self.model = model
         self.job = job
         self.locale = locale
+        self.specialists = dict(specialists or {})
         self.sygnaly = SygnalyMonitora()
         self._lock = threading.RLock()
         self._cancelled = threading.Event()
@@ -45,7 +47,8 @@ class ZadanieMonitora(QRunnable):
             return
         try:
             engine = HybridAgent(
-                self.database_path, self.model, locale=self.locale
+                self.database_path, self.model, locale=self.locale,
+                specialist_models=self.specialists,
             )
             with self._lock:
                 self._engine = engine

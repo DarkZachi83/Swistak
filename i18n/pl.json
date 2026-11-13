@@ -517,5 +517,20 @@
   "settings.models_loading": "Sprawdzanie modeli dostępnych w Ollamie…",
   "settings.models_found": "Dostępne w Ollamie: {count}. Wybierz z listy lub wpisz nazwę ręcznie.",
   "settings.models_empty": "Brak modeli w Ollamie. Możesz wpisać nazwę ręcznie lub przeszukać dysk.",
-  "settings.models_unavailable": "Ollama jest niedostępna. Możesz wpisać nazwę lub przeszukać pliki na dysku."
+  "settings.models_unavailable": "Ollama jest niedostępna. Możesz wpisać nazwę lub przeszukać pliki na dysku.",
+  "settings.specialists.title": "Modele specjalistyczne (opcjonalne)",
+  "settings.specialists.default": "Bez specjalisty — użyj modelu głównego",
+  "settings.specialists.extractor": "Odczyt faktury (ekstrakcja):",
+  "settings.specialists.verifier": "Kontrola ustaleń:",
+  "settings.specialists.financial_analyst": "Analiza płatności:",
+  "settings.specialists.cycle_analyst": "Cykle rozliczeniowe:",
+  "agent.specialists.title": "Dodatkowe kontrole specjalistów (tylko odczyt)",
+  "agent.specialists.verifier": "Weryfikacja ustaleń",
+  "agent.specialists.financial_analyst": "Analiza płatności",
+  "agent.specialists.cycle_analyst": "Analiza cykli",
+  "agent.specialists.ready": "Wynik pomocniczy — nie zastępuje ustaleń głównego Agenta",
+  "agent.specialists.unavailable": "Specjalista niedostępny — wynik główny pozostaje aktualny",
+  "agent.specialists.error": "Błąd specjalisty — wynik główny pozostaje aktualny",
+  "agent.specialists.scope": "Pominięty: rola nie dotyczy analizy pojedynczej faktury",
+  "agent.specialists.no_authority": "Specjaliści nie wykonują operacji ani nie dopisują płatności."
 }
