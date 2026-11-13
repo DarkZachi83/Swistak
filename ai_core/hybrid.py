@@ -23,6 +23,7 @@ from ai_core.router import ModelBinding, ModelRouter
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 MODES = frozenset({"startup", "change", "manual"})
+ADVISORY_ROLES = ("verifier", "financial_analyst", "cycle_analyst")
 
 
 def today_warsaw() -> str:
@@ -41,6 +42,7 @@ class MonitorReport:
     findings: tuple[dict, ...] = ()
     proposals: tuple[dict, ...] = ()
     uncertainties: tuple[str, ...] = ()
+    specialists: tuple[dict, ...] = ()  # odrębne, zweryfikowane kontrole
 
 
 class AgentLog:
@@ -76,6 +78,7 @@ class HybridAgent:
         self, database_path: Path | str, model_id: str,
         *, provider_factory: Callable[[], OllamaProvider] | None = None,
         reference_date: str | None = None, locale: str = "pl",
+        specialist_models: dict[str, str] | None = None,
     ):
         if not isinstance(model_id, str) or not 0 < len(model_id.strip()) <= 120:
             raise ValueError("Nieprawidłowy lokalny model")
@@ -88,6 +91,18 @@ class HybridAgent:
         # Data jest wyznaczana przez aplikację, nie przez model.
         from datetime import date
         date.fromisoformat(self.reference_date)
+        choices = specialist_models or {}
+        if (not isinstance(choices, dict)
+                or any(k not in {"extractor", *ADVISORY_ROLES}
+                       or not isinstance(v, str) or len(v.strip()) > 120
+                       for k, v in choices.items())):
+            raise ValueError("Niepoprawna konfiguracja specjalistów")
+        # Ekstrakcja PDF ma osobny worker. Agent używa tylko 3 ról
+        # kontrolnych; brak przypisania zachowuje poprzedni tryb.
+        self.specialist_models = {
+            role: choices[role].strip() for role in ADVISORY_ROLES
+            if choices.get(role) and choices[role].strip() != self.model_id
+        }
         self.provider_factory = provider_factory or (lambda: OllamaProvider(timeout=120))
         self._cancel = threading.Event()
         self._lock = threading.RLock()
@@ -106,24 +121,51 @@ class HybridAgent:
             raise TaskCancelled("Anulowano pracę monitora")
 
     def _task(self, mode: str, invoice_id: int | None, revision: str, *,
-              tools: bool) -> dict:
-        role = "main"
+              tools: bool, role: str = "main",
+              main_codes: tuple[str, ...] = ()) -> dict:
+        if role not in {"main", *ADVISORY_ROLES}:
+            raise ValueError("Nieznana rola kontrolna")
         scope = ("Wyłącznie faktura o identyfikatorze " + str(invoice_id)
                  if mode == "change" else "Wszystkie aktywne rachunki")
-        instruction = (
-            "Sprawdź stan płatności, należności i oczekiwanych dokumentów "
-            "Świstaka, używając wyłącznie przydzielonych narzędzi. "
-            "Nie korzystaj z niezweryfikowanych faktów ani fikcyjnych dowodów. "
-            "Zwróć AnalysisResult i zaproponuj działania tylko do przeglądu; "
-            "każde działanie wymaga osobnej zgody użytkownika. "
-            + scope + ". Nie wykonuj zapisów."
-        )
+        if role == "main":
+            instruction = (
+                "Jako agent główny oceń stan płatności, należności i "
+                "oczekiwanych dokumentów Świstaka, wyłącznie przez narzędzia. "
+                "Nie zgaduj kwot, statusów ani dat. Propozycje tylko do "
+                "przeglądu przez człowieka. " + scope + ". Nie zapisuj danych."
+            )
+        else:
+            role_instructions = {
+                "verifier": "Niezależnie sprawdź fakty i kody ustaleń "
+                            "Agenta głównego przy użyciu narzędzi.",
+                "financial_analyst": "Zbadaj wyłącznie należności, terminy "
+                                     "i statusy płatności.",
+                "cycle_analyst": "Zbadaj wyłącznie cykle, oczekiwane rachunki "
+                                 "i kompletność dokumentów.",
+            }
+            instruction = (
+                "Jako specjalista doradczy: " + role_instructions[role]
+                + " Nie wykonuj zapisów i nie proponuj automatycznych zmian. "
+                + scope + ". Zwróć osobny AnalysisResult."
+            )
         allowed = (
             ["invoice.details", "payment.inspect", "date.evaluate"]
             if mode == "change" else
             ["invoice.search", "payment.inspect", "date.evaluate",
              "finance.aggregate", "plan.expected", "cycle.evaluate"]
         )
+        if role == "financial_analyst":
+            allowed = (["invoice.details", "payment.inspect", "date.evaluate"]
+                       if mode == "change" else
+                       ["invoice.search", "payment.inspect", "date.evaluate",
+                        "finance.aggregate"])
+        elif role == "cycle_analyst":
+            allowed = ["plan.expected", "cycle.evaluate", "finance.aggregate"]
+        elif role == "verifier":
+            allowed = (["invoice.details", "payment.inspect", "date.evaluate"]
+                       if mode == "change" else
+                       ["invoice.search", "payment.inspect", "date.evaluate",
+                        "cycle.evaluate"])
         return {
             "contract_version": "1.0",
             "task_id": uuid.uuid4().hex,
@@ -133,6 +175,9 @@ class HybridAgent:
                 "reference_date": self.reference_date,
                 "scope_invoice_id": invoice_id,
                 "mode": mode,
+                # Wyłącznie kody uprzednio zweryfikowane przez gateway.
+                "main_finding_codes": list(main_codes[:10]) if role == "verifier"
+                                      else [],
             },
             "allowed_tools": allowed if tools else [],
             "response_schema": "AnalysisResult",
@@ -234,15 +279,91 @@ class HybridAgent:
                 progress("llm")
             router = ModelRouter(
                 {"ollama": provider},
-                ModelBinding("ollama", self.model_id),
+                # Główna rola nie zastępuje milcząco niedostępnego
+                # specjalisty. Jeżeli specjalista nie działa, pomijamy go.
+                ModelBinding("ollama", self.model_id,
+                             roles=frozenset({"main"})),
+                {
+                    role: ModelBinding("ollama", name,
+                                       roles=frozenset({role}))
+                    for role, name in self.specialist_models.items()
+                },
             )
             task = self._task(mode, invoice_id, revision, tools=True)
+            advisory: list[dict] = []
             with AgentOrchestrator(router, gateway=self.gateway) as runner:
                 with self._lock:
                     self._orchestrator, self._task_id = runner, task["task_id"]
                 try:
                     self._check()
                     response = runner.submit(task).result(timeout=35)
+                    if response["status"] in ("completed", "partial"):
+                        verified_codes = tuple(
+                            item["code"] for item in response["findings"]
+                            if item["verification"] == "verified"
+                        )[:10]
+                        for role in ADVISORY_ROLES:
+                            if role not in self.specialist_models:
+                                continue
+                            self._check()
+                            if self.gateway.revision() != revision:
+                                raise InvalidResponse("Dane zmieniły się podczas analizy")
+                            model_name = self.specialist_models[role]
+                            entry = {"role": role, "model_id": model_name,
+                                     "status": "unavailable",
+                                     "findings": (), "uncertainties": ()}
+                            if role == "cycle_analyst" and mode == "change":
+                                entry["status"] = "scope"
+                                advisory.append(entry)
+                                continue
+                            if progress:
+                                progress("specialist")
+                            try:
+                                available = (
+                                    provider.health_check(model_name, timeout=2.5)
+                                    if isinstance(provider, OllamaProvider)
+                                    else provider.health_check(model_name)
+                                )
+                                if not available:
+                                    advisory.append(entry)
+                                    continue
+                                specialist_task = self._task(
+                                    mode, invoice_id, revision, tools=True,
+                                    role=role, main_codes=verified_codes,
+                                )
+                                with self._lock:
+                                    self._task_id = specialist_task["task_id"]
+                                result = runner.submit(specialist_task).result(timeout=35)
+                                self._check()
+                                if self.gateway.revision() != revision:
+                                    raise InvalidResponse(
+                                        "Dane zmieniły się podczas pracy specjalisty"
+                                    )
+                                if result["status"] in ("completed", "partial"):
+                                    entry["status"] = "ready"
+                                    # Ustalenia przeszły normalną walidację
+                                    # AnalysisResult + Tool Gateway. Propozycji
+                                    # działania specjalisty nie przekazujemy do UI.
+                                    entry["findings"] = tuple(result["findings"][:8])
+                                    entry["uncertainties"] = tuple(
+                                        result["uncertainties"][:8]
+                                    )
+                                else:
+                                    entry["status"] = "error"
+                            except TaskCancelled:
+                                raise
+                            except InvalidResponse:
+                                if self.gateway.revision() != revision:
+                                    raise
+                                entry["status"] = "error"
+                            except Exception:
+                                self._check()
+                                if self.gateway.revision() != revision:
+                                    raise InvalidResponse(
+                                        "Dane zmieniły się podczas pracy specjalisty"
+                                    )
+                                entry["status"] = "error"
+                            advisory.append(entry)
                 finally:
                     with self._lock:
                         self._orchestrator = None
@@ -260,6 +381,7 @@ class HybridAgent:
                 findings=tuple(response["findings"][:20]),
                 proposals=tuple(response["proposed_actions"][:20]),
                 uncertainties=tuple(response["uncertainties"][:20]),
+                specialists=tuple(advisory),
             )
         except TaskCancelled:
             raise
