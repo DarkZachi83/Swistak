@@ -18,6 +18,7 @@ from konfiguracja import katalog_danych
 from uslugi.archiwum import MagazynDokumentow
 from uslugi.kategorie import PODSTAWOWE_KATEGORIE, klucz_kategorii, podobne_kategorie
 from uslugi.walidacja import zweryfikuj_numer_konta
+from uslugi.finanse import cykl_faktury, _faktura_pola, zdarzenie, uniewaznij_kompletnosc
 
 
 @dataclass(frozen=True)
@@ -93,15 +94,23 @@ class RejestrRachunkow:
         byla_baza = sciezka_bazy.is_file() and sciezka_bazy.stat().st_size > 0
         self.db = polacz(sciezka_bazy)
         try:
-            # Przed zmianą istniejącego schematu twórz snapshot samej bazy.
-            # Pełny backup (baza + PDF-y) pozostaje oddzielnym etapem.
+            # Przy KAŻDEJ przyszłej migracji istniejącej bazy zrób spójny
+            # snapshot SQLite; brak miejsca lub błąd kopii blokuje migrację.
+            migracje = Path(__file__).resolve().parents[1] / "baza" / "schemat"
             if byla_baza and self.db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='migracje'"
-            ).fetchone() and not self.db.execute(
-                "SELECT 1 FROM migracje WHERE nazwa='002_numer_konta.sql'"
             ).fetchone():
-                self._kopia_bazy_przed_migracja()
+                zastosowane = {
+                    row["nazwa"] for row in self.db.execute("SELECT nazwa FROM migracje")
+                }
+                wymagane = {p.name for p in migracje.glob("[0-9][0-9][0-9]_*.sql")}
+                if wymagane - zastosowane:
+                    self._kopia_bazy_przed_migracja()
             zastosuj_migracje(self.db)
+            if self.db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("Kontrola SQLite po migracji nie powiodła się")
+            if self.db.execute("PRAGMA foreign_key_check").fetchall():
+                raise RuntimeError("Baza zawiera niespójne klucze obce")
             self.magazyn = MagazynDokumentow(self.katalog)
         except BaseException:
             self.db.close()
@@ -174,12 +183,14 @@ class RejestrRachunkow:
         return list(self.db.execute(
             "SELECT r.id, r.dokument_id, r.dostawca, r.numer, "
             "r.data_wystawienia, r.termin_platnosci, r.kwota_grosze, r.status, "
+            "r.data_oplacenia, r.wersja_rekordu, "
             "d.nazwa_zrodlowa, "
             "COALESCE((SELECT k.nazwa FROM pozycje_rachunku p "
             "JOIN kategorie k ON k.id = p.kategoria_id "
             "WHERE p.rachunek_id = r.id ORDER BY p.id LIMIT 1), '') AS kategoria "
             "FROM rachunki r "
             "JOIN dokumenty d ON d.id = r.dokument_id "
+            "WHERE r.wycofano_utc IS NULL "
             "ORDER BY r.id DESC"
         ))
 
@@ -315,7 +326,8 @@ class RejestrRachunkow:
         return rows[0] if rows else None
 
     def zapisz_rachunek(self, dane: DaneRachunku, *,
-                        nadpisz_id: int | None = None) -> int:
+                        nadpisz_id: int | None = None,
+                        potwierdz_korekte_oplaconej: bool = False) -> int:
         """Nowy zapis bez zgody; zastąpienie tylko wskazanego ID po potwierdzeniu."""
         dostawca = " ".join(dane.dostawca.split())
         if not dostawca or len(dostawca) > 200:
@@ -358,14 +370,31 @@ class RejestrRachunkow:
                     "Potwierdzenie dotyczy innej faktury. "
                     "Odśwież dane przed zapisem."
                 )
-            wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
-                       kwota, dane.status, dane.uwagi.strip(), numer_konta)
+            poprzedni = None
+            status = dane.status
             if istnieje:
                 rachunek_id = int(istnieje["id"])
+                poprzedni = self.db.execute(
+                    "SELECT * FROM rachunki WHERE id=?", (rachunek_id,)
+                ).fetchone()
+                if poprzedni["wycofano_utc"]:
+                    raise ValueError("Faktura jest wycofana — najpierw ją przywróć")
+                if poprzedni["status"] == "oplacony":
+                    # Stary formularz potrafi wczytać domyślny status 'do zapłaty'.
+                    # Nigdy nie cofaj istniejącej płatności przez nadpisanie OCR.
+                    status = "oplacony"
+                    if kwota != poprzedni["kwota_grosze"] and not potwierdz_korekte_oplaconej:
+                        raise ValueError(
+                            "Zmiana kwoty opłaconej faktury wymaga osobnego potwierdzenia"
+                        )
+            wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
+                       kwota, status, dane.uwagi.strip(), numer_konta)
+            if istnieje:
                 self.db.execute(
                     "UPDATE rachunki SET dokument_id=?, dostawca=?, numer=?, data_wystawienia=?, "
                     "termin_platnosci=?, okres_od=?, okres_do=?, kwota_grosze=?, "
-                    "status=?, uwagi=?, numer_konta=?, zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+                    "status=?, uwagi=?, numer_konta=?, wersja_rekordu=wersja_rekordu+1, "
+                    "zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
                     "WHERE id=?", (dane.dokument_id, *wartosci, rachunek_id)
                 )
                 self.db.execute("DELETE FROM pozycje_rachunku WHERE rachunek_id = ?", (rachunek_id,))
@@ -383,4 +412,21 @@ class RejestrRachunkow:
                 "INSERT INTO pozycje_rachunku(rachunek_id, kategoria_id, kwota_grosze) "
                 "VALUES (?, ?, ?)", (rachunek_id, dane.kategoria_id, kwota),
             )
+            aktualny = self.db.execute(
+                "SELECT * FROM rachunki WHERE id=?", (rachunek_id,)
+            ).fetchone()
+            zdarzenie(self.db, "invoice", rachunek_id,
+                      "edycja" if poprzedni else "dodanie",
+                      przed=_faktura_pola(poprzedni),
+                      po=_faktura_pola(aktualny),
+                      powod="Potwierdzony zapis formularza" if poprzedni else "")
+            stare_cykl = cykl_faktury(poprzedni) if poprzedni else None
+            nowe_cykl = cykl_faktury(aktualny)
+            if poprzedni is None or (poprzedni["okres_do"] != aktualny["okres_do"] or
+                                    poprzedni["data_wystawienia"] != aktualny["data_wystawienia"]
+                                    or poprzedni["dokument_id"] != aktualny["dokument_id"]):
+                for cykl in {stare_cykl, nowe_cykl}:
+                    uniewaznij_kompletnosc(
+                        self.db, cykl, "Zmiana zestawu dokumentów faktury " + str(rachunek_id)
+                    )
         return rachunek_id

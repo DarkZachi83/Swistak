@@ -66,8 +66,8 @@ class TestZgodnoscHistorycznychMigracji(unittest.TestCase):
                 recorded = dict(rejestr.db.execute(
                     "SELECT nazwa, sha256 FROM migracje"
                 ).fetchall())
-                self.assertEqual(recorded, expected)
-                self.assertEqual(len(recorded), 2)
+                self.assertEqual({k: recorded[k] for k in PLIKI}, expected)
+                self.assertTrue(set(recorded) >= set(PLIKI))
             finally:
                 rejestr.zamknij()
 
@@ -83,7 +83,7 @@ class TestZgodnoscHistorycznychMigracji(unittest.TestCase):
                         recorded = dict(rejestr.db.execute(
                             "SELECT nazwa, sha256 FROM migracje"
                         ).fetchall())
-                        self.assertEqual(recorded, expected)
+                        self.assertEqual({k: recorded[k] for k in PLIKI}, expected)
                     finally:
                         rejestr.zamknij()
 
