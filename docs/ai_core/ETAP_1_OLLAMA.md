@@ -35,7 +35,7 @@ Testy adaptera uruchamiają jedynie fikcyjny HTTP server na `127.0.0.1` i fikcyj
 - [x] Router modelu głównego i specjalistów bez automatycznego zewnętrznego API.
 - [x] Orkiestrator: kolejka, anulowanie, odrzucanie spóźnionych wyników.
 - [x] Brak nieuprawnionego zapisu, Tool Gateway odroczony.
-- [ ] Testy syntetyczne i pełna regresja zielone na Python 3.11 i 3.13.
+- [x] Testy syntetyczne i pełna regresja zielone na Python 3.11 i 3.13 — GitHub Actions `43413016614` (commit `8544413`).
 - [ ] Odbiór użytkownika.
 
-**Etap 2:** kontrolowane narzędzia do odczytu SQLite i innych usług, walidacja wywołań i łączenie dowodów.
+**Ograniczenie testów:** CI używa dwóch fikcyjnych kierowców i symulowanego HTTP Ollamy. Nie sprawdzono jeszcze rzeczywistej Ollamy, szybkości lokalnego modelu ani poprawności jego rozumowania na maszynie użytkownika. Nie zastępuje to późniejszych testów akceptacyjnych.\n\n**Etap 2 (po odbiorze):** kontrolowane narzędzia do odczytu SQLite i innych usług, walidacja wywołań i łączenie dowodów.

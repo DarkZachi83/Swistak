@@ -4,7 +4,7 @@
 
 **Wdrożono szkielet:** `ai_core/` — kontrakty, adapter lokalnej Ollamy, router modeli i orkiestrator (kolejka/anulowanie/stream). Testy syntetyczne: `testy/test_ai_core_stage1.py`. Opis: [docs/ai_core/ETAP_1_OLLAMA.md](docs/ai_core/ETAP_1_OLLAMA.md). 
 
-**Granice:** wciąż brak Tool Gateway, integracji z GUI, nowych migracji i zapisu finansów. Stary import pozostaje niezmieniony. Stan testów należy potwierdzić w CI; następny etap wymaga odbioru użytkownika.
+**Granice:** wciąż brak Tool Gateway, integracji z GUI, nowych migracji i zapisu finansów. Stary import pozostaje niezmieniony. GitHub Actions `43413016614` po commicie `8544413`: pełny zestaw testów i audyt zależności **sukces na Pythonie 3.11 i 3.13**. Następny etap wymaga odbioru użytkownika. Test rzeczywistego lokalnego modelu na komputerze użytkownika pozostaje odrębnym testem akceptacyjnym.
 
 ## NOWY PROGRAM PRAC — AI Core 1.0 / Etap 0 (13.11.2026)
 
