@@ -82,6 +82,18 @@ class TestHistoriaEtap6(FinanceStage6Fixture):
         self.assertIn("potwierdzenie_kompletnosci",[r["operacja"] for r in events])
         self.assertTrue(all("przed_json" not in r and "po_json" not in r for r in events))
 
+    def test_dziennik_platnosci_i_zmian_profilu_zawiera_miesiac_wplywu(self):
+        profile=self.plan.utworz_profil("Gaz DEMO",cykl_od="2026-10")
+        self.finance.ustaw_oplacona(self.invoices[0],"2026-11-09")
+        october=self.history.dziennik_miesiaca("2026-10")
+        november=self.history.dziennik_miesiaca("2026-11")
+        self.assertIn("utworzenie",[x["operacja"] for x in october])
+        self.assertIn("oplacenie",[x["operacja"] for x in november])
+        self.plan.ustaw_aktywnosc(profile,False,powod="Wyłączono DEMO")
+        self.assertIn("zmiana_aktywnosci",[
+            x["operacja"] for x in self.history.dziennik_miesiaca("2026-10")
+        ])
+
     def test_unresolved_future_blocks_completeness_before_expected_date(self):
         profile=self.plan.utworz_profil(
             "Fikcyjny internet",cykl_od="2026-10",przesuniecie_dni=35
@@ -175,7 +187,6 @@ class TestGUIEtap6(FinanceStage6Fixture):
         dialog.month.setCurrentText("2026-10")
         self.assertEqual(dialog.history_invoices.rowCount(),2)
         self.assertEqual(dialog.profiles.rowCount(),0)
-        self.assertFalse(dialog.confirm_btn.isEnabled() if False else False)
         self.assertEqual(self.db.execute(
             "SELECT COUNT(*) FROM dziennik_zdarzen"
         ).fetchone()[0],before)

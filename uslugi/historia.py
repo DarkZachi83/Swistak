@@ -117,12 +117,27 @@ class HistoriaRozliczen:
         cykl_miesiaca(cykl)
         if type(limit) is not int or not 1 <= limit <= 500:
             raise ValueError("Niepoprawny limit dziennika")
-        invoice_ids=[str(r["id"]) for r in self.faktury(cykl)]
+        # Rejestrujemy zdarzenia zarówno faktur za wybrany miesiąc,
+        # jak i płatności faktycznie wykonanych w wybranym miesiącu.
+        # Nie dopisujemy zdarzeń z dowolnego, niezwiązanego profilu.
+        invoice_ids=set(str(r["id"]) for r in self.faktury(cykl))
+        invoice_ids.update(str(r["id"]) for r in self.db.execute(
+            "SELECT id FROM rachunki WHERE substr(data_oplacenia,1,7)=?",
+            (cykl,),
+        ))
         expectation_ids=[str(r["id"]) for r in self.oczekiwania(cykl)]
+        profile_ids=set(str(r["profil_id"]) for r in self.oczekiwania(cykl))
+        profile_ids.update(str(r["profil_id"]) for r in self.db.execute(
+            "SELECT DISTINCT profil_id FROM harmonogramy_rachunkow "
+            "WHERE cykl_od<=? AND (cykl_do IS NULL OR cykl_do>=?)",
+            (cykl,cykl),
+        ))
         # Bez swobodnego konkatenowania parametrów SQL.
         conditions=["(obiekt_typ='cycle' AND obiekt_id=?)"]
         values: list[str | int]=[cykl]
-        for kind, identifiers in [("invoice",invoice_ids),("expectation",expectation_ids)]:
+        for kind, identifiers in [("invoice",sorted(invoice_ids)),
+                                  ("expectation",expectation_ids),
+                                  ("profile",sorted(profile_ids))]:
             if identifiers:
                 placeholders=",".join("?" for _ in identifiers)
                 conditions.append(
