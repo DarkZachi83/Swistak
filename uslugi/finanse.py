@@ -269,7 +269,7 @@ class Finanse:
             if not assessment["finished"]:
                 raise ValueError("Nie można zamknąć bieżącego lub przyszłego miesiąca")
             if assessment["unresolved_expected"]:
-                raise ValueError("Najpierw rozstrzygnij wszystkie oczekiwane dokumenty")
+                raise ValueError("Najpierw rozstrzygnij brakujące lub niepewne oczekiwane dokumenty")
             if not assessment["invoice_count"] and not brak_rachunkow:
                 raise ValueError("Pusty miesiąc wymaga świadomego potwierdzenia braku rachunków")
             before = self.db.execute(
