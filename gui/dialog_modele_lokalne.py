@@ -2,10 +2,13 @@
 """Wybór modeli Ollama oraz podgląd modeli lokalnych z dysku."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt, QThreadPool
 from PySide6.QtWidgets import (
-    QAbstractItemView, QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QPushButton, QTabWidget, QVBoxLayout, QWidget,
+    QAbstractItemView, QCheckBox, QDialog, QFileDialog, QHBoxLayout,
+    QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
+    QTabWidget, QVBoxLayout, QWidget,
 )
 
 from gui.modele_worker import ZadanieModeli
@@ -20,11 +23,13 @@ class DialogModeleLokalne(QDialog):
     na przekazanie arbitralnej ścieżki do /api/chat.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, katalog_uzytkownika: str = ""):
         super().__init__(parent)
         self.setWindowTitle(t("models.title"))
-        self.resize(690, 505)
+        self.resize(760, 580)
         self.wybrany_model: str | None = None
+        self.dostepne_modele: list[str] = []
+        self.katalog_uzytkownika = katalog_uzytkownika
         self._zadanie: ZadanieModeli | None = None
 
         layout = QVBoxLayout(self)
@@ -32,6 +37,29 @@ class DialogModeleLokalne(QDialog):
         self.wskazowka.setWordWrap(True)
         self.wskazowka.setObjectName("podpowiedz")
         layout.addWidget(self.wskazowka)
+
+        # Taki sam układ wyszukiwania jak w AI Bobrze:
+        # lokalizacje standardowe i folder wskazany przez użytkownika.
+        self.standardowe = QCheckBox(t("models.standard_locations"))
+        self.standardowe.setObjectName("modeleStandardowe")
+        self.standardowe.setChecked(True)
+        layout.addWidget(self.standardowe)
+        custom = QHBoxLayout()
+        self.katalog = QLineEdit(self.katalog_uzytkownika)
+        self.katalog.setObjectName("katalogSkanowaniaModeli")
+        self.katalog.setReadOnly(True)
+        self.katalog.setPlaceholderText(t("models.custom_empty"))
+        self.katalog.setToolTip(t("models.custom_hint"))
+        custom.addWidget(self.katalog, 1)
+        self.btn_katalog = QPushButton(t("models.browse_folder"))
+        self.btn_katalog.setObjectName("przeszukajFolderModeli")
+        self.btn_katalog.clicked.connect(self._wybierz_katalog)
+        custom.addWidget(self.btn_katalog)
+        self.btn_wyczysc_katalog = QPushButton(t("models.clear_folder"))
+        self.btn_wyczysc_katalog.setObjectName("usunFolderModeli")
+        self.btn_wyczysc_katalog.clicked.connect(self._wyczysc_katalog)
+        custom.addWidget(self.btn_wyczysc_katalog)
+        layout.addLayout(custom)
 
         self.karty = QTabWidget()
         layout.addWidget(self.karty, 1)
@@ -66,6 +94,7 @@ class DialogModeleLokalne(QDialog):
         layout.addWidget(self.status)
         buttons = QHBoxLayout()
         self.btn_ponow = QPushButton(t("models.refresh"))
+        self.btn_ponow.setObjectName("szukajLokalnie")
         self.btn_ponow.clicked.connect(self.odswiez)
         buttons.addWidget(self.btn_ponow)
         buttons.addStretch()
@@ -82,6 +111,20 @@ class DialogModeleLokalne(QDialog):
         layout.addLayout(buttons)
         self.odswiez()
 
+    def _wybierz_katalog(self) -> None:
+        chosen = QFileDialog.getExistingDirectory(
+            self, t("models.browse_folder"), self.katalog_uzytkownika or str(Path.home())
+        )
+        if chosen:
+            self.katalog_uzytkownika = chosen
+            self.katalog.setText(chosen)
+            self.odswiez()
+
+    def _wyczysc_katalog(self) -> None:
+        self.katalog_uzytkownika = ""
+        self.katalog.clear()
+        self.odswiez()
+
     def odswiez(self) -> None:
         if self._zadanie is not None:
             return
@@ -90,8 +133,14 @@ class DialogModeleLokalne(QDialog):
         self.lista_dysk.clear()
         self.btn_uzyj.setEnabled(False)
         self.btn_ponow.setEnabled(False)
+        self.btn_katalog.setEnabled(False)
+        self.btn_wyczysc_katalog.setEnabled(False)
+        self.standardowe.setEnabled(False)
         self.status.setText(t("models.searching"))
-        self._zadanie = ZadanieModeli()
+        self._zadanie = ZadanieModeli(
+            standardowe=self.standardowe.isChecked(),
+            dodatkowy=self.katalog_uzytkownika,
+        )
         self._zadanie.sygnaly.gotowe.connect(self._gotowe)
         QThreadPool.globalInstance().start(self._zadanie)
 
@@ -99,6 +148,10 @@ class DialogModeleLokalne(QDialog):
                 error: str) -> None:
         self._zadanie = None
         self.btn_ponow.setEnabled(True)
+        self.btn_katalog.setEnabled(True)
+        self.btn_wyczysc_katalog.setEnabled(True)
+        self.standardowe.setEnabled(True)
+        self.dostepne_modele = list(available)
         for name in available:
             item = QListWidgetItem(name)
             item.setData(Qt.ItemDataRole.UserRole, name)
