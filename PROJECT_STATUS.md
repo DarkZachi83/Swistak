@@ -1,5 +1,13 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 4 (13.11.2026)
+
+**Zaimplementowano:** bieżący formularz AI po analizie OCR korzysta teraz z `uslugi/analiza_ai_core.py`, `ModelRouter` i metody `OllamaProvider.generate_structured`. Zatwierdzone wzorce W1–W4, QR i cały mechanizm ręcznej akceptacji pozostały nienaruszone. Zadanie Qt może anulować aktywny transport; nie ma automatycznych zapisów do SQLite.
+
+**Kompatybilność:** `uslugi/analiza_llm.py` zawiera nadal starą, testowaną ścieżkę narzędziową, ale wykorzystuje ten sam prompt co nowy provider. Opcjonalna rola `extractor` jest dostępna przez API, nie ma jeszcze osobnego wyboru w GUI.
+
+**Testy:** `testy/test_ai_core_stage4.py`, symulowana lokalna Ollama i regresja. Dokumentacja: [docs/ai_core/ETAP_4_INTEGRACJA.md](docs/ai_core/ETAP_4_INTEGRACJA.md). GitHub Actions końcowego commita i test na Pythonie 3.14.10 do potwierdzenia.
+
 ## AI Core 1.0 — Etap 3 (13.11.2026)
 
 **Wdrożono model finansowy i Plan rachunków:** migracje `003_platnosci_wycofanie.sql`, `004_plan_rachunkow.sql`, `005_cykle_audyt.sql`, usługi `uslugi/finanse.py` i `uslugi/plan_rachunkow.py`, integrację rejestru i pełny audyt materiałowych operacji. Tool Gateway ma odczyt nowych tabel. Przed zmianą schematu wykonywany jest snapshot istniejącej SQLite.

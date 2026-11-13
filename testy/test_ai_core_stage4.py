@@ -219,7 +219,7 @@ class TestEkstrakcjaAICore(unittest.TestCase):
                    return_value=AnalizaModelu("fake-main", {})) as mock:
             job.run()
             mock.assert_called_once()
-            self.assertEqual(mock.call_args.kwargs["wzorzec"]["status"], "active")
+            self.assertEqual(mock.call_args.kwargs["wzorzec"]["status"], "approved")
         self.assertEqual(emitted[0][0], 9)
         self.assertEqual(stages[0], "prepare")
         job.anuluj()

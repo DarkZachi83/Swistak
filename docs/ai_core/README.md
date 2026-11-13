@@ -39,6 +39,10 @@
 
 Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowania i testów kompatybilności. Dokumentacja nie oznacza, że opisywane funkcje już działają.
 
+## Etap 4 — połączenie importu PDF/OCR/QR i W1–W4 z AI Core
+
+[Model Router, lokalna ekstrakcja, walidacja i odbiór etapu 4](ETAP_4_INTEGRACJA.md).
+
 ## Etap 3 — model finansowy, Plan rachunków i Historia
 
 [Dokumentacja migracji, operacji finansowych i kryteria odbioru](ETAP_3_FINANSE.md).
