@@ -84,6 +84,19 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 
 ## Analiza AI — DANE i AGENT
 
+**Wybór modelu w Ustawieniach:** otwórz **Ustawienia → Konfiguruj**.
+Zamiast samego pola tekstowego znajdziesz edytowalną listę modeli Ollamy
+oraz przycisk **Szukaj modeli lokalnych…**. Wyszukiwarka przegląda
+standardowe lokalizacje (Ollama, LM Studio, Hugging Face, llama.cpp,
+GPT4All). Możesz dodatkowo kliknąć **Wskaż katalog…**, wybrać własny
+folder i wyłączyć skan standardowych lokalizacji. Świstak zapamiętuje
+ostatnio wskazany katalog po zapisaniu ustawień.
+Lista **Dostępne w Ollamie** umożliwia bezpośredni wybór modelu.
+Pliki w zakładce **Znalezione na dysku** są tylko informacją —
+trzeba je udostępnić Ollamie, zanim będzie można nimi analizować faktury.
+Wyszukiwanie jest lokalne i nie pobiera ani nie kopiuje wag.
+[Instrukcja wyszukiwania modeli](docs/MODELE_LOKALNE.md).
+
 Przycisk **Szukaj modeli lokalnych…** w karcie **AGENT** wyświetla nazwy modeli dostępnych w uruchomionej Ollamie oraz osobno modele GGUF i wpisy magazynów znalezione w znanych katalogach (mechanizm inspirowany AI Bobrem). **Tylko modele z listy lokalnego API Ollamy można od razu wybrać**. Wybrany model jest zapamiętywany w ustawieniach; skan dysku nie uruchamia modeli, nie pobiera ich ani nie wysyła faktur przez sieć. Modele z LM Studio, Hugging Face i innych źródeł wymagają uprzedniego udostępnienia ich Ollamie.
 
 W karcie **DANE** pod tabelą znajduje się pasek pracy Agenta. Podczas generowania przez Ollamę pokazuje animację bez sztucznych procentów i rzeczywisty etap (przygotowanie → odpowiedź Ollamy → walidacja); po sukcesie pokazuje 100%. Zatrzymanie lub błąd wyłącza pasek. 

@@ -1,6 +1,9 @@
 # Dobór modelu Świstaka z pomocą AI Bobra
 
-**Status: projekt integracji, bez zaimplementowanego połączenia.**
+**Status: własna wyszukiwarka modeli Świstaka jest wdrożona.**
+Wyszukiwanie oparto na rozwiązaniu AI Bobra, ale oba programy
+pozostają niezależne. **Nie ma** bezpośredniego importu benchmarków z Bobra.
+Szczegóły: [wyszukiwanie modeli lokalnych](MODELE_LOKALNE.md).
 
 Projekty:
 - [AI Bóbr](https://github.com/DarkZachi83/Bobr): ocena zgodności sprzętowej,

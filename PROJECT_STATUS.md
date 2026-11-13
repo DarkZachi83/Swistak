@@ -1,5 +1,11 @@
 # Świstak — PROJECT_STATUS
 
+## Ustawienia — lokalne wyszukiwanie modeli na wzór AI Bobra (13.11.2026)
+
+**Wdrożono:** edytowalną listę modeli w Ustawieniach, przycisk „Szukaj modeli lokalnych…”, wyszukiwanie standardowych lokalizacji lub wybranego folderu, zapamiętanie folderu w `settings.json`, asynchroniczny skan ograniczony liczbą plików i głębokością. Wyszukiwarka rozpoznaje Ollamę przez localhost `/api/tags`, magazyny manifestów Ollamy, GGUF oraz katalogi tekstowych modeli Transformers (HF) z `config.json` i wagami. Tylko model widoczny w działającej lokalnej Ollamie można wybrać bezpośrednio; pliki dyskowe nie są automatycznie importowane ani uruchamiane. Nie zmieniano bazy, OCR ani Agenta.
+
+**Testy:** `testy/test_ustawienia_modele.py`, `testy/test_modele_lokalne.py`, `testy/test_dialog_modele_lokalne.py`. Odbiór lokalny na Pythonie 3.14.10 i kontrola UX pozostają do wykonania. [Instrukcja](docs/MODELE_LOKALNE.md).
+
 ## AI Core 1.0 — Etap 6 (13.11.2026)
 
 **Wdrożone:** GUI `gui/dialog_plan_historia.py` (trzy karty Plan / Historia / Zamknięcie), `uslugi/historia.py` (sumy, kalendarz płatności, audit, statusy oczekiwań), uzupełnione operacje `PlanRachunkow.ustaw_aktywnosc`, `anuluj_wyjatek` oraz granice powiązań. Historia rozróżnia miesiąc usługi od rzeczywistego miesiąca płatności, pokazuje wycofane dokumenty bez zaliczania ich do bieżących sum.
