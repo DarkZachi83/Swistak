@@ -101,8 +101,8 @@ oraz dostępność Panelu Agenta w Qt. Używają wyłącznie syntetycznych danyc
 - [x] Panel z metadanymi i logiem, bez zapisów finansowych.
 - [x] Zachowane działające formularze faktur, OCR, QR i W1–W4.
 - [x] GitHub Actions `43447801954`: **266 testów OK** na Pythonie 3.11 i 3.13 (commit `463eedc`).
-- [ ] Test lokalny Python 3.14.10.
-- [ ] Akceptacja użytkownika.
+- [x] Test lokalny Python 3.14.10 — 266 testów, OK.
+- [x] Akceptacja użytkownika — polecenie rozpoczęcia Etapu 6.
 
 **Następnie Etap 6:** Plan rachunków, Historia i miesięczne zamknięcie
 z wyjaśnieniem braków.

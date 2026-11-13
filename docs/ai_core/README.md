@@ -39,6 +39,10 @@
 
 Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowania i testów kompatybilności. Dokumentacja nie oznacza, że opisywane funkcje już działają.
 
+## Etap 6 — Plan rachunków i Historia
+
+[Obsługa profili, miesięczna Historia, płatności i potwierdzanie kompletności](ETAP_6_PLAN_HISTORIA.md).
+
 ## Etap 5 — agent hybrydowy i Panel Agenta
 
 [Tryby monitoringu, dziennik pracy i kryteria odbioru](ETAP_5_AGENT_HYBRYDOWY.md).

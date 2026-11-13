@@ -1,5 +1,13 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 6 (13.11.2026)
+
+**Wdrożone:** GUI `gui/dialog_plan_historia.py` (trzy karty Plan / Historia / Zamknięcie), `uslugi/historia.py` (sumy, kalendarz płatności, audit, statusy oczekiwań), uzupełnione operacje `PlanRachunkow.ustaw_aktywnosc`, `anuluj_wyjatek` oraz granice powiązań. Historia rozróżnia miesiąc usługi od rzeczywistego miesiąca płatności, pokazuje wycofane dokumenty bez zaliczania ich do bieżących sum.
+
+**Zamykanie:** kontrola wszystkich nierozstrzygniętych oczekiwań, w tym jeszcze niewymagalnych, świadome potwierdzenie pustego miesiąca i osobne potwierdzenie kompletności. Pełne rozliczenie finansowe wymaga jednocześnie opłacenia wszystkich aktywnych faktur. Brak samodzielnego zapisu LLM, nowej migracji ani zmian w OCR.
+
+**Testy:** `testy/test_finanse_stage6.py` i regresja; lokalna weryfikacja Python 3.14.10 oraz odbiór użytkownika pozostają do wykonania. [Dokumentacja i kryteria](docs/ai_core/ETAP_6_PLAN_HISTORIA.md).
+
 ## AI Core 1.0 — Etap 5 (13.11.2026)
 
 **Wdrożono:** agent hybrydowy (`ai_core/hybrid.py`), kolejkę z priorytetami, zadania Qt, osobny Panel Agenta, dziennik metadanych oraz tryby `startup`, `change` i `manual`. Zapis faktury wyzwala kontrolę tylko jej ID; ręczna analiza może anulować automatyczną.
