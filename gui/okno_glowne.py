@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QProgressBar, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
-    QWidget, QComboBox, QTabWidget, QSizePolicy,
+    QWidget, QComboBox, QTabWidget, QSizePolicy, QGroupBox,
 )
 
 from gui.okno_o_programie import OknoOProgramie
@@ -327,6 +327,7 @@ class OknoGlowne(QMainWindow):
         worker = ZadanieMonitora(
             self.rejestr.katalog / "swistak.sqlite3",
             model, job, locale=current_language(),
+            specialists=ustawienia.modele_specjalistyczne(self.prefs),
         )
         self._agent_task = worker
         self._agent_current_job = job
@@ -833,8 +834,8 @@ class OknoGlowne(QMainWindow):
         box = QDialog(self)
         box.setObjectName("ustawieniaSwistaka")
         box.setWindowTitle(t("settings.title"))
-        box.setMinimumSize(780, 400)
-        box.resize(860, 430)
+        box.setMinimumSize(780, 540)
+        box.resize(860, 670)
         layout = QVBoxLayout(box)
         layout.setContentsMargins(24, 20, 24, 18)
         layout.setSpacing(12)
@@ -878,6 +879,8 @@ class OknoGlowne(QMainWindow):
         # QComboBox aktualizujemy również po znalezieniu modeli w drugim
         # oknie. Zachowujemy wybrany/wpisywany model nawet po spóźnionej
         # odpowiedzi Ollamy — nigdy nie zastępujemy go pierwszym z listy.
+        specialist_selectors: dict[str, QComboBox] = {}
+
         def add_available_models(names: list[str]) -> None:
             selected = model.currentText()
             existing = [model.itemText(i) for i in range(model.count())]
@@ -893,6 +896,16 @@ class OknoGlowne(QMainWindow):
                 model.setCurrentText(selected)
             finally:
                 model.blockSignals(False)
+            # Odśwież także role specjalistów, nie zmieniając ich wyboru.
+            for selector in specialist_selectors.values():
+                current = selector.currentData()
+                for value in names:
+                    if (isinstance(value, str) and 0 < len(value.strip()) <= 120
+                            and selector.findData(value.strip()) < 0):
+                        selector.addItem(value.strip(), value.strip())
+                index = selector.findData(current)
+                if index >= 0:
+                    selector.setCurrentIndex(index)
 
         scan_dir = self.prefs.get("model_scan_dir", "")
         folder_label = QLabel(t("settings.model_scan_dir"))
@@ -912,6 +925,22 @@ class OknoGlowne(QMainWindow):
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
         )
         layout.addWidget(note)
+
+        specialist_box = QGroupBox(t("settings.specialists.title"))
+        specialist_box.setObjectName("ustawieniaModeleSpecjalistyczne")
+        specialist_layout = QFormLayout(specialist_box)
+        for role in ustawienia.SPECIALIST_ROLES:
+            combo = QComboBox()
+            combo.setObjectName("specialistModel_" + role)
+            combo.addItem(t("settings.specialists.default"), "")
+            configured = self.prefs.get("model_" + role, "")
+            if configured:
+                combo.addItem(configured, configured)
+                combo.setCurrentIndex(1)
+            combo.setMinimumWidth(250)
+            specialist_layout.addRow(t("settings.specialists." + role), combo)
+            specialist_selectors[role] = combo
+        layout.addWidget(specialist_box)
 
         data_label = QLabel(t("settings.data_dir"))
         layout.addWidget(data_label)
@@ -981,6 +1010,10 @@ class OknoGlowne(QMainWindow):
             QMessageBox.warning(self, t("settings.title"), t("settings.invalid"))
             return
         updated = dict(self.prefs, ollama_model=name, model_scan_dir=scan_dir)
+        updated.update({
+            "model_" + role: selector.currentData() or ""
+            for role, selector in specialist_selectors.items()
+        })
         try:
             ustawienia.save(updated)
         except (OSError, ValueError) as error:
@@ -1699,6 +1732,7 @@ class OknoGlowne(QMainWindow):
         zadanie = ZadanieAnalizy(
             self.aktualny_dokument_id, tekst, kategorie, model,
             wzorzec=self._aktywny_wzorzec,
+            model_ekstrakcji=self.prefs.get("model_extractor") or None,
         )
         self._wyczysc_analize()
         self._zadanie_ai = zadanie
