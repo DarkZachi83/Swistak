@@ -10,7 +10,7 @@
 
 **Wdrożono:** cztery opcjonalne role modeli lokalnych Ollamy w Ustawieniach (`extractor`, `verifier`, `financial_analyst`, `cycle_analyst`) z trwałymi przypisaniami w `settings.json`. Ekstrakcja PDF korzysta już z wybranego eksperta; Agent hybrydowy najpierw uruchamia model główny, a następnie kolejne kontrole specjalistyczne. Ustalenia specjalistów trafiają do Panelu Agenta osobno; ich propozycje akcji nie są w ogóle przekazywane do UI.
 
-**Reguły:** brak specjalisty = bez zmian w dotychczasowym działaniu; specjalista niedostępny = zachowanie wyniku głównego. Każda kontrola tylko przez Tool Gateway, osobny task i wersję danych; brak dostępu do zapisu SQLite. Analiza pojedynczej faktury wyklucza całościowego specjalistę cykli. Testy syntetyczne: `testy/test_ai_core_stage7.py`. CI końcowego commita i lokalny odbiór Python 3.14.10 do potwierdzenia. [Dokumentacja](docs/ai_core/ETAP_7_SPECJALISCI.md).
+**Reguły:** brak specjalisty = bez zmian w dotychczasowym działaniu; specjalista niedostępny = zachowanie wyniku głównego. Każda kontrola tylko przez Tool Gateway, osobny task i wersję danych; brak dostępu do zapisu SQLite. Analiza pojedynczej faktury wyklucza całościowego specjalistę cykli. Testy syntetyczne: `testy/test_ai_core_stage7.py`. GitHub Actions `43514283254`: **301 testów OK** na Pythonie 3.11 i 3.13. Lokalny odbiór Python 3.14.10 i świadoma akceptacja użytkownika pozostają do potwierdzenia. [Dokumentacja](docs/ai_core/ETAP_7_SPECJALISCI.md).
 
 ## AI Core 1.0 — Etap 6 (13.11.2026)
 

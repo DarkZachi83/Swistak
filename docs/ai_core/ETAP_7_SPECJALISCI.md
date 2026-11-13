@@ -89,7 +89,7 @@ symulatora dostawcy LLM, bez pobierania modeli i prawdziwych faktur.
 - [x] Ograniczenie zakresu do pojedynczej faktury po zapisie.
 - [x] Anulowanie i ochrona przed nieaktualnymi wynikami.
 - [x] Tłumaczenia PL/EN i oddzielne wyniki w Panelu Agenta.
-- [ ] Końcowe GitHub Actions Python 3.11 i 3.13.
+- [x] GitHub Actions `43514283254` — **301 testów OK** na Pythonie 3.11 i 3.13.
 - [ ] Lokalny test Python 3.14.10 i rzeczywisty model Ollama.
 - [ ] Akceptacja użytkownika.
 
