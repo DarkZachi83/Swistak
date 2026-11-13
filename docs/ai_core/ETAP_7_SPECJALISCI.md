@@ -26,7 +26,9 @@ uzupełniony po uruchomieniu lokalnego serwera.
 
 **Bez zaznaczonych specjalistów** ścieżka pozostaje taka sama jak
 w etapach 4–6: jeden model główny, lokalne kontrole deterministyczne
-i Panel Agenta.
+i Panel Agenta. Jeżeli użytkownik świadomie wybierze ten sam model
+również dla roli specjalistycznej, wykona on odrębną kontrolę
+z instrukcją tej roli — nie zostanie po cichu pominięty.
 
 ## Przebieg pracy i bezpieczeństwo
 

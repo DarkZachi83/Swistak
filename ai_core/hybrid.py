@@ -101,7 +101,7 @@ class HybridAgent:
         # kontrolnych; brak przypisania zachowuje poprzedni tryb.
         self.specialist_models = {
             role: choices[role].strip() for role in ADVISORY_ROLES
-            if choices.get(role) and choices[role].strip() != self.model_id
+            if choices.get(role)
         }
         self.provider_factory = provider_factory or (lambda: OllamaProvider(timeout=120))
         self._cancel = threading.Event()

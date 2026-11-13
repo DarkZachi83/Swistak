@@ -182,6 +182,14 @@ class TestHybridSpecialists(unittest.TestCase):
         self.assertEqual(self.reg.rachunek(1)["status"],"do_zaplaty")
         self.assertNotIn("mark_paid",report_text(report))
 
+    def test_explicit_same_model_can_be_assigned_specialist_role(self):
+        provider=FakeRoleProvider()
+        report=self.agent(provider,{"verifier":"main-demo"}).run("manual")
+        self.assertEqual([(role,name) for role,name,_ in provider.calls],
+                         [("main","main-demo"),("verifier","main-demo")])
+        self.assertEqual(report.specialists[0]["status"],"ready")
+        self.assertEqual(self.reg.rachunek(1)["status"],"do_zaplaty")
+
     def test_unavailable_or_failing_specialist_does_not_discard_main_result(self):
         fake=FakeRoleProvider(unavailable={"verify-demo"},
                               fail_roles={"financial_analyst"})
