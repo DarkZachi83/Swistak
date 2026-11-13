@@ -156,10 +156,14 @@ class TestModelSettingsGUI(unittest.TestCase):
                     ustawienia.save({"language":"pl","ollama_model":"gemma2:9b"})
                     win=OknoGlowne(registry)
                     try:
+                        # Nie wybieraj dialogu pozostawionego przez poprzednie
+                        # testy: identyfikuj okno przez jego bieżącego rodzica.
+                        self.assertEqual(win.ed_model.text(),"gemma2:9b")
                         with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
                             def inspect_dialog():
                                 box=next(w for w in QApplication.topLevelWidgets()
-                                         if w.objectName()=="ustawieniaSwistaka")
+                                         if w.objectName()=="ustawieniaSwistaka"
+                                         and w.parent() is win)
                                 self.assertGreaterEqual(box.minimumWidth(),780)
                                 self.assertGreaterEqual(box.width(),820)
                                 combo=box.findChild(QComboBox,"ustawieniaListaModeli")
@@ -223,7 +227,8 @@ class TestModelSettingsGUI(unittest.TestCase):
 
                             def open_settings():
                                 box=next(w for w in QApplication.topLevelWidgets()
-                                         if w.objectName()=="ustawieniaSwistaka")
+                                         if w.objectName()=="ustawieniaSwistaka"
+                                         and w.parent() is win)
                                 combo=box.findChild(type(win.wybor_kategoria),
                                                     "ustawieniaListaModeli")
                                 self.assertTrue(combo.isEditable())
