@@ -74,8 +74,8 @@ automatycznego łączenia pól QR z odpowiedzią modelu.
 - [x] Syntetyczne testy wymiany modeli, specjalisty, błędnego JSON,
       niedozwolonych narzędzi, W1–W4, QR i anulowania.
 - [x] GitHub Actions `43443677093`: **256 testów OK** na Pythonie 3.11 i 3.13 (commit `ff50bef`).
-- [ ] Test lokalny Python 3.14.10 użytkownika.
-- [ ] Odbiór użytkownika i dopiero potem Etap 5.
+- [x] Test lokalny Python 3.14.10 użytkownika — 256 testów, OK.
+- [x] Odbiór użytkownika — użytkownik zaakceptował przejście do Etapu 5.
 
 ## Uruchomienie testów
 

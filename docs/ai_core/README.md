@@ -39,6 +39,10 @@
 
 Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowania i testów kompatybilności. Dokumentacja nie oznacza, że opisywane funkcje już działają.
 
+## Etap 5 — agent hybrydowy i Panel Agenta
+
+[Tryby monitoringu, dziennik pracy i kryteria odbioru](ETAP_5_AGENT_HYBRYDOWY.md).
+
 ## Etap 4 — połączenie importu PDF/OCR/QR i W1–W4 z AI Core
 
 [Model Router, lokalna ekstrakcja, walidacja i odbiór etapu 4](ETAP_4_INTEGRACJA.md).

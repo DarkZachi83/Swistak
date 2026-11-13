@@ -1,5 +1,13 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 5 (13.11.2026)
+
+**Wdrożono:** agent hybrydowy (`ai_core/hybrid.py`), kolejkę z priorytetami, zadania Qt, osobny Panel Agenta, dziennik metadanych oraz tryby `startup`, `change` i `manual`. Zapis faktury wyzwala kontrolę tylko jej ID; ręczna analiza może anulować automatyczną.
+
+**Bez Ollamy** działają sumy, zaległości, terminy i oczekiwane dokumenty z SQLite. **Z Ollamą** agent może tylko czytać przez Tool Gateway i pokazać propozycje bez możliwości zapisania ich z panelu. Brak zmian schematu SQLite i istniejącego formularza OCR.
+
+**Testy i odbiór:** `testy/test_ai_core_stage5.py`, CI na końcowym commicie i lokalny Python 3.14.10 do sprawdzenia; szczegóły: [docs/ai_core/ETAP_5_AGENT_HYBRYDOWY.md](docs/ai_core/ETAP_5_AGENT_HYBRYDOWY.md).
+
 ## AI Core 1.0 — Etap 4 (13.11.2026)
 
 **Zaimplementowano:** bieżący formularz AI po analizie OCR korzysta teraz z `uslugi/analiza_ai_core.py`, `ModelRouter` i metody `OllamaProvider.generate_structured`. Zatwierdzone wzorce W1–W4, QR i cały mechanizm ręcznej akceptacji pozostały nienaruszone. Zadanie Qt może anulować aktywny transport; nie ma automatycznych zapisów do SQLite.
