@@ -75,6 +75,16 @@ class PlanRachunkow:
             zdarzenie(self.db, "profile", ident, "utworzenie",
                       po={"nazwa": nazwa, "dostawca": dostawca,
                           "typ": typ, "cykl_od": cykl_od, "kotwica": kotwica})
+            # Profil dodany z datą historyczną może podważać zamknięte miesiące.
+            if typ != "nieregularny":
+                rows = self.db.execute(
+                    "SELECT cykl FROM cykle_rozliczeniowe WHERE cykl>=? "
+                    "AND potwierdzono_kompletnosc=1", (cykl_od,)
+                ).fetchall()
+                for row in rows:
+                    uniewaznij_kompletnosc(
+                        self.db, row["cykl"], "Dodano profil rachunku " + str(ident)
+                    )
         return ident
 
     def zmien_harmonogram(
@@ -174,6 +184,13 @@ class PlanRachunkow:
             ).fetchone()
             if row is None:
                 raise ValueError("Nie znaleziono oczekiwania")
+            if typ == "nie_wystawiono" and self.db.execute(
+                "SELECT 1 FROM powiazania_oczekiwanych l "
+                "JOIN rachunki r ON r.id=l.rachunek_id "
+                "WHERE l.oczekiwany_id=? AND r.wycofano_utc IS NULL",
+                (oczekiwany_id,),
+            ).fetchone():
+                raise ValueError("Oczekiwany dokument już powiązano z aktywną fakturą")
             before = {"wyjatek":row["wyjatek"],"powod":row["powod_wyjatku"]}
             self.db.execute(
                 "UPDATE oczekiwane_dokumenty SET wyjatek=?, powod_wyjatku=? WHERE id=?",

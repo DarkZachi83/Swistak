@@ -171,6 +171,44 @@ class TestFinanseEtap3(unittest.TestCase):
         self.assertTrue(self.finanse.ocena_cyklu("2026-10",dzisiaj="2026-11-13")["closed"])
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM rachunki").fetchone()[0],0)
 
+    def test_nie_mozna_zamknac_zanim_utworzono_oczekiwania(self):
+        self.plan.utworz_profil("Internet testowy",cykl_od="2026-10")
+        self.assertEqual(
+            self.db.execute("SELECT COUNT(*) FROM oczekiwane_dokumenty").fetchone()[0],0
+        )
+        with self.assertRaisesRegex(ValueError,"brakujące"):
+            self.finanse.potwierdz_kompletnosc(
+                "2026-10",brak_rachunkow=True,dzisiaj="2026-11-13",
+            )
+        self.assertEqual(
+            self.db.execute("SELECT COUNT(*) FROM oczekiwane_dokumenty").fetchone()[0],1
+        )
+        self.assertFalse(self.finanse.ocena_cyklu(
+            "2026-10",dzisiaj="2026-11-13")["closed"])
+
+    def test_niepewne_oczekiwanie_nie_zamyka_cyklu(self):
+        self.plan.utworz_profil("Abonament DEMO",cykl_od="2026-10")
+        ex=self.plan.generuj_oczekiwania("2026-10")[0]
+        self.plan.oznacz_wyjatek(ex,typ="niepewne",powod="Wymaga weryfikacji")
+        with self.assertRaisesRegex(ValueError,"brakujące"):
+            self.finanse.potwierdz_kompletnosc(
+                "2026-10",brak_rachunkow=True,dzisiaj="2026-11-13",
+            )
+        self.plan.oznacz_wyjatek(ex,typ="nie_wystawiono",powod="Zweryfikowano u dostawcy")
+        self.finanse.potwierdz_kompletnosc(
+            "2026-10",brak_rachunkow=True,dzisiaj="2026-11-13",
+        )
+        self.assertTrue(self.finanse.ocena_cyklu(
+            "2026-10",dzisiaj="2026-11-13")["closed"])
+
+    def test_utworzenie_profilu_retro_uniewaznia_zamkniecie(self):
+        self.finanse.potwierdz_kompletnosc(
+            "2026-10",brak_rachunkow=True,dzisiaj="2026-11-13",
+        )
+        self.plan.utworz_profil("Syntetyczny abonament",cykl_od="2026-10")
+        self.assertFalse(self.finanse.ocena_cyklu(
+            "2026-10",dzisiaj="2026-11-13")["documents_confirmed"])
+
     def test_plan_powiazania_z_wieloma_fakturami(self):
         self.plan.utworz_profil("Gaz",cykl_od="2026-10")
         expected=self.plan.generuj_oczekiwania("2026-10")[0]

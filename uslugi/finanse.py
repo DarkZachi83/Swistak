@@ -39,7 +39,8 @@ def _faktura_pola(row: sqlite3.Row | None) -> dict[str, Any] | None:
     if row is None:
         return None
     # Dziennik nie zawiera numerów kont, treści dokumentu ani OCR.
-    keys = ("id", "dokument_id", "kwota_grosze", "termin_platnosci",
+    keys = ("id", "dokument_id", "dostawca", "numer",
+            "kwota_grosze", "termin_platnosci",
             "okres_od", "okres_do", "data_wystawienia", "status",
             "data_oplacenia", "wycofano_utc", "powod_wycofania",
             "wersja_rekordu")
@@ -213,7 +214,7 @@ class Finanse:
         missing = self.db.execute(
             "SELECT COUNT(*) FROM oczekiwane_dokumenty o "
             "JOIN profile_rachunkow p ON p.id=o.profil_id "
-            "WHERE o.cykl=? AND p.aktywny=1 AND o.wyjatek IS NULL "
+            "WHERE o.cykl=? AND (o.wyjatek IS NULL OR o.wyjatek='niepewne') "
             "AND o.oczekiwany_od<=? AND NOT EXISTS("
             "SELECT 1 FROM powiazania_oczekiwanych l JOIN rachunki r ON r.id=l.rachunek_id "
             "WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL)",
@@ -232,6 +233,10 @@ class Finanse:
         self, cykl: str, *, brak_rachunkow: bool = False, dzisiaj: str | None = None,
     ) -> None:
         cykl_miesiaca(cykl)
+        # Nie można zatwierdzić kompletności, zanim aktywne harmonogramy
+        # zostały zmaterializowane jako oczekiwane dokumenty.
+        from uslugi.plan_rachunkow import PlanRachunkow
+        PlanRachunkow(self.db).generuj_oczekiwania(cykl)
         with transakcja(self.db):
             assessment = self.ocena_cyklu(cykl, dzisiaj=dzisiaj)
             if not assessment["finished"]:
