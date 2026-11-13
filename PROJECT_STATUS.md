@@ -1,5 +1,16 @@
 # Świstak — PROJECT_STATUS
 
+## NOWY PROGRAM PRAC — AI Core 1.0 / Etap 0 (13.11.2026)
+
+**Zatwierdzone przez użytkownika:** specyfikacja AI Core 1.0; jeden główny LLM + opcjonalne modele specjalistyczne; hybrydowa analiza (start / zmiana / ręcznie); lokalna praca i tryb ograniczony bez LLM; użytkownik potwierdza zmiany finansowe.
+
+**Przygotowane w Etapie 0:** [docs/ai_core/README.md](docs/ai_core/README.md), kontrakt JSON Schema v1, katalog narzędzi tylko do odczytu, syntetyczne przykłady i testy `testy/test_ai_core_contracts.py`. To **projekt kontraktów**; runtime agenta, adapter Ollamy, migracje, GUI i operacje finansowe **nie zostały zmienione**.
+
+**Do zweryfikowania:** wyniki nowego testu w GitHub Actions dla Python 3.11 i 3.13, następnie odbiór Etapu 0 przez użytkownika. Kolejny etap po odbiorze: orkiestrator i adapter Ollamy. Pełne kryteria: [docs/ai_core/ETAP_0_ODBIOR.md](docs/ai_core/ETAP_0_ODBIOR.md).
+
+**Uwaga:** poniższe fragmenty dotyczą wcześniejszych etapów importu. Nazwa „Etap 0” w historycznym `docs/PLAN.md` odnosi się do podglądu PDF, nie do nowego AI Core.
+
+
 **Ostatnia weryfikacja:** 2026-11-12  
 **Repozytorium:** `DarkZachi83/Swistak` · **gałąź:** `main`  
 **Punkt odniesienia:** commit `7b5894b994ed987337fac352a118b659d1c68bd1` (czyszczenie bazy i testy, przed aktualizacją statusu).  

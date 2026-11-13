@@ -173,3 +173,7 @@ Aktualny kod jest udostępniany na warunkach **[PolyForm Noncommercial 1.0.0](LI
 **Świstak Home / Business** to planowany model dystrybucji, a nie obecnie gotowe edycje ani opublikowany cennik. Wcześniejsze wersje udostępnione na **GPL-3.0-only** zachowują dotychczasowe warunki.
 
 Szczegóły: [model licencjonowania](docs/LICENCJONOWANIE.md) · [licencje zależności](THIRD_PARTY_LICENSES.md) · [rejestr zależności](licencje/rejestr.json).
+
+## Świstak AI Core 1.0 — zatwierdzony projekt przyszłej architektury
+
+[Dokumentacja Etapu 0, kontrakty v1 i plan implementacji](docs/ai_core/README.md). LLM-first: jeden model główny, opcjonalne role specjalistyczne, wymienne adaptery i kontrolowane narzędzia SQLite. **Kontrakty są dokumentacją projektową, a nie jeszcze wdrożonym Agentem.**

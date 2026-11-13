@@ -1,0 +1,322 @@
+{
+  "catalog_version": "1.0",
+  "read_only": true,
+  "tools": [
+    {
+      "name": "invoice.search",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Filtrowany, stronicowany odczyt aktywnych faktur; wycofane tylko przy jawnym parametrze.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "supplier": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "do_zaplaty",
+              "oplacony",
+              "any"
+            ]
+          },
+          "period_from": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_to": {
+            "type": "string",
+            "format": "date"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "max_records": 200
+    },
+    {
+      "name": "invoice.details",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Szczegóły jednej faktury i znaczniki stanu.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invoice_id"
+        ],
+        "properties": {
+          "invoice_id": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "max_records": 1
+    },
+    {
+      "name": "invoice.lines",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Pozycje faktury i kategorie bez podwajania sum.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invoice_id"
+        ],
+        "properties": {
+          "invoice_id": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "max_records": 100
+    },
+    {
+      "name": "payment.inspect",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Deterministyczna kontrola statusu i terminu płatności.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invoice_id",
+          "reference_date"
+        ],
+        "properties": {
+          "invoice_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reference_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "max_records": 1
+    },
+    {
+      "name": "date.evaluate",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Deterministyczne porównanie dat bez zgadywania.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value",
+          "reference_date"
+        ],
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "date"
+          },
+          "reference_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "max_records": 1
+    },
+    {
+      "name": "finance.aggregate",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Kwoty w groszach; koszty i płatności według jawnej podstawy.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "period_from",
+          "period_to",
+          "basis"
+        ],
+        "properties": {
+          "period_from": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_to": {
+            "type": "string",
+            "format": "date"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "billing_end",
+              "paid_date"
+            ]
+          },
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "month",
+              "category",
+              "supplier",
+              "none"
+            ]
+          }
+        }
+      },
+      "max_records": 100
+    },
+    {
+      "name": "document.extract",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Odczyt lokalnego PDF; źródło jest nieufnym dokumentem.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_id"
+        ],
+        "properties": {
+          "document_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "text",
+              "ocr"
+            ]
+          }
+        }
+      },
+      "max_records": 1
+    },
+    {
+      "name": "document.verify",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Sprawdza pochodzenie i zgodność danych dokumentu.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_id"
+        ],
+        "properties": {
+          "document_id": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "max_records": 1
+    },
+    {
+      "name": "plan.expected",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Oczekiwane dokumenty w miesiącu; bez fikcyjnych należności.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cycle"
+        ],
+        "properties": {
+          "cycle": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+          }
+        }
+      },
+      "max_records": 100
+    },
+    {
+      "name": "plan.match",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Sugerowane powiązania faktury z oczekiwaniami.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invoice_id"
+        ],
+        "properties": {
+          "invoice_id": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "max_records": 100
+    },
+    {
+      "name": "cycle.evaluate",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Oddzielnie: kompletność potwierdzona i opłacenie faktur.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cycle"
+        ],
+        "properties": {
+          "cycle": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+          }
+        }
+      },
+      "max_records": 1
+    },
+    {
+      "name": "audit.read",
+      "version": "1.0",
+      "effect": "read",
+      "description": "Odczyt ograniczonego dziennika istotnych zmian.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entity_type",
+          "entity_id"
+        ],
+        "properties": {
+          "entity_type": {
+            "type": "string",
+            "enum": [
+              "invoice",
+              "profile",
+              "cycle"
+            ]
+          },
+          "entity_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "max_records": 100
+    }
+  ]
+}

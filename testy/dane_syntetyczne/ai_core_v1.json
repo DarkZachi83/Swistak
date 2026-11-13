@@ -1,0 +1,208 @@
+{
+  "fixture_version": "1.0",
+  "note": "WYŁĄCZNIE DANE SYNTETYCZNE. Nazwy, numery, kwoty i daty nie pochodzą z dokumentów użytkownika.",
+  "task_request": {
+    "contract_version": "1.0",
+    "task_id": "task-demo-01",
+    "role": "main",
+    "instruction": "Sprawdź zaległe faktury i brakujące dokumenty za październik.",
+    "context": {
+      "reference_date": "2026-11-13",
+      "dataset": "synthetic-v1"
+    },
+    "allowed_tools": [
+      "invoice.search",
+      "payment.inspect",
+      "plan.expected",
+      "cycle.evaluate"
+    ],
+    "response_schema": "AnalysisResult",
+    "data_revision": "db:synthetic-1",
+    "locale": "pl",
+    "timezone": "Europe/Warsaw",
+    "limits": {
+      "max_steps": 8,
+      "timeout_ms": 30000,
+      "max_records": 100
+    }
+  },
+  "model_profile": {
+    "contract_version": "1.0",
+    "provider_id": "ollama",
+    "model_id": "synthetic-test-model",
+    "roles": [
+      "main"
+    ],
+    "capabilities": {
+      "text": true,
+      "vision": false,
+      "native_tools": true,
+      "structured_json": true,
+      "streaming": true,
+      "context_tokens": 4096
+    }
+  },
+  "tool_call": {
+    "contract_version": "1.0",
+    "task_id": "task-demo-01",
+    "call_id": "call-payment-101",
+    "tool_name": "payment.inspect",
+    "tool_version": "1.0",
+    "arguments": {
+      "invoice_id": 101,
+      "reference_date": "2026-11-13"
+    },
+    "data_revision": "db:synthetic-1"
+  },
+  "tool_result": {
+    "contract_version": "1.0",
+    "task_id": "task-demo-01",
+    "call_id": "call-payment-101",
+    "tool_name": "payment.inspect",
+    "status": "ok",
+    "data": {
+      "invoice_id": 101,
+      "status": "do_zaplaty",
+      "amount_grosze": 18000,
+      "due_date": "2026-11-05",
+      "reference_date": "2026-11-13",
+      "overdue": true,
+      "days_overdue": 8
+    },
+    "evidence": [
+      {
+        "source_type": "invoice",
+        "source_id": "101",
+        "tool_call_id": "call-payment-101",
+        "data_revision": "db:synthetic-1"
+      }
+    ],
+    "error": null,
+    "data_revision": "db:synthetic-1"
+  },
+  "analysis_result": {
+    "contract_version": "1.0",
+    "task_id": "task-demo-01",
+    "model_id": "synthetic-test-model",
+    "status": "completed",
+    "findings": [
+      {
+        "finding_id": "finding-101",
+        "code": "INVOICE_OVERDUE",
+        "severity": "warning",
+        "summary": "Fikcyjna faktura za gaz jest przeterminowana o osiem dni.",
+        "verification": "verified",
+        "evidence": [
+          {
+            "source_type": "invoice",
+            "source_id": "101",
+            "tool_call_id": "call-payment-101",
+            "data_revision": "db:synthetic-1"
+          }
+        ]
+      }
+    ],
+    "proposed_actions": [
+      {
+        "action_id": "proposal-open-101",
+        "kind": "open_invoice",
+        "target_type": "invoice",
+        "target_id": "101",
+        "parameters": {},
+        "expected_data_revision": "db:synthetic-1",
+        "requires_confirmation": true,
+        "reason": "Pokazać użytkownikowi fakturę i umożliwić ręczną kontrolę."
+      }
+    ],
+    "uncertainties": [],
+    "data_revision": "db:synthetic-1",
+    "diagnostics": {
+      "duration_ms": 125,
+      "tool_calls": 1
+    }
+  },
+  "finance_case": {
+    "reference_date": "2026-11-13",
+    "currency": "PLN",
+    "invoices": [
+      {
+        "id": 101,
+        "supplier": "Fikcyjny Gaz",
+        "number": "FIK/G/101",
+        "amount_grosze": 18000,
+        "status": "do_zaplaty",
+        "paid_date": null,
+        "due_date": "2026-11-05",
+        "period_from": "2026-10-01",
+        "period_to": "2026-10-31",
+        "withdrawn": false
+      },
+      {
+        "id": 102,
+        "supplier": "Fikcyjna Energia",
+        "number": "FIK/E/102",
+        "amount_grosze": 24000,
+        "status": "do_zaplaty",
+        "paid_date": null,
+        "due_date": "2026-11-20",
+        "period_from": "2026-09-01",
+        "period_to": "2026-10-31",
+        "withdrawn": false
+      },
+      {
+        "id": 103,
+        "supplier": "Fikcyjny Czynsz",
+        "number": "FIK/C/103",
+        "amount_grosze": 95000,
+        "status": "oplacony",
+        "paid_date": "2026-11-09",
+        "due_date": "2026-11-12",
+        "period_from": "2026-10-01",
+        "period_to": "2026-10-31",
+        "withdrawn": false
+      },
+      {
+        "id": 104,
+        "supplier": "Fikcyjny Telefon",
+        "number": "FIK/T/104",
+        "amount_grosze": 7500,
+        "status": "oplacony",
+        "paid_date": null,
+        "due_date": "2026-10-15",
+        "period_from": "2026-09-01",
+        "period_to": "2026-09-30",
+        "withdrawn": false
+      },
+      {
+        "id": 105,
+        "supplier": "Fikcyjny Test Usunięcia",
+        "number": "FIK/X/105",
+        "amount_grosze": 9900,
+        "status": "do_zaplaty",
+        "paid_date": null,
+        "due_date": "2026-11-01",
+        "period_from": "2026-10-01",
+        "period_to": "2026-10-31",
+        "withdrawn": true
+      }
+    ],
+    "expected_profiles": [
+      {
+        "profile_id": 201,
+        "kind": "telefon",
+        "cycle": "2026-10",
+        "expected_from": "2026-11-01",
+        "matched_invoice_ids": []
+      }
+    ],
+    "expected": {
+      "unpaid_total_grosze": 42000,
+      "overdue_total_grosze": 18000,
+      "due_soon_7_days_grosze": 24000,
+      "cashflow_2026_11_grosze": 95000,
+      "missing_profile_ids": [
+        201
+      ]
+    }
+  }
+}

@@ -1,5 +1,8 @@
 # Świstak — założenia i etapy
 
+> **Nowy plan AI Core 1.0 (zaakceptowany 13.11.2026):** [docs/ai_core/README.md](ai_core/README.md). Jego *Etap 0* oznacza kontrakty i testy bazowe i **nie jest** historycznym „Etapem 0 — podgląd PDF” poniżej. Wcześniejsze etapy opisują historię implementacji importu; docelową architekturę agentową prowadzi osobny plan AI Core.
+
+
 ## Zasady
 - Dokumenty i baza pozostają **lokalnie**; na GitHub trafiają tylko kod, dokumentacja i syntetyczne testy.
 - Użytkownik kontroluje i zatwierdza wszystkie rozpoznane dane. Żaden model AI nie zapisuje zmian samodzielnie.

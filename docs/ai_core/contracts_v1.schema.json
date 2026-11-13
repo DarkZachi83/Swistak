@@ -1,0 +1,514 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DarkZachi83/Swistak/blob/main/docs/ai_core/contracts_v1.schema.json",
+  "title": "Świstak AI Core 1.0 — kontrakty v1",
+  "description": "Schemat komunikatów niezależnych od dostawcy LLM. Normatywny dla Etapu 0.",
+  "$defs": {
+    "Evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "source_id",
+        "tool_call_id",
+        "data_revision"
+      ],
+      "properties": {
+        "source_type": {
+          "type": "string",
+          "enum": [
+            "invoice",
+            "document",
+            "profile",
+            "cycle",
+            "tool_result",
+            "audit"
+          ]
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_call_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "code",
+        "severity",
+        "summary",
+        "verification",
+        "evidence"
+      ],
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "critical"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification": {
+          "type": "string",
+          "enum": [
+            "unverified",
+            "verified",
+            "needs_review"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      }
+    },
+    "ProposedAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "kind",
+        "target_type",
+        "target_id",
+        "parameters",
+        "expected_data_revision",
+        "requires_confirmation",
+        "reason"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "open_invoice",
+            "mark_paid",
+            "revoke_payment",
+            "edit_invoice",
+            "withdraw_invoice",
+            "restore_invoice",
+            "create_profile",
+            "confirm_cycle"
+          ]
+        },
+        "target_type": {
+          "type": "string",
+          "enum": [
+            "invoice",
+            "profile",
+            "cycle"
+          ]
+        },
+        "target_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "expected_data_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires_confirmation": {
+          "const": true
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ErrorDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "invalid_arguments",
+            "unknown_tool",
+            "permission_denied",
+            "stale_revision",
+            "provider_unavailable",
+            "timeout",
+            "cancelled",
+            "invalid_response",
+            "internal_error"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "TaskRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "task_id",
+        "role",
+        "instruction",
+        "context",
+        "allowed_tools",
+        "response_schema",
+        "data_revision",
+        "locale",
+        "timezone",
+        "limits"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "1.0"
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "main",
+            "extractor",
+            "verifier",
+            "financial_analyst",
+            "cycle_analyst"
+          ]
+        },
+        "instruction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "object"
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "response_schema": {
+          "const": "AnalysisResult"
+        },
+        "data_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locale": {
+          "type": "string",
+          "enum": [
+            "pl",
+            "en"
+          ]
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_steps",
+            "timeout_ms",
+            "max_records"
+          ],
+          "properties": {
+            "max_steps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 600000
+            },
+            "max_records": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          }
+        }
+      }
+    },
+    "ToolCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "task_id",
+        "call_id",
+        "tool_name",
+        "tool_version",
+        "arguments",
+        "data_revision"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "1.0"
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "call_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_version": {
+          "const": "1.0"
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "data_revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ToolResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "task_id",
+        "call_id",
+        "tool_name",
+        "status",
+        "data",
+        "evidence",
+        "error",
+        "data_revision"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "1.0"
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "call_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "error"
+          ]
+        },
+        "data": {
+          "type": "object"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ErrorDetail"
+            }
+          ]
+        },
+        "data_revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "AnalysisResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "task_id",
+        "model_id",
+        "status",
+        "findings",
+        "proposed_actions",
+        "uncertainties",
+        "data_revision",
+        "diagnostics"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "1.0"
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "partial",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Finding"
+          }
+        },
+        "proposed_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProposedAction"
+          }
+        },
+        "uncertainties": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "data_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "diagnostics": {
+          "type": "object"
+        }
+      }
+    },
+    "ModelProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "provider_id",
+        "model_id",
+        "roles",
+        "capabilities"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "1.0"
+        },
+        "provider_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "main",
+              "extractor",
+              "verifier",
+              "financial_analyst",
+              "cycle_analyst"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "vision",
+            "native_tools",
+            "structured_json",
+            "streaming",
+            "context_tokens"
+          ],
+          "properties": {
+            "text": {
+              "type": "boolean"
+            },
+            "vision": {
+              "type": "boolean"
+            },
+            "native_tools": {
+              "type": "boolean"
+            },
+            "structured_json": {
+              "type": "boolean"
+            },
+            "streaming": {
+              "type": "boolean"
+            },
+            "context_tokens": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
