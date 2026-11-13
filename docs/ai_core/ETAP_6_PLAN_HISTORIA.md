@@ -140,7 +140,7 @@ odmowę operacji i trzy karty interfejsu Qt.
 - [x] Rozdzielenie kompletności od finansowego zamknięcia.
 - [x] Dialogi wymagające potwierdzenia zmian; brak samodzielnych zapisów AI.
 - [x] Testy syntetyczne na istniejącym schemacie SQLite.
-- [ ] Końcowy GitHub Actions na Pythonie 3.11 i 3.13.
+- [x] GitHub Actions `43502518347`: **282 testy OK** na Pythonie 3.11 i 3.13 (commit `0f34855`).
 - [ ] Lokalny wynik Python 3.14.10.
 - [ ] Odbiór przez użytkownika.
 

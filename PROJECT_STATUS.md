@@ -6,7 +6,7 @@
 
 **Zamykanie:** kontrola wszystkich nierozstrzygniętych oczekiwań, w tym jeszcze niewymagalnych, świadome potwierdzenie pustego miesiąca i osobne potwierdzenie kompletności. Pełne rozliczenie finansowe wymaga jednocześnie opłacenia wszystkich aktywnych faktur. Brak samodzielnego zapisu LLM, nowej migracji ani zmian w OCR.
 
-**Testy:** `testy/test_finanse_stage6.py` i regresja; lokalna weryfikacja Python 3.14.10 oraz odbiór użytkownika pozostają do wykonania. [Dokumentacja i kryteria](docs/ai_core/ETAP_6_PLAN_HISTORIA.md).
+**Testy:** GitHub Actions `43502518347` — **282 testy OK na Pythonie 3.11 i 3.13** (commit `0f34855`). Lokalna weryfikacja Python 3.14.10 i odbiór użytkownika pozostają do wykonania. [Dokumentacja i kryteria](docs/ai_core/ETAP_6_PLAN_HISTORIA.md).
 
 ## AI Core 1.0 — Etap 5 (13.11.2026)
 
