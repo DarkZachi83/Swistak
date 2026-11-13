@@ -26,6 +26,7 @@ plików binarnych, bibliotek, podzespołów i modeli w *konkretnym artefakcie*.
 |---|---|---|---|---|
 | [PySide6](https://pypi.org/project/PySide6/) | `>=6.8,<7` | Qt for Python: **LGPL-3.0 / GPL-3.0 / licencja komercyjna**; dokładne warunki zależą od modułu | GUI i Qt PDF | **DO SPRAWDZENIA:** obowiązki LGPLv3 (informacje prawne, prawa dotyczące bibliotek, wymiana bibliotek, brak blokowania dozwolonego reverse engineeringu) i lista spakowanych modułów |
 | [pdfplumber](https://github.com/jsvine/pdfplumber) | `>=0.11,<1` | **MIT** | Ekstrakcja tekstu z PDF | **INFORMACYJNIE:** dołączyć wymaganą informację o prawach/licencję przy dystrybucji |
+| [jsonschema](https://pypi.org/project/jsonschema/) | `>=4.23,<5` | **MIT** | Walidacja kopert AI Core 1.0 i wyników modeli | **INFORMACYJNIE:** uwzględnić licencję w przyszłym instalatorze |
 | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | `>=5.9,<6` | **Apache-2.0 / BSD-3-Clause**, PDFium ma osobne zależności/NOTICE | Domyślna rasteryzacja skanów OCR | **DO SPRAWDZENIA:** prawa i notices binariów PDFium w konkretnym wheel |
 | [pytesseract](https://github.com/madmaze/pytesseract) | `>=0.3.13,<1` | **Apache-2.0** | Wywoływanie lokalnego silnika Tesseract | **INFORMACYJNIE:** uwzględnić notices Apache, niezależnie audytować silnik OCR |
 | [Pillow](https://python-pillow.github.io/) | `>=12.2,<14` | **MIT-CMU** | Obraz PIL przy OCR PDFium i generowanie skanów do testów | **INFORMACYJNIE:** dołączyć tekst licencji i copyright |

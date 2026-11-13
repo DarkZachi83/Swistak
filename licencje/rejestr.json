@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-12",
+  "updated": "2026-11-13",
   "license_review_branch": "proposal/licencja-home-business",
   "release_status": "NOT APPROVED FOR COMMERCIAL BUNDLE",
   "components": [
@@ -19,6 +19,14 @@
       "source_url": "https://github.com/jsvine/pdfplumber",
       "status": "notice",
       "purpose": "PDF text"
+    },
+    {
+      "name": "jsonschema",
+      "kind": "python-direct",
+      "license": "MIT",
+      "source_url": "https://pypi.org/project/jsonschema/",
+      "status": "notice",
+      "purpose": "Walidacja kontraktów AI Core według JSON Schema 2020-12"
     },
     {
       "name": "pdf2image",
