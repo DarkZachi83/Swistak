@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import threading
+from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable
 
-from .contracts import validate
+from .contracts import sanitize_result, validate
 from .errors import AICoreError, ModelUnavailable, TaskCancelled, ToolGatewayPending
 from .provider import StreamEvent
 from .router import ModelRouter
@@ -28,6 +29,7 @@ class AgentOrchestrator:
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="swistak-ai")
         self._lock = threading.RLock()
         self._futures: dict[str, Future[dict[str, Any]]] = {}
+        self._recent_ids: deque[str] = deque(maxlen=4096)
         self._cancelled: set[str] = set()
         self._active: dict[str, object] = {}
 
@@ -56,7 +58,9 @@ class AgentOrchestrator:
                 result = self._invoke(provider, binding.model_id, task, progress)
             if self._is_cancelled(task_id):
                 raise TaskCancelled("Wynik anulowanego zadania został odrzucony")
-            return result
+            # Bezpieczeństwo obowiązuje dla WSZYSTKICH adapterów, również
+            # zastępczych: nigdy nie ufaj 'verified' nadanemu przez LLM.
+            return sanitize_result(result, task, binding.model_id)
         finally:
             with self._lock:
                 self._active.pop(task_id, None)
@@ -79,6 +83,12 @@ class AgentOrchestrator:
         with self._lock:
             return task_id in self._cancelled
 
+    def _forget_future(self, task_id: str, future: Future[dict[str, Any]]) -> None:
+        with self._lock:
+            if self._futures.get(task_id) is future:
+                self._futures.pop(task_id, None)
+            self._cancelled.discard(task_id)
+
     def submit(self, task: dict[str, Any],
                progress: ProgressCallback | None = None) -> Future[dict[str, Any]]:
         validate("TaskRequest", task)
@@ -86,10 +96,12 @@ class AgentOrchestrator:
             raise ToolGatewayPending("Wywołania narzędzi uruchomimy w Etapie 2")
         task_id = task["task_id"]
         with self._lock:
-            if task_id in self._futures or task_id in self._cancelled:
+            if task_id in self._futures or task_id in self._recent_ids:
                 raise ValueError("Identyfikator zadania został już użyty")
             future = self._executor.submit(self._run, task, progress)
             self._futures[task_id] = future
+            self._recent_ids.append(task_id)
+            future.add_done_callback(lambda f, tid=task_id: self._forget_future(tid, f))
         return future
 
     def cancel(self, task_id: str) -> bool:
@@ -106,4 +118,14 @@ class AgentOrchestrator:
         return True
 
     def shutdown(self, *, wait: bool = True) -> None:
+        with self._lock:
+            ids = list(self._futures)
+        for task_id in ids:
+            self.cancel(task_id)
         self._executor.shutdown(wait=wait, cancel_futures=True)
+
+    def __enter__(self) -> "AgentOrchestrator":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.shutdown()

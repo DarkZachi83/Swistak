@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import socket
 import threading
+import time
 from typing import Any, Iterator
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -97,6 +98,11 @@ class OllamaProvider:
         with self._lock:
             self._active.pop(task_id, None)
 
+    def _forget(self, task_id: str) -> None:
+        with self._lock:
+            self._active.pop(task_id, None)
+            self._cancelled.discard(task_id)
+
     def cancel(self, task_id: str) -> None:
         with self._lock:
             self._cancelled.add(task_id)
@@ -173,31 +179,42 @@ class OllamaProvider:
 
     def generate(self, task: dict[str, Any], model_id: str) -> dict[str, Any]:
         payload = self._payload(task, model_id, stream=False)
-        data = self._request("/api/chat", payload, task_id=task["task_id"],
-                             timeout=min(self.timeout, task["limits"]["timeout_ms"] / 1000))
-        if self._is_cancelled(task["task_id"]):
-            raise TaskCancelled("Zadanie zostało anulowane")
-        message = data.get("message")
-        if not isinstance(message, dict):
-            raise InvalidResponse("Ollama nie zwróciła wiadomości")
-        if message.get("tool_calls"):
-            raise ToolGatewayPending("Wywoływanie narzędzi nie jest jeszcze dostępne")
-        if not isinstance(message.get("content"), str):
-            raise InvalidResponse("Brak tekstowej odpowiedzi modelu")
-        return self._parse_answer(message["content"], task, model_id)
+        task_id = task["task_id"]
+        start = time.monotonic()
+        max_seconds = task["limits"]["timeout_ms"] / 1000
+        try:
+            data = self._request("/api/chat", payload, task_id=task_id,
+                                 timeout=min(self.timeout, max_seconds))
+            if self._is_cancelled(task_id):
+                raise TaskCancelled("Zadanie zostało anulowane")
+            if time.monotonic() - start > max_seconds:
+                raise TaskTimeout("Przekroczono całkowity czas analizy")
+            message = data.get("message")
+            if not isinstance(message, dict):
+                raise InvalidResponse("Ollama nie zwróciła wiadomości")
+            if message.get("tool_calls"):
+                raise ToolGatewayPending("Wywoływanie narzędzi nie jest jeszcze dostępne")
+            if not isinstance(message.get("content"), str):
+                raise InvalidResponse("Brak tekstowej odpowiedzi modelu")
+            return self._parse_answer(message["content"], task, model_id)
+        finally:
+            self._forget(task_id)
 
     def stream(self, task: dict[str, Any], model_id: str) -> Iterator[StreamEvent]:
         payload = self._payload(task, model_id, stream=True)
         task_id = task["task_id"]
-        response = self._request("/api/chat", payload, task_id=task_id,
-                                 streaming=True,
-                                 timeout=min(self.timeout, task["limits"]["timeout_ms"] / 1000))
+        start = time.monotonic()
+        max_seconds = task["limits"]["timeout_ms"] / 1000
         parts: list[str] = []
         total = 0
         done = False
         try:
+            response = self._request("/api/chat", payload, task_id=task_id,
+                                     streaming=True, timeout=min(self.timeout, max_seconds))
             with response:
                 while not done:
+                    if time.monotonic() - start > max_seconds:
+                        raise TaskTimeout("Przekroczono całkowity czas analizy")
                     if self._is_cancelled(task_id):
                         raise TaskCancelled("Zadanie zostało anulowane")
                     line = response.readline(MAX_STREAM_LINE + 1)
@@ -239,4 +256,4 @@ class OllamaProvider:
                 raise TaskTimeout("Przekroczono czas strumienia Ollamy") from exc
             raise ModelUnavailable("Strumień Ollamy został przerwany") from exc
         finally:
-            self._release(task_id)
+            self._forget(task_id)

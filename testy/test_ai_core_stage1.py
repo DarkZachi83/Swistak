@@ -223,6 +223,23 @@ class StubProvider:
 
 
 class TestRoutingAndOrchestration(unittest.TestCase):
+    def test_orchestrator_weryfikuje_kazdy_adapter(self):
+        mock = StubProvider()
+        router = ModelRouter({"local": mock}, ModelBinding("local", "main-model"))
+        with AgentOrchestrator(router) as agent:
+            result = agent.submit(task(task_id="boundary")).result(timeout=3)
+        self.assertEqual(result["findings"][0]["verification"], "unverified")
+        self.assertEqual(result["findings"][0]["evidence"], [])
+
+    def test_zakonczenie_zadania_zwalnia_rejestr(self):
+        mock = StubProvider()
+        router = ModelRouter({"local": mock}, ModelBinding("local", "main-model"))
+        with AgentOrchestrator(router) as agent:
+            agent.submit(task(task_id="completed-1")).result(timeout=3)
+            self.assertEqual(len(agent._futures), 0)
+            with self.assertRaises(ValueError):
+                agent.submit(task(task_id="completed-1"))
+
     def test_dwa_modele_ten_sam_kontrakt(self):
         outputs = []
         for model in ("driver-a", "driver-b"):
