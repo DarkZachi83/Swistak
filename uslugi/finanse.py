@@ -230,6 +230,14 @@ class Finanse:
         ).fetchone()
         confirmed = bool(monthly and monthly["potwierdzono_kompletnosc"])
         unpaid = [r for r in rows if r["status"] != "oplacony"]
+        unresolved = self.db.execute(
+            "SELECT COUNT(*) FROM oczekiwane_dokumenty o "
+            "WHERE o.cykl=? AND (o.wyjatek IS NULL OR o.wyjatek='niepewne') "
+            "AND NOT EXISTS (SELECT 1 FROM powiazania_oczekiwanych l "
+            "JOIN rachunki r ON r.id=l.rachunek_id "
+            "WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL)",
+            (cykl,),
+        ).fetchone()[0]
         missing = self.db.execute(
             "SELECT COUNT(*) FROM oczekiwane_dokumenty o "
             "JOIN profile_rachunkow p ON p.id=o.profil_id "
@@ -244,8 +252,8 @@ class Finanse:
             "cycle": cykl, "finished": month_ended, "documents_confirmed": confirmed,
             "invoice_count": len(rows), "unpaid_count": len(unpaid),
             "unpaid_grosze": sum(int(r["kwota_grosze"]) for r in unpaid),
-            "missing_expected": missing,
-            "closed": bool(month_ended and confirmed and not unpaid and not missing),
+            "missing_expected": missing, "unresolved_expected": unresolved,
+            "closed": bool(month_ended and confirmed and not unpaid and not unresolved),
         }
 
     def potwierdz_kompletnosc(
@@ -260,8 +268,8 @@ class Finanse:
             assessment = self.ocena_cyklu(cykl, dzisiaj=dzisiaj)
             if not assessment["finished"]:
                 raise ValueError("Nie można zamknąć bieżącego lub przyszłego miesiąca")
-            if assessment["missing_expected"]:
-                raise ValueError("Najpierw rozstrzygnij brakujące dokumenty")
+            if assessment["unresolved_expected"]:
+                raise ValueError("Najpierw rozstrzygnij wszystkie oczekiwane dokumenty")
             if not assessment["invoice_count"] and not brak_rachunkow:
                 raise ValueError("Pusty miesiąc wymaga świadomego potwierdzenia braku rachunków")
             before = self.db.execute(

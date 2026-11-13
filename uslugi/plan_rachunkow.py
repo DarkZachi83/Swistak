@@ -132,6 +132,65 @@ class PlanRachunkow:
                 )
             return wersja
 
+    def ustaw_aktywnosc(self, profil_id: int, aktywny: bool, *, powod: str) -> None:
+        """Wstrzymanie profilu nie usuwa historycznych oczekiwań ani faktur."""
+        if type(profil_id) is not int or profil_id <= 0 or not powod.strip():
+            raise ValueError("Zmiana profilu wymaga identyfikatora i powodu")
+        if type(aktywny) is not bool:
+            raise ValueError("Niepoprawny stan profilu")
+        with transakcja(self.db):
+            row = self.db.execute(
+                "SELECT id,aktywny FROM profile_rachunkow WHERE id=?",
+                (profil_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Nie znaleziono profilu")
+            if bool(row["aktywny"]) == aktywny:
+                return
+            self.db.execute(
+                "UPDATE profile_rachunkow SET aktywny=? WHERE id=?",
+                (int(aktywny),profil_id),
+            )
+            zdarzenie(self.db, "profile", profil_id, "zmiana_aktywnosci",
+                      przed={"aktywny":bool(row["aktywny"])},
+                      po={"aktywny":aktywny}, powod=powod)
+            if aktywny:
+                # Aktywowanie zatwierdzonych profili może podważyć
+                # potwierdzenia miesięcy, dla których odtąd są oczekiwane.
+                start = self.db.execute(
+                    "SELECT MIN(cykl_od) FROM harmonogramy_rachunkow WHERE profil_id=?",
+                    (profil_id,),
+                ).fetchone()[0]
+                for existing in self.db.execute(
+                    "SELECT cykl FROM cykle_rozliczeniowe "
+                    "WHERE potwierdzono_kompletnosc=1 AND cykl>=?",(start,),
+                ).fetchall():
+                    uniewaznij_kompletnosc(
+                        self.db, existing["cykl"],
+                        "Wznowiono profil " + str(profil_id)
+                    )
+
+    def anuluj_wyjatek(self, oczekiwany_id: int, *, powod: str) -> None:
+        if type(oczekiwany_id) is not int or oczekiwany_id <= 0 or not powod.strip():
+            raise ValueError("Wymagany identyfikator oczekiwania i powód")
+        with transakcja(self.db):
+            row = self.db.execute(
+                "SELECT * FROM oczekiwane_dokumenty WHERE id=?",
+                (oczekiwany_id,),
+            ).fetchone()
+            if row is None or row["wyjatek"] is None:
+                raise ValueError("Oczekiwanie nie ma wyjątku do cofnięcia")
+            self.db.execute(
+                "UPDATE oczekiwane_dokumenty SET wyjatek=NULL,powod_wyjatku=NULL "
+                "WHERE id=?", (oczekiwany_id,)
+            )
+            zdarzenie(self.db,"expectation",oczekiwany_id,"cofniecie_wyjatku",
+                      przed={"wyjatek":row["wyjatek"]},
+                      po={"wyjatek":None},powod=powod)
+            uniewaznij_kompletnosc(
+                self.db,row["cykl"],"Cofnięto wyjaśnienie oczekiwania"
+            )
+
     def generuj_oczekiwania(self, cykl: str) -> list[int]:
         """Idempotentnie utwórz oczekiwania dla zatwierdzonych profili.
 
@@ -206,10 +265,16 @@ class PlanRachunkow:
                 "SELECT * FROM oczekiwane_dokumenty WHERE id=?", (oczekiwany_id,),
             ).fetchone()
             invoice = self.db.execute(
-                "SELECT id,wycofano_utc FROM rachunki WHERE id=?", (rachunek_id,),
+                "SELECT id,wycofano_utc,okres_do,data_wystawienia "
+                "FROM rachunki WHERE id=?", (rachunek_id,),
             ).fetchone()
             if expected is None or invoice is None or invoice["wycofano_utc"]:
                 raise ValueError("Oczekiwanie lub aktywna faktura nie istnieje")
+            from uslugi.finanse import cykl_faktury
+            if cykl_faktury(invoice) != expected["cykl"]:
+                raise ValueError("Nie można powiązać faktury z innym miesiącem")
+            if expected["wyjatek"] == "nie_wystawiono":
+                raise ValueError("Cofnij wyjątek »nie wystawiono« przed powiązaniem")
             cursor = self.db.execute(
                 "INSERT OR IGNORE INTO powiazania_oczekiwanych(oczekiwany_id,rachunek_id) "
                 "VALUES (?,?)", (oczekiwany_id,rachunek_id),
