@@ -1,8 +1,13 @@
-# Świstak AI Core 1.0 — Etap 0
+# Świstak AI Core 1.0 — architektura i zrealizowane etapy 0–8
 
-**Status:** specyfikacja AI Core 1.0 zaakceptowana przez autora 13.11.2026; dokumenty kontraktowe Etapu 0 są podstawą implementacji.  
-**Źródło wymagań:** zatwierdzony dokument „Świstak AI Core 1.0 — Specyfikacja architektury i plan implementacji”.  
-**Zakres Etapu 0:** wyłącznie kontrakty i testy bazowe — nie implementujemy jeszcze adaptera, orkiestratora, Tool Gateway ani migracji SQLite.
+**Stan na 14.11.2026:** implementacja AI Core 1.0 i automatyczna regresja
+zakończone, pozostaje lokalny odbiór na Pythonie 3.14.10 i realnej Ollamie.
+Kontrakty v1 zatwierdzono 13.11.2026. Ten katalog dokumentuje zarówno
+oryginalne kontrakty, jak i ich implementację, a nie wyłącznie przyszły plan.
+
+**Zamknięcie AI Core:** [Etap 8 — audyt, integracja i wydanie](ETAP_8_ZAMKNIECIE.md).  
+**Dalszy rozwój:** [Plan głównego menu i statystyk](../PLAN_ROZWOJU_GUI.md).
+
 
 ## Gdzie czego szukać
 
@@ -35,9 +40,13 @@
 | 5 | Agent hybrydowy i Pulpit |
 | 6 | Plan rachunków i Historia |
 | 7 | Modele specjalistyczne |
-| 8 | Integracja, bezpieczeństwo, odbiór |
+| **8** | **Integracja, bezpieczeństwo, odbiór — zakończone w kodzie/CI** |
 
 Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowania i testów kompatybilności. Dokumentacja nie oznacza, że opisywane funkcje już działają.
+
+## Etap 8 — zamknięcie AI Core 1.0
+
+[Audyt, paczki Linux, end-to-end, testy i kryteria odbioru](ETAP_8_ZAMKNIECIE.md).
 
 ## Etap 7 — opcjonalne modele specjalistyczne
 
@@ -67,4 +76,7 @@ Zmiana kontraktu v1 po rozpoczęciu implementacji wymaga świadomego wersjonowan
 
 [Ollama, router, orkiestrator, testy i kryteria odbioru](ETAP_1_OLLAMA.md).
 
-Adaptery i orkiestrator znajdują się w `ai_core/`. Nie są jeszcze podłączone do GUI i nie mają dostępu do narzędzi bazy — ten dostęp powstanie w Etapie 2.
+Adaptery i orkiestrator znajdują się w `ai_core/` i są podłączone do GUI.
+Tool Gateway od etapu 2 udostępnia wyłącznie kontrolowane narzędzia odczytu.
+AI Core 1.0 działa również w trybie bez Ollamy; zmiany finansowe wykonują
+tylko istniejące usługi po świadomym działaniu użytkownika.

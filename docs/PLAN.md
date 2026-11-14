@@ -1,5 +1,9 @@
 # Świstak — założenia i etapy
 
+> **Stan na 14.11.2026:** AI Core 1.0 zrealizowano w etapach 0–8.
+> Następny plan: [Pulpit, menu główne, statystyki i integracja GUI](PLAN_ROZWOJU_GUI.md).
+> Nie myl historycznego numerowania etapów PDF z etapami AI Core.
+
 > **Nowy plan AI Core 1.0 (zaakceptowany 13.11.2026):** [docs/ai_core/README.md](ai_core/README.md). Jego *Etap 0* oznacza kontrakty i testy bazowe i **nie jest** historycznym „Etapem 0 — podgląd PDF” poniżej. Wcześniejsze etapy opisują historię implementacji importu; docelową architekturę agentową prowadzi osobny plan AI Core.
 
 

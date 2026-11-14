@@ -187,6 +187,15 @@ Aktualny kod jest udostępniany na warunkach **[PolyForm Noncommercial 1.0.0](LI
 
 Szczegóły: [model licencjonowania](docs/LICENCJONOWANIE.md) · [licencje zależności](THIRD_PARTY_LICENSES.md) · [rejestr zależności](licencje/rejestr.json).
 
-## Świstak AI Core 1.0 — zatwierdzony projekt przyszłej architektury
+## Świstak AI Core 1.0 — wdrożona architektura
 
-[Dokumentacja Etapu 0, kontrakty v1 i plan implementacji](docs/ai_core/README.md). LLM-first: jeden model główny, opcjonalne role specjalistyczne, wymienne adaptery i kontrolowane narzędzia SQLite. **Kontrakty są dokumentacją projektową, a nie jeszcze wdrożonym Agentem.**
+[Dokumentacja AI Core 1.0 — etapy 0–8](docs/ai_core/README.md).
+Agent hybrydowy, lokalna Ollama, cztery opcjonalne role specjalistów,
+Tool Gateway (12 kontrolowanych narzędzi odczytu), finanse SQLite,
+Plan i Historia są już w kodzie. **Implementacja i automatyczna regresja
+AI Core 1.0 są ukończone; lokalny odbiór i wydanie produkcyjne to
+odrębne kroki.**
+
+**Następne prace:** [Główne menu, pulpit Świstaka i statystyki](docs/PLAN_ROZWOJU_GUI.md).
+Obecny interfejs to głównie kreator faktury; pulpit i wykresy
+**nie zostały jeszcze wdrożone**.

@@ -1,5 +1,22 @@
 # Świstak — PROJECT_STATUS
 
+## AI Core 1.0 — Etap 8 (14.11.2026)
+
+**Kod i CI ukończone.** Audyt bezpieczeństwa i kompletności paczek,
+naprawa źródłowej paczki Linux (katalog `ai_core` i schematy JSON)
+oraz pakowania PyInstaller (schematy `docs/ai_core`),
+test importu z izolowanego `tar.gz`, syntetyczny przepływ
+od sugestii modelu do ręcznego zapisu i miesięcznego zamknięcia,
+kontrola fałszywej kwoty oraz 12 narzędzi tylko do odczytu.
+`tools/audyt_ai_core.py --check` jest uruchamiany w każdym CI.
+Lokalny Python 3.14.10 i prawdziwa Ollama wymagają odbioru użytkownika.
+Nie wydano jeszcze oficjalnego pakietu binarnego.
+[Dokumentacja](docs/ai_core/ETAP_8_ZAMKNIECIE.md).
+
+**Kolejne kroki nie dotyczą nowego etapu AI Core:** [GUI-1 → GUI-4](docs/PLAN_ROZWOJU_GUI.md)
+— pulpit i menu, statystyki, integracja, dopracowanie. Aktualny ekran
+6 kroków pozostaje kreatorem faktur.
+
 ## Ustawienia — lokalne wyszukiwanie modeli na wzór AI Bobra (13.11.2026)
 
 **Wdrożono:** edytowalną listę modeli w Ustawieniach, przycisk „Szukaj modeli lokalnych…”, wyszukiwanie standardowych lokalizacji lub wybranego folderu, zapamiętanie folderu w `settings.json`, asynchroniczny skan ograniczony liczbą plików i głębokością. Wyszukiwarka rozpoznaje Ollamę przez localhost `/api/tags`, magazyny manifestów Ollamy, GGUF oraz katalogi tekstowych modeli Transformers (HF) z `config.json` i wagami. Tylko model widoczny w działającej lokalnej Ollamie można wybrać bezpośrednio; pliki dyskowe nie są automatycznie importowane ani uruchamiane. Nie zmieniano bazy, OCR ani Agenta.
