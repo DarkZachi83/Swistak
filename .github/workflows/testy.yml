@@ -23,6 +23,8 @@ jobs:
         run: pip install -r requirements-compare.txt
       - name: Audyt deklarowanych zależności i ich rejestru
         run: python -m tools.audyt_licencji --check
+      - name: Audyt bezpieczeństwa i kompletności wydania AI Core 1.0
+        run: python -m tools.audyt_ai_core --check
       - name: Wykaz plików licencyjnych i binarnych PDFium
         run: python -m tools.sprawdz_pdfium --json raport_licencje_pdfium.json
       - uses: actions/upload-artifact@v4
