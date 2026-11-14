@@ -24,8 +24,10 @@ ROOT_FILES = (
     "NOTICE.md", "THIRD_PARTY_LICENSES.md",
     "licencje/rejestr.json", "assets/branding/swistak-banner.jpeg",
     "docs/LINUX_BETA.md", "docs/LICENCJONOWANIE.md",
+    "docs/ai_core/contracts_v1.schema.json", "docs/ai_core/tools_v1.json",
 )
 DIRECTORIES = {
+    "ai_core": frozenset({".py"}),
     "baza": frozenset({".py", ".sql"}),
     "gui": frozenset({".py"}),
     "uslugi": frozenset({".py"}),
@@ -62,6 +64,16 @@ def manifest() -> dict[str, Path]:
         raise FileNotFoundError("Brak migracji SQL; pakiet nie może działać.")
     if not {"i18n/pl.json", "i18n/en.json"}.issubset(files):
         raise FileNotFoundError("Brak polskich lub angielskich tłumaczeń.")
+    # AI Core 1.0 używa schematów odczytywanych z dysku w czasie pracy.
+    # Brak któregokolwiek elementu oznacza paczkę niezdolną do analizy.
+    mandatory_ai = {
+        "ai_core/contracts.py", "ai_core/gateway.py", "ai_core/ollama.py",
+        "ai_core/hybrid.py", "ai_core/router.py", "ai_core/orchestrator.py",
+        "docs/ai_core/contracts_v1.schema.json",
+        "docs/ai_core/tools_v1.json",
+    }
+    if not mandatory_ai.issubset(files):
+        raise FileNotFoundError("Brak plików runtime AI Core w pakiecie.")
     for target, original in PACKAGE_SCRIPTS.items():
         files[target] = _source(original)
     return files

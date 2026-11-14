@@ -38,7 +38,7 @@ jobs:
           name: raport-ocr-python-${{ matrix.python-version }}
           path: raport_ocr.json
       - name: Sprawdzenie składni
-        run: python -m compileall -q main.py baza gui uslugi testy konfiguracja.py tools wersja.py
+        run: python -m compileall -q main.py ai_core baza gui uslugi testy konfiguracja.py tools wersja.py
       - name: Zbudowanie źródłowej paczki Świstak Linux Beta
         if: matrix.python-version == '3.11'
         run: python -m tools.build_linux_beta

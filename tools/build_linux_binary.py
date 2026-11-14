@@ -26,6 +26,8 @@ BINARY_DATA = (
     ("baza/schemat", "baza/schemat"),
     ("i18n/pl.json", "i18n"),
     ("i18n/en.json", "i18n"),
+    ("docs/ai_core/contracts_v1.schema.json", "docs/ai_core"),
+    ("docs/ai_core/tools_v1.json", "docs/ai_core"),
 )
 PUBLIC_NOTICES = ("LICENSE", "NOTICE.md", "THIRD_PARTY_LICENSES.md")
 INSTALLED_PACKAGES = (

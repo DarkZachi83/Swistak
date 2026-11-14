@@ -31,6 +31,8 @@ class TestLinuxBinary(unittest.TestCase):
             self.assertIn("baza/schemat", text)
             self.assertIn("i18n/pl.json", text)
             self.assertIn("i18n/en.json", text)
+            self.assertIn("docs/ai_core/contracts_v1.schema.json", text)
+            self.assertIn("docs/ai_core/tools_v1.json", text)
             self.assertNotIn("swistak.sqlite3", text)
             self.assertNotIn(".webp", text)
             self.assertNotIn("dokumenty/", text)

@@ -35,6 +35,14 @@ class TestLinuxBeta(unittest.TestCase):
                     "i18n/en.json", "assets/branding/swistak-banner.jpeg",
                     "baza/schemat/001_start.sql",
                     "baza/schemat/002_numer_konta.sql",
+                    "baza/schemat/003_platnosci_wycofanie.sql",
+                    "baza/schemat/004_plan_rachunkow.sql",
+                    "baza/schemat/005_cykle_audyt.sql",
+                    "ai_core/contracts.py", "ai_core/gateway.py",
+                    "ai_core/hybrid.py", "ai_core/ollama.py",
+                    "ai_core/router.py", "ai_core/orchestrator.py",
+                    "docs/ai_core/contracts_v1.schema.json",
+                    "docs/ai_core/tools_v1.json",
                     "LICENSE", "NOTICE.md", "THIRD_PARTY_LICENSES.md",
                 )
                 for name in needed:
