@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from PySide6.QtGui import QPainter, QPdfWriter
+
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import HybridAgent
 from ai_core.ollama import OllamaProvider
@@ -25,6 +27,7 @@ from uslugi.analiza_ai_core import analizuj_przez_ai_core
 from uslugi.analiza_llm import POLA
 from uslugi.finanse import Finanse
 from uslugi.historia import HistoriaRozliczen
+from uslugi.odczyt_pdf import odczytaj_pdf
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow
 
 
@@ -159,6 +162,33 @@ class TestStage8SyntheticEndToEnd(unittest.TestCase):
     def tearDown(self):
         self.register.zamknij()
         self.temp.cleanup()
+
+    def test_real_synthetic_pdf_text_is_read_before_ai_without_ocr_or_auto_save(self):
+        # Test całego toru pliku: prawdziwy PDF Qt → warstwa tekstowa
+        # → schemat sugestii LLM; nie nadpisuj bazy.
+        pdf_path = self.root / "synthetic-text-layer.pdf"
+        writer = QPdfWriter(str(pdf_path))
+        writer.setResolution(72)
+        painter = QPainter(writer)
+        self.assertTrue(painter.isActive())
+        painter.drawText(100, 150, "FAKTURA SYNTETYCZNA / NIE JEST RACHUNKIEM")
+        painter.drawText(100, 185, "KWOTA FIKCYJNA: 90 PLN")
+        self.assertTrue(painter.end())
+        with patch("uslugi.odczyt_pdf._uruchom_ocr") as fallback:
+            text = odczytaj_pdf(pdf_path, z_ocr=True).tekst_dla_llm
+        fallback.assert_not_called()
+        self.assertIn("FAKTURA", text)
+        fake = FakeExtraction()
+        result = analizuj_przez_ai_core(
+            text, ["Energia", "Inne"], "local-demo",
+            provider=fake, timeout=5,
+        )
+        # Model zwrócił 174,80 mimo że dokument zawiera 90 PLN;
+        # Świstak musi oznaczyć taką sugestię jako niepotwierdzoną.
+        self.assertFalse(result.oceny["kwota_do_zaplaty"].poprawne)
+        self.assertEqual(self.register.db.execute(
+            "SELECT COUNT(*) FROM rachunki"
+        ).fetchone()[0], 0)
 
     def test_full_lifecycle_ai_suggestion_requires_manual_save_and_payment(self):
         fake = FakeExtraction()
