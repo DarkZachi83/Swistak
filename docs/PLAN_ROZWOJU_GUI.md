@@ -1,6 +1,6 @@
 # Świstak — plan następnych prac: główne menu, pulpit i statystyki
 
-**Status:** GUI-1 zaimplementowany, oczekuje na lokalny odbiór. GUI-2–GUI-4 są zaplanowane.
+**Status:** GUI-1 odebrany. GUI-2 zaimplementowany i gotowy do lokalnego odbioru. GUI-3 i GUI-4 są zaplanowane.
 
 **Repozytorium:** https://github.com/DarkZachi83/Swistak · `main`  
 **Poprzedni etap:** [AI Core 1.0 — zamknięcie etapu 8](ai_core/ETAP_8_ZAMKNIECIE.md).
@@ -12,6 +12,12 @@
 Pulpit sumuje aktywne należności w groszach. Zakres bliskich terminów obejmuje dziś i siedem kolejnych dni. Wydatki za miesiąc usługi są przypisane według końca okresu, a przy jego braku według daty wystawienia. Kwota faktycznie zapłacona w miesiącu obejmuje faktury z zapisaną datą płatności. Oczekiwania pochodzą z zapisów utworzonych w Planie dla wybranego miesiąca.
 
 Odbiór na odrębnej bazie przez `./uruchom.sh --test`: wczytaj testowy PDF, wpisz dane w formularzu i wróć do niego po przejściu przez Pulpit i Moje faktury. Zweryfikuj sumy dla zapisanych testowych faktur, przełącz PL/EN i sprawdź pulpit przy wyłączonej Ollamie.
+
+## Statystyki (GUI-2)
+
+Widok udostępnia zakres dat, grupowanie miesięczne lub roczne, podział kwot według statusu oraz wykresy słupkowe okresów, kategorii i dostawców. Dla pełnego miesiąca lub roku porównaniem jest poprzedni miesiąc lub rok kalendarzowy. Dla dowolnego zakresu porównaniem jest bezpośrednio poprzedzający go okres o tej samej liczbie dni.
+
+Podstawa „Miesiąc usługi” używa końca okresu usługi lub daty wystawienia. Podstawa „Faktyczna płatność” obejmuje opłacone faktury z zapisaną datą płatności. Filtr kategorii ogranicza kwoty do przypisanych pozycji. Brakujące przypisanie jest widoczne jako osobna pozycja, a łączna kwota faktury pochodzi z nagłówka. Do odbioru użyj bazy testowej i porównaj wynik dla faktury, której miesiąc usługi i miesiąc płatności są różne.
 
 ## Docelowe moduły nawigacji
 
@@ -31,7 +37,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 
 ## Harmonogram realizacji
 
-### GUI-1 — Menu główne i Pulpit (do odbioru)
+### GUI-1 — Menu główne i Pulpit (odebrany)
 
 - Utwórz docelową nawigację modułów i ekran startowy `Pulpit główny`.
 - Wykorzystaj obecne `QStackedWidget`/PySide6 tak, aby nie resetować
@@ -48,7 +54,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 - Kryteria: pulpit otwiera się jako pierwszy; żadna kwota nie jest zgadywana;
   kliknięcie `Nowa faktura` zachowuje cały stary proces i dane formularza.
 
-### GUI-2 — Statystyki
+### GUI-2 — Statystyki (do odbioru)
 
 - Wydatki miesięczne i roczne, porównanie okresów, kategorie/dostawcy,
   udział kategorii, płatności opłacone/nieopłacone.

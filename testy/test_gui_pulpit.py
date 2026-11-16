@@ -67,7 +67,6 @@ class TestPulpit(unittest.TestCase):
             window = self.okno()
             self.assertIs(window.moduly.currentWidget(), window.pulpit)
             self.assertTrue(window.nawigacja_glowna["dashboard"].isChecked())
-            self.assertFalse(window.nawigacja_glowna["statistics"].isEnabled())
             self.assertEqual(window.pulpit.miesiac.currentText(), "2026-11")
             for klucz, pole in window.pulpit.wartosci.items():
                 self.assertEqual(pole.text(), "0,00 zł" if klucz in window.pulpit.opisy else "0")

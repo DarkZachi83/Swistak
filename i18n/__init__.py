@@ -20,6 +20,21 @@ _cached: dict[str, dict[str, str]] = {}
 _current = DEFAULT_LANGUAGE
 _log = logging.getLogger(__name__)
 
+_CATEGORY_KEYS = {
+    "Energia elektryczna": "category.electricity",
+    "Gaz": "category.gas",
+    "Czynsz": "category.rent",
+    "Telefon": "category.phone",
+    "Fundusz remontowy": "category.renovation",
+    "Inne": "category.other",
+}
+
+
+def category_name(name: str) -> str:
+    key = _CATEGORY_KEYS.get(name)
+    return t(key) if key else name
+
+
 def system_language(env: dict | None = None) -> str:
     env = os.environ if env is None else env
     for key in ("LC_ALL", "LC_MESSAGES", "LANG"):

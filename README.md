@@ -20,6 +20,7 @@
 | Obszar | Co potrafi Świstak? |
 | --- | --- |
 | **Rejestr rachunków** | Zapisuje dane dostawcy, kwotę, kategorię, daty i pozostałe informacje w lokalnej bazie **SQLite**. Osobna zakładka **Faktury** pokazuje zapisane rekordy w tabeli: sortowanie, wyszukiwanie, filtr statusu, suma widocznych i otwieranie do edycji. |
+| **Pulpit i statystyki** | Pulpit pokazuje należności i rozliczenie miesiąca. Statystyki zestawiają wydatki według okresu, kategorii i dostawcy oraz pozwalają zmienić podstawę dat z miesiąca usługi na faktyczną płatność. |
 | **Archiwum PDF** | Przechowuje niezmienione oryginały, używa **SHA-256** do kontroli integralności i wykrywa ponowny import identycznego dokumentu. |
 | **Kopie zapasowe** | **Plik → Utwórz kopię zapasową… / Przywróć kopię zapasową…**: ZIP z migawką SQLite, PDF-ami, wzorcami z historią i ustawieniami. Manifest SHA-256, kontrola przed przywróceniem i zachowanie poprzedniego katalogu. |
 | **Wyczyszczenie danych** | **Plik → Wyczyść bazę danych…**: usunięcie faktur, archiwum PDF, własnych kategorii i wzorców po obowiązkowym backupie ZIP, sprawdzeniu jego integralności, wpisaniu frazy potwierdzającej i końcowym ostrzeżeniu. Ustawienia języka i modelu pozostają. |
@@ -196,6 +197,6 @@ Plan i Historia są już w kodzie. **Implementacja i automatyczna regresja
 AI Core 1.0 są ukończone; lokalny odbiór i wydanie produkcyjne to
 odrębne kroki.**
 
-**Następne prace:** [Główne menu, pulpit Świstaka i statystyki](docs/PLAN_ROZWOJU_GUI.md).
-Obecny interfejs to głównie kreator faktury; pulpit i wykresy
-**nie zostały jeszcze wdrożone**.
+**Rozwój interfejsu:** [plan GUI](docs/PLAN_ROZWOJU_GUI.md). Pulpit i boczne
+menu są odebrane, widok Statystyk oczekuje na lokalny odbiór. Kolejny etap
+obejmuje integrację istniejących modułów ze wspólną nawigacją.

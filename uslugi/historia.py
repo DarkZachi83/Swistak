@@ -6,7 +6,7 @@ import sqlite3
 from datetime import date
 from typing import Any
 
-from uslugi.finanse import Finanse, _data, cykl_miesiaca
+from uslugi.finanse import DATA_ROZLICZENIOWA_SQL, Finanse, _data, cykl_miesiaca
 
 
 class HistoriaRozliczen:
@@ -19,8 +19,8 @@ class HistoriaRozliczen:
             raise ValueError("Niepoprawny limit miesięcy")
         rows = self.db.execute(
             "SELECT cykl FROM ("
-            "SELECT substr(COALESCE(okres_do,data_wystawienia),1,7) AS cykl "
-            "FROM rachunki WHERE COALESCE(okres_do,data_wystawienia) IS NOT NULL "
+            f"SELECT substr({DATA_ROZLICZENIOWA_SQL},1,7) AS cykl "
+            f"FROM rachunki WHERE {DATA_ROZLICZENIOWA_SQL} IS NOT NULL "
             "UNION SELECT substr(data_oplacenia,1,7) AS cykl FROM rachunki "
             "WHERE data_oplacenia IS NOT NULL "
             "UNION SELECT cykl FROM oczekiwane_dokumenty "
@@ -37,7 +37,7 @@ class HistoriaRozliczen:
             "termin_platnosci,data_oplacenia,wycofano_utc,wersja_rekordu,"
             "okres_do,data_wystawienia "
             "FROM rachunki "
-            "WHERE substr(COALESCE(okres_do,data_wystawienia),1,7)=? "
+            f"WHERE substr({DATA_ROZLICZENIOWA_SQL},1,7)=? "
             "ORDER BY id DESC LIMIT 500",(cykl,)
         )]
 
@@ -91,7 +91,7 @@ class HistoriaRozliczen:
         """Kwoty w groszach z całego miesiąca rozliczeniowego i miesiąca płatności."""
         cykl_miesiaca(cykl)
         billed = self.db.execute(
-            """
+            f"""
             SELECT COUNT(*) FILTER (WHERE wycofano_utc IS NULL) AS billed_count,
                    COALESCE(SUM(kwota_grosze) FILTER (WHERE wycofano_utc IS NULL), 0)
                        AS billed_grosze,
@@ -100,7 +100,7 @@ class HistoriaRozliczen:
                    COALESCE(SUM(kwota_grosze) FILTER (
                        WHERE wycofano_utc IS NULL AND status='oplacony'), 0) AS paid_service_grosze,
                    COUNT(*) FILTER (WHERE wycofano_utc IS NOT NULL) AS withdrawn_count
-            FROM rachunki WHERE substr(COALESCE(okres_do,data_wystawienia),1,7)=?
+            FROM rachunki WHERE substr({DATA_ROZLICZENIOWA_SQL},1,7)=?
             """,
             (cykl,),
         ).fetchone()

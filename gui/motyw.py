@@ -49,6 +49,11 @@ def ustaw_motyw(aplikacja: QApplication) -> None:
         QLabel#pulpitTytul { font-size: 27px; font-weight: 700; }
         QLabel#pulpitSekcja { font-size: 16px; font-weight: 700; }
         QLabel#pulpitWartosc { font-size: 22px; font-weight: 700; }
+        QProgressBar#slupekStatystyk {
+            background: #292e33; border: 0; border-radius: 3px; max-height: 12px;
+            margin: 0 8px;
+        }
+        QProgressBar#slupekStatystyk::chunk { background: #3fa66b; border-radius: 3px; }
         QGraphicsView { background: #171b1f; border: 1px solid #45484b;
                         border-radius: 8px; }
         QStatusBar { background: #2b3035; }

@@ -26,6 +26,7 @@ from gui.analiza_worker import ZadanieAnalizy
 from gui.agent_worker import ZadanieMonitora
 from gui.panel_agenta import PanelAgenta
 from gui.pulpit import Pulpit
+from gui.statystyki import Statystyki
 from gui.dialog_plan_historia import DialogPlanHistoria
 from ai_core.hybrid import AgentLog, MonitorReport
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
@@ -50,7 +51,7 @@ from uslugi.czyszczenie_bazy import (
     BladCzyszczenia, przygotuj_pusta_baze, podmien_na_pusta,
     usun_poprzednie_dane,
 )
-from i18n import LANGUAGES, current_language, set_language, system_language, t
+from i18n import LANGUAGES, category_name, current_language, set_language, system_language, t
 import ustawienia
 
 
@@ -120,6 +121,8 @@ class OknoGlowne(QMainWindow):
             lambda cykl: self._open_plan_historia(historia=True, cykl=cykl)
         )
         self.pulpit.pokaz_agenta.connect(self._agent_show_panel)
+        self.statystyki = Statystyki(self.rejestr)
+        self.moduly.addWidget(self.statystyki)
         self.kreator = QScrollArea()
         self.kreator.setFrameShape(QFrame.Shape.NoFrame)
         self.kreator.setWidgetResizable(True)
@@ -260,7 +263,7 @@ class OknoGlowne(QMainWindow):
             ("dashboard", self._pokaz_pulpit),
             ("new_invoice", self._pokaz_kreator),
             ("invoices", self._pokaz_faktury),
-            ("statistics", None),
+            ("statistics", self._pokaz_statystyki),
             ("plan", self._open_plan_historia),
             ("history", lambda: self._open_plan_historia(historia=True)),
             ("agent", self._agent_show_panel),
@@ -269,11 +272,8 @@ class OknoGlowne(QMainWindow):
         ):
             przycisk = QPushButton()
             przycisk.setObjectName("otworzPlanHistoria" if klucz == "plan" else "nav_" + klucz)
-            if akcja is None:
-                przycisk.setEnabled(False)
-            else:
-                przycisk.clicked.connect(akcja)
-            if klucz in {"dashboard", "new_invoice", "invoices"}:
+            przycisk.clicked.connect(akcja)
+            if klucz in {"dashboard", "new_invoice", "invoices", "statistics"}:
                 przycisk.setCheckable(True)
                 strony.addButton(przycisk)
             self.nawigacja_glowna[klucz] = przycisk
@@ -287,6 +287,11 @@ class OknoGlowne(QMainWindow):
         self.moduly.setCurrentWidget(self.pulpit)
         self.nawigacja_glowna["dashboard"].setChecked(True)
         self.pulpit.odswiez()
+
+    def _pokaz_statystyki(self) -> None:
+        self.statystyki.odswiez()
+        self.moduly.setCurrentWidget(self.statystyki)
+        self.nawigacja_glowna["statistics"].setChecked(True)
 
     def _pokaz_kreator(self) -> None:
         # Tabela jest również ostatnim krokiem kreatora. Powrót z niej
@@ -470,14 +475,6 @@ class OknoGlowne(QMainWindow):
         "form.category", "form.issued", "form.due", "form.period_from",
         "form.period_to", "form.status", "form.notes",
     )
-    _DEFAULT_CATEGORY_KEYS = {
-        "Energia elektryczna": "category.electricity",
-        "Gaz": "category.gas",
-        "Czynsz": "category.rent",
-        "Telefon": "category.phone",
-        "Fundusz remontowy": "category.renovation",
-        "Inne": "category.other",
-    }
     _VALIDATION_KEYS = {
         "Brak danych — uzupełnij ręcznie": "validation.missing",
         "Brak potwierdzenia w tekście": "validation.evidence",
@@ -521,10 +518,7 @@ class OknoGlowne(QMainWindow):
             category_id = self.wybor_kategoria.itemData(i)
             original_name = by_id.get(category_id)
             if original_name is not None:
-                key = self._DEFAULT_CATEGORY_KEYS.get(original_name)
-                self.wybor_kategoria.setItemText(
-                    i, t(key) if key else original_name
-                )
+                self.wybor_kategoria.setItemText(i, category_name(original_name))
 
     def _build_menu(self) -> None:
         menu = self.menuBar()
@@ -1108,8 +1102,8 @@ class OknoGlowne(QMainWindow):
         self.tytul.setText(t("app.header"))
         for klucz, przycisk in self.nawigacja_glowna.items():
             przycisk.setText(t("nav." + klucz))
-        self.nawigacja_glowna["statistics"].setToolTip(t("nav.statistics_pending"))
         self.pulpit.przetlumacz()
+        self.statystyki.przetlumacz()
         self.pulpit.aktualizuj_agenta(self._agent_status_key, self._agent_report)
         self.btn_panel_agenta.setText(t("agent.open"))
         if self._agent_panel is not None:
@@ -2245,6 +2239,8 @@ class OknoGlowne(QMainWindow):
         self.tabela_faktur.odswiez()
         if self.moduly.currentWidget() is self.pulpit:
             self.pulpit.odswiez()
+        elif self.moduly.currentWidget() is self.statystyki:
+            self.statystyki.odswiez()
 
     def _wyczysc_formularz(self) -> None:
         self._message(self.nazwa_dokumentu, "doc.import_first")

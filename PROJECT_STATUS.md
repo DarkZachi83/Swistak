@@ -1,5 +1,12 @@
 # Świstak — PROJECT_STATUS
 
+## GUI — Statystyki (16.11.2026)
+
+Pulpit i boczne menu (GUI-1) przeszły lokalny odbiór. GUI-2 udostępnia
+zestawienia według dat usługi lub płatności, proste porównanie okresów,
+filtry i wykresy słupkowe z lokalnej SQLite. Widok oczekuje na lokalny
+odbiór. [Plan GUI](docs/PLAN_ROZWOJU_GUI.md).
+
 ## AI Core 1.0 — Etap 8 (14.11.2026)
 
 **Kod i CI ukończone.** Audyt bezpieczeństwa i kompletności paczek,
@@ -12,10 +19,6 @@ kontrola fałszywej kwoty oraz 12 narzędzi tylko do odczytu.
 Lokalny Python 3.14.10 i prawdziwa Ollama wymagają odbioru użytkownika.
 Nie wydano jeszcze oficjalnego pakietu binarnego.
 [Dokumentacja](docs/ai_core/ETAP_8_ZAMKNIECIE.md).
-
-**Kolejne kroki nie dotyczą nowego etapu AI Core:** [GUI-1 → GUI-4](docs/PLAN_ROZWOJU_GUI.md)
-— pulpit i menu, statystyki, integracja, dopracowanie. Aktualny ekran
-6 kroków pozostaje kreatorem faktur.
 
 ## Ustawienia — lokalne wyszukiwanie modeli na wzór AI Bobra (13.11.2026)
 

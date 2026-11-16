@@ -14,6 +14,9 @@ from typing import Any
 from baza.polaczenie import transakcja
 
 
+DATA_ROZLICZENIOWA_SQL = "COALESCE(NULLIF(okres_do,''),data_wystawienia)"
+
+
 def _data(wartosc: str) -> str:
     if not isinstance(wartosc, str) or len(wartosc) != 10:
         raise ValueError("Data musi mieć format RRRR-MM-DD")
@@ -244,7 +247,7 @@ class Finanse:
         rows = self.db.execute(
             "SELECT status,kwota_grosze FROM rachunki "
             "WHERE wycofano_utc IS NULL "
-            "AND substr(COALESCE(okres_do,data_wystawienia),1,7)=?",
+            f"AND substr({DATA_ROZLICZENIOWA_SQL},1,7)=?",
             (cykl,),
         ).fetchall()
         monthly = self.db.execute(
