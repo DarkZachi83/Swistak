@@ -1,6 +1,6 @@
 # Świstak — plan następnych prac: główne menu, pulpit i statystyki
 
-**Status:** GUI-1 i GUI-2 odebrane. GUI-3 jest gotowy do lokalnego odbioru. GUI-4 jest zaplanowany.
+**Status:** GUI-1 i GUI-2 odebrane. GUI-3 sprawdzony wstępnie. GUI-4 wdrożony. Przed wydaniem pozostaje odbiór całego przepływu na lokalnych rachunkach.
 
 **Repozytorium:** https://github.com/DarkZachi83/Swistak · `main`  
 **Poprzedni etap:** [AI Core 1.0 — zamknięcie etapu 8](ai_core/ETAP_8_ZAMKNIECIE.md).
@@ -22,6 +22,12 @@ Podstawa „Miesiąc usługi” używa końca okresu usługi lub daty wystawieni
 ## Integracja modułów (GUI-3)
 
 Moje faktury, Plan rachunków, Historia, Agent AI i Ustawienia są dostępne w głównym oknie. Plan i Historia pamiętają osobno wybrany miesiąc, a skróty na Pulpicie przekazują miesiąc lub filtr należności. Zakładka zamknięcia miesiąca jest w Historii. Otwarcie innego dokumentu wymaga potwierdzenia, jeśli formularz zawiera niezapisane zmiany. Ustawienia utrwalają zmiany po wybraniu „Zapisz”.
+
+## Dopracowanie i odbiór (GUI-4)
+
+Boczne menu pokazuje ikony w wąskim oknie, a skróty `Alt+1`–`Alt+9` odpowiadają kolejności modułów. Przy małej szerokości podgląd PDF układa się nad formularzem. Przyciski i karty zawijają się, a dłuższe widoki przewijają pionowo. `Ctrl+O` otwiera import PDF na Linuxie.
+
+Odbiór na prawdziwych rachunkach wykonaj lokalnie w `./uruchom.sh --test`, korzystając z osobnej bazy. Przejdź przez import, OCR, analizę modelem w lokalnej Ollamie, korektę i zapis. Dla rachunku z kodem sprawdź QR. Zweryfikuj ponowne rozpoznanie dostawcy, datę płatności w Historii, kwoty na Pulpicie i w Statystykach, kopię i przywrócenie oraz zamknięcie programu. Sprawdź przełączenie PL/EN podczas edycji dokumentu. Prywatne PDF-y i kopie pozostają na komputerze użytkownika.
 
 ## Docelowe moduły nawigacji
 
@@ -70,7 +76,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 - Obsłuż pustą bazę i brak wybranych danych bez wyjątku.
 - Testy obliczeń syntetycznych i poprawności filtrów.
 
-### GUI-3 — Integracja modułów i lepsza nawigacja (do odbioru)
+### GUI-3 — Integracja modułów i lepsza nawigacja (wstępnie sprawdzony)
 
 - Włącz istniejącą tabelę `Faktury` do `Moje faktury`.
 - Docelowo przenieś zawartość dialogu `Plan / Historia` do właściwych
@@ -80,7 +86,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 - Spójne przejścia z powiadomień pulpitu do konkretnej faktury, planu
   i historii; bez automatycznych zapisów lub zatwierdzeń.
 
-### GUI-4 — Dopracowanie i akceptacja
+### GUI-4 — Dopracowanie i akceptacja (testy na prawdziwych rachunkach do wykonania)
 
 - Jednolity ciemny motyw, odstępy, ikony, układ dla mniejszych okien
   i HiDPI; brak ucinanych opisów i przycisków.

@@ -7,12 +7,13 @@ from datetime import date
 
 from PySide6.QtCore import QDate, QSignalBlocker, Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDateEdit, QFormLayout, QFrame, QGridLayout,
+    QAbstractItemView, QComboBox, QDateEdit, QFormLayout, QFrame,
     QHBoxLayout, QHeaderView, QLabel, QProgressBar, QPushButton, QScrollArea,
     QSizePolicy, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from ai_core.hybrid import today_warsaw
+from gui.uklad import Siatka
 from i18n import category_name, current_language, t
 from uslugi.rachunki import RejestrRachunkow, grosze_na_kwote
 from uslugi.statystyki import BEZ_KATEGORII, StatystykiRachunkow, Suma, ZakresDat, Zestawienie
@@ -49,14 +50,17 @@ class Statystyki(QScrollArea):
         skroty.addStretch()
         uklad.addLayout(skroty)
 
-        filtry = QGridLayout()
+        filtry = Siatka(3, szerokosc=210)
         self.etykiety = []
-        for kolumna, pola in enumerate((
+        for pola in (
             (("from", self.od), ("to", self.do)),
             (("basis", self.podstawa), ("grouping", self.grupowanie)),
             (("category", self.kategoria), ("supplier", self.dostawca), ("status", self.status)),
-        )):
-            formularz = QFormLayout()
+        ):
+            grupa = QWidget()
+            formularz = QFormLayout(grupa)
+            formularz.setContentsMargins(0, 0, 0, 0)
+            formularz.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
             for klucz, pole in pola:
                 etykieta = QLabel()
                 etykieta.setBuddy(pole)
@@ -65,18 +69,17 @@ class Statystyki(QScrollArea):
                 if isinstance(pole, QComboBox):
                     pole.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
                     pole.setMinimumContentsLength(14)
-            filtry.addLayout(formularz, 0, kolumna)
-            filtry.setColumnStretch(kolumna, 1)
-        uklad.addLayout(filtry)
+            filtry.dodaj(grupa)
+        uklad.addWidget(filtry)
 
         self.opis_podstawy = QLabel()
         self.opis_podstawy.setObjectName("podpowiedz")
         self.opis_podstawy.setWordWrap(True)
         uklad.addWidget(self.opis_podstawy)
 
-        podsumowanie = QGridLayout()
+        podsumowanie = Siatka(4, szerokosc=170)
         self.karty = {}
-        for i, klucz in enumerate(("total", "paid", "unpaid", "comparison")):
+        for klucz in ("total", "paid", "unpaid", "comparison"):
             panel = QFrame()
             panel.setObjectName("pulpitKarta")
             pion = QVBoxLayout(panel)
@@ -87,9 +90,8 @@ class Statystyki(QScrollArea):
                 etykieta.setWordWrap(True)
                 pion.addWidget(etykieta)
             self.karty[klucz] = (tytul, wartosc, opis)
-            podsumowanie.addWidget(panel, 0, i)
-            podsumowanie.setColumnStretch(i, 1)
-        uklad.addLayout(podsumowanie)
+            podsumowanie.dodaj(panel)
+        uklad.addWidget(podsumowanie)
 
         self.porownanie = QLabel()
         self.porownanie.setWordWrap(True)

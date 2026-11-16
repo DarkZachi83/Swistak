@@ -14,18 +14,22 @@ from i18n import t
 from ustawienia import SPECIALIST_ROLES
 
 
-class Ustawienia(QScrollArea):
+class Ustawienia(QWidget):
     def __init__(self, katalog, zapisz):
         super().__init__()
         self.setObjectName("ustawieniaSwistaka")
-        self.setWidgetResizable(True)
-        self.setFrameShape(QFrame.Shape.NoFrame)
         self.zapisz = zapisz
         self._stan = {}
         self._zadanie = None
         self._status = ("settings.models_loading", {})
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
         tresc = QWidget()
-        self.setWidget(tresc)
+        body = QScrollArea()
+        body.setFrameShape(QFrame.Shape.NoFrame)
+        body.setWidgetResizable(True)
+        body.setWidget(tresc)
+        outer_layout.addWidget(body, 1)
         layout = QVBoxLayout(tresc)
         layout.setContentsMargins(6, 2, 8, 8)
         layout.setSpacing(12)
@@ -67,6 +71,7 @@ class Ustawienia(QScrollArea):
         self.specjalisci = QGroupBox()
         self.specjalisci.setObjectName("ustawieniaModeleSpecjalistyczne")
         roles = QFormLayout(self.specjalisci)
+        roles.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self.wybor_roli = {}
         for rola in SPECIALIST_ROLES:
             combo = QComboBox()
@@ -90,7 +95,7 @@ class Ustawienia(QScrollArea):
         )
         self.buttons.accepted.connect(self._zastosuj)
         self.buttons.rejected.connect(self._przywroc)
-        layout.addWidget(self.buttons)
+        outer_layout.addWidget(self.buttons)
         self.przetlumacz()
 
     def _etykieta(self, klucz):

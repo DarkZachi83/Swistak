@@ -1,10 +1,11 @@
 # Świstak — PROJECT_STATUS
 
-## GUI — Integracja modułów (16.11.2026)
+## GUI — Dopracowanie i stabilizacja (16.11.2026)
 
-GUI-1 i GUI-2 przeszły lokalny odbiór. GUI-3 osadza Moje faktury, Plan,
-Historię, Agenta i Ustawienia w głównym oknie oraz dodaje skróty z Pulpitu.
-Odbiór lokalny GUI-3 jest przed nami. [Plan GUI](docs/PLAN_ROZWOJU_GUI.md).
+GUI-1 i GUI-2 przeszły lokalny odbiór. Po wstępnej weryfikacji GUI-3
+dopracowano kompaktową nawigację, układ stron i obsługę HiDPI w GUI-4.
+Do wykonania jest wspólny odbiór na rzeczywistych rachunkach i lokalnej
+Ollamie. [Plan GUI i scenariusz odbioru](docs/PLAN_ROZWOJU_GUI.md).
 
 ## AI Core 1.0 — Etap 8 (14.11.2026)
 

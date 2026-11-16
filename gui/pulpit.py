@@ -7,12 +7,13 @@ from datetime import date
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
+    QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QVBoxLayout, QWidget,
 )
 
 from ai_core.hybrid import MonitorReport, today_warsaw
 from gui.panel_agenta import model_details
+from gui.uklad import Siatka
 from i18n import t
 from uslugi.finanse import Finanse
 from uslugi.historia import HistoriaRozliczen
@@ -32,7 +33,6 @@ class Pulpit(QScrollArea):
         self.rejestr = rejestr
         self.setWidgetResizable(True)
         self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         tresc = QWidget()
         self.setWidget(tresc)
@@ -115,9 +115,8 @@ class Pulpit(QScrollArea):
 
     def _karty(self, uklad, klucze: tuple[str, ...], *, opis: bool = True,
                terminy: bool = False) -> None:
-        siatka = QGridLayout()
-        siatka.setHorizontalSpacing(10)
-        for kolumna, klucz in enumerate(klucze):
+        siatka = Siatka(3, szerokosc=175)
+        for klucz in klucze:
             karta = QFrame()
             karta.setObjectName("pulpitKarta")
             pion = QVBoxLayout(karta)
@@ -130,6 +129,7 @@ class Pulpit(QScrollArea):
             pion.addStretch()
             wartosc = QLabel()
             wartosc.setObjectName("pulpitWartosc")
+            wartosc.setWordWrap(True)
             self.wartosci[klucz] = wartosc
             pion.addWidget(wartosc)
             if opis:
@@ -144,9 +144,8 @@ class Pulpit(QScrollArea):
                 )
                 przycisk.setObjectName("pulpitFaktury_" + klucz)
                 pion.addWidget(przycisk, 0, Qt.AlignmentFlag.AlignLeft)
-            siatka.addWidget(karta, 0, kolumna)
-            siatka.setColumnStretch(kolumna, 1)
-        uklad.addLayout(siatka)
+            siatka.dodaj(karta)
+        uklad.addWidget(siatka)
 
     def przetlumacz(self) -> None:
         self.naglowek.setText(t("nav.dashboard"))

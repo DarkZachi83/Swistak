@@ -197,6 +197,6 @@ Plan i Historia są już w kodzie. **Implementacja i automatyczna regresja
 AI Core 1.0 są ukończone; lokalny odbiór i wydanie produkcyjne to
 odrębne kroki.**
 
-**Rozwój interfejsu:** [plan GUI](docs/PLAN_ROZWOJU_GUI.md). Pulpit, boczne
-menu i Statystyki są odebrane. Integracja pozostałych modułów w głównym oknie
-oczekuje na lokalny odbiór.
+**Rozwój interfejsu:** [plan GUI i scenariusz odbioru](docs/PLAN_ROZWOJU_GUI.md).
+Moduły są dostępne w głównym oknie, a skróty `Alt+1`–`Alt+9` odpowiadają
+kolejności menu bocznego. Przed wydaniem pozostał odbiór na rzeczywistych rachunkach.

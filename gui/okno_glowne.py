@@ -8,13 +8,13 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThreadPool, QTimer
-from PySide6.QtGui import QAction, QActionGroup, QCursor
+from PySide6.QtCore import QEvent, QSize, Qt, QThreadPool, QTimer
+from PySide6.QtGui import QAction, QActionGroup, QCursor, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QButtonGroup, QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
-    QPushButton, QProgressBar, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
+    QPushButton, QProgressBar, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QStyle, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QToolButton, QVBoxLayout,
     QWidget, QComboBox, QTabWidget,
 )
 
@@ -43,6 +43,7 @@ from gui.ustawienia import Ustawienia
 from gui.dialog_kategorie import DialogKategorie
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
+from gui.uklad import Siatka
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from uslugi.kopie_zapasowe import (
     BladKopii, utworz_kopie, przygotuj_przywracanie, podmien_dane,
@@ -100,16 +101,17 @@ class OknoGlowne(QMainWindow):
         self._agent_timer = QTimer(self)
         self._agent_timer.setSingleShot(True)
         self._agent_timer.timeout.connect(lambda: self._agent_submit("startup"))
-        self.setWindowTitle("Świstak — rachunki i analiza AI (etap 3)")
-        self.resize(1450, 860)
-        self.setMinimumSize(990, 570)
+        self.setMinimumSize(600, 400)
+        ekran = self.screen().availableGeometry()
+        self.resize(min(1450, ekran.width() - 48), min(860, ekran.height() - 70))
 
         centrum = QWidget()
         self.setCentralWidget(centrum)
         uklad = QHBoxLayout(centrum)
-        uklad.setContentsMargins(15, 14, 15, 14)
-        uklad.setSpacing(14)
-        uklad.addWidget(self._zbuduj_menu_boczne())
+        uklad.setContentsMargins(10, 10, 10, 10)
+        uklad.setSpacing(10)
+        self.menu_boczne = self._zbuduj_menu_boczne()
+        uklad.addWidget(self.menu_boczne)
 
         self.moduly = QStackedWidget()
         uklad.addWidget(self.moduly, 1)
@@ -137,15 +139,21 @@ class OknoGlowne(QMainWindow):
 
         pasek = QFrame()
         pasek.setObjectName("pasek")
-        przyciski = QHBoxLayout(pasek)
-        przyciski.setContentsMargins(10, 8, 10, 8)
-        przyciski.setSpacing(7)
+        pasek_uklad = QVBoxLayout(pasek)
+        pasek_uklad.setContentsMargins(8, 7, 8, 7)
+        grupy_pdf = Siatka(3, szerokosc=240)
+        pasek_uklad.addWidget(grupy_pdf)
 
         self.otworz_przycisk = QPushButton("Importuj PDF")
         self.otworz_przycisk.clicked.connect(self.wybierz_plik)
-        przyciski.addWidget(self.otworz_przycisk)
+        grupy_pdf.dodaj(self.otworz_przycisk)
 
-        self.poprzednia = QPushButton("◀ Poprzednia")
+        strony_panel = QWidget()
+        przyciski = QHBoxLayout(strony_panel)
+        przyciski.setContentsMargins(0, 0, 0, 0)
+
+        self.poprzednia = QPushButton()
+        self.poprzednia.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack))
         self.poprzednia.clicked.connect(lambda: self._zmien_strone(-1))
         przyciski.addWidget(self.poprzednia)
 
@@ -154,10 +162,12 @@ class OknoGlowne(QMainWindow):
         self.strony.setAlignment(Qt.AlignmentFlag.AlignCenter)
         przyciski.addWidget(self.strony)
 
-        self.nastepna = QPushButton("Następna ▶")
+        self.nastepna = QPushButton()
+        self.nastepna.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward))
         self.nastepna.clicked.connect(lambda: self._zmien_strone(1))
         przyciski.addWidget(self.nastepna)
-        przyciski.addStretch()
+        grupy_pdf.dodaj(strony_panel)
+        powiekszenie = Siatka(4)
         for etykieta, akcja in (
             ("−", lambda: self.podglad.powieksz(0.8)),
             ("+", lambda: self.podglad.powieksz(1.25)),
@@ -170,26 +180,18 @@ class OknoGlowne(QMainWindow):
                 self.btn_szerokosc = przycisk
             if etykieta == "Dopasuj":
                 self.btn_dopasuj = przycisk
-            przyciski.addWidget(przycisk)
+            powiekszenie.dodaj(przycisk)
+        grupy_pdf.dodaj(powiekszenie)
         pion.addWidget(pasek)
 
-        obszar_pracy = QHBoxLayout()
+        obszar_pracy = QVBoxLayout()
         obszar_pracy.setSpacing(10)
+        self.obszar_pracy = obszar_pracy
 
         # Stała, pionowa nawigacja z etykietami poziomo (jak w menedżerach PDF).
         pasek_etapow = QFrame()
         pasek_etapow.setObjectName("etapyPanel")
-        pasek_etapow.setFixedWidth(182)
-        pasek_etapow.setStyleSheet("""
-            QFrame#etapyPanel { background: #292e33; border-radius: 8px; }
-            QListWidget#etapyMenu { background: transparent; border: none;
-                                   outline: 0; color: #e4e7e9; }
-            QListWidget#etapyMenu::item { padding: 13px 8px; margin: 2px;
-                                         border-radius: 5px; }
-            QListWidget#etapyMenu::item:selected { background: #305643;
-                                                    color: #f0fff5; }
-            QListWidget#etapyMenu::item:hover { background: #3a4248; }
-        """)
+        self.pasek_etapow = pasek_etapow
         uklad_etapow = QVBoxLayout(pasek_etapow)
         uklad_etapow.setContentsMargins(7, 12, 7, 12)
         self.tytul_etapow = QLabel()
@@ -198,6 +200,7 @@ class OknoGlowne(QMainWindow):
         self.nawigacja = QListWidget()
         self.nawigacja.setObjectName("etapyMenu")
         self.nawigacja.setSpacing(3)
+        self.nawigacja.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.nawigacja.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         for _ in self.ETAPY:
             self.nawigacja.addItem("")
@@ -207,13 +210,12 @@ class OknoGlowne(QMainWindow):
         dzielnik = QSplitter(Qt.Orientation.Horizontal)
         self.dzielnik = dzielnik
         self.podglad = PodgladPDF()
-        self.podglad.setMinimumWidth(270)
+        self.podglad.setMinimumSize(190, 190)
         self.podglad.zaznaczono.connect(self._zaznaczenie)
         self.podglad.zmiana_strony.connect(self._aktualizuj_nawigacje)
         dzielnik.addWidget(self.podglad)
 
         self.karty = QStackedWidget()
-        self.karty.setMinimumWidth(420)
         self.karty.addWidget(self._zbuduj_odczyt())
         self.karty.addWidget(self._zbuduj_analize())
         self.karty.addWidget(self._zbuduj_formularz())
@@ -236,6 +238,7 @@ class OknoGlowne(QMainWindow):
 
         self.opis_zaznaczenia = QLabel("Zaznacz fragment PDF lewym przyciskiem myszy.")
         self.opis_zaznaczenia.setObjectName("podpowiedz")
+        self.opis_zaznaczenia.setWordWrap(True)
         pion.addWidget(self.opis_zaznaczenia)
         self._status("msg.status")
         self._aktualizuj_nawigacje(0, 0)
@@ -262,9 +265,16 @@ class OknoGlowne(QMainWindow):
         self.moduly.addWidget(self.ustawienia)
 
         self._build_menu()
+        self._menu_skroty = []
+        for numer, (klucz, przycisk) in enumerate(self.nawigacja_glowna.items(), 1):
+            akcja = QAction(self)
+            akcja.setShortcut(QKeySequence(f"Alt+{numer}"))
+            akcja.triggered.connect(przycisk.click)
+            self.addAction(akcja)
+            self._menu_skroty.append((klucz, przycisk, akcja))
         self._retranslate_ui()
 
-    def _zbuduj_menu_boczne(self) -> QFrame:
+    def _zbuduj_menu_boczne(self) -> QScrollArea:
         panel = QFrame()
         panel.setObjectName("menuBoczne")
         uklad = QVBoxLayout(panel)
@@ -273,22 +283,27 @@ class OknoGlowne(QMainWindow):
         self.tytul = QLabel()
         self.tytul.setObjectName("naglowek")
         uklad.addWidget(self.tytul)
-        uklad.addSpacing(10)
+        uklad.addSpacing(4)
 
         self.nawigacja_glowna = {}
+        ikony = QStyle.StandardPixmap
         strony = QButtonGroup(panel)
-        for klucz, akcja in (
-            ("dashboard", self._pokaz_pulpit),
-            ("new_invoice", self._pokaz_kreator),
-            ("invoices", lambda: self._pokaz_faktury()),
-            ("statistics", self._pokaz_statystyki),
-            ("plan", self._open_plan_historia),
-            ("history", lambda: self._open_plan_historia(historia=True)),
-            ("agent", self._agent_show_panel),
-            ("settings", self._open_settings),
-            ("about", self._about),
+        for klucz, akcja, ikona, standard in (
+            ("dashboard", self._pokaz_pulpit, "go-home", ikony.SP_DesktopIcon),
+            ("new_invoice", self._pokaz_kreator, "document-new", ikony.SP_FileIcon),
+            ("invoices", lambda: self._pokaz_faktury(), "folder", ikony.SP_DirIcon),
+            ("statistics", self._pokaz_statystyki, "office-chart-bar", ikony.SP_ComputerIcon),
+            ("plan", self._open_plan_historia, "view-calendar", ikony.SP_FileDialogDetailedView),
+            ("history", lambda: self._open_plan_historia(historia=True),
+             "document-open-recent", ikony.SP_BrowserReload),
+            ("agent", self._agent_show_panel, "system-search", ikony.SP_MessageBoxQuestion),
+            ("settings", self._open_settings, "preferences-system", ikony.SP_FileDialogContentsView),
+            ("about", self._about, "help-about", ikony.SP_MessageBoxInformation),
         ):
-            przycisk = QPushButton()
+            przycisk = QToolButton()
+            przycisk.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            przycisk.setIcon(QIcon.fromTheme(ikona, self.style().standardIcon(standard)))
+            przycisk.setIconSize(QSize(18, 18))
             przycisk.setObjectName("otworzPlanHistoria" if klucz == "plan" else "nav_" + klucz)
             przycisk.clicked.connect(akcja)
             if klucz != "about":
@@ -299,7 +314,65 @@ class OknoGlowne(QMainWindow):
         self.nawigacja_glowna["dashboard"].setChecked(True)
         self.btn_plan_historia = self.nawigacja_glowna["plan"]
         uklad.addStretch()
-        return panel
+        przewijanie = QScrollArea()
+        przewijanie.setFrameShape(QFrame.Shape.NoFrame)
+        przewijanie.setWidgetResizable(True)
+        przewijanie.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        przewijanie.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        przewijanie.setWidget(panel)
+        return przewijanie
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if hasattr(self, "_menu_skroty"):
+            self._dopasuj_uklad()
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        if event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            if hasattr(self, "_menu_skroty"):
+                self._dopasuj_uklad()
+
+    def _dopasuj_uklad(self) -> None:
+        compact = self.width() < 1000
+        self.menu_boczne.widget().layout().setSpacing(2 if compact else 5)
+        self.menu_boczne.widget().layout().setContentsMargins(9, 5 if compact else 14, 9, 5)
+        for przycisk in self.nawigacja_glowna.values():
+            przycisk.setToolButtonStyle(
+                Qt.ToolButtonStyle.ToolButtonIconOnly if compact
+                else Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+            )
+        self.tytul.setVisible(not compact)
+        max_width = max(b.sizeHint().width() for b in self.nawigacja_glowna.values())
+        self.menu_boczne.setFixedWidth(max_width + 22 + self.style().pixelMetric(
+            QStyle.PixelMetric.PM_ScrollBarExtent
+        ))
+        width = self.width() - self.menu_boczne.width()
+        kierunek = Qt.Orientation.Vertical if width < 830 else Qt.Orientation.Horizontal
+        if self.dzielnik.orientation() != kierunek:
+            self.dzielnik.setOrientation(kierunek)
+            self.dzielnik.setSizes([390, 520])
+        pionowy = kierunek == Qt.Orientation.Vertical
+        self.obszar_pracy.setDirection(
+            QVBoxLayout.Direction.TopToBottom if pionowy
+            else QVBoxLayout.Direction.LeftToRight
+        )
+        self.tytul_etapow.setVisible(not pionowy)
+        self.nawigacja.setFlow(QListWidget.Flow.LeftToRight if pionowy else QListWidget.Flow.TopToBottom)
+        self.nawigacja.setWrapping(pionowy)
+        self._dopasuj_etapy()
+
+    def _dopasuj_etapy(self) -> None:
+        metryka = self.nawigacja.fontMetrics()
+        szerokosc = max(metryka.horizontalAdvance(t(klucz)) for klucz in self.ETAPY)
+        if self.dzielnik.orientation() == Qt.Orientation.Vertical:
+            self.pasek_etapow.setMinimumWidth(0)
+            self.pasek_etapow.setMaximumWidth(16777215)
+            self.nawigacja.setFixedHeight((metryka.height() + 25) * 2)
+        else:
+            self.pasek_etapow.setFixedWidth(max(170, szerokosc + 57))
+            self.nawigacja.setMinimumHeight(0)
+            self.nawigacja.setMaximumHeight(16777215)
 
     def _pokaz_modul(self, klucz: str, widok: QWidget) -> None:
         self.moduly.setCurrentWidget(widok)
@@ -551,6 +624,7 @@ class OknoGlowne(QMainWindow):
         menu.setNativeMenuBar(False)  # Linux: menu remains inside app window
         self.menu_pliki = menu.addMenu("")
         self.akcja_import = self.menu_pliki.addAction("", self.wybierz_plik)
+        self.akcja_import.setShortcut(QKeySequence.StandardKey.Open)
         self.akcja_odswiez = self.menu_pliki.addAction("", self._odswiez_liste)
         self.menu_pliki.addSeparator()
         self.akcja_kopia = self.menu_pliki.addAction("", self._utworz_kopie)
@@ -951,8 +1025,13 @@ class OknoGlowne(QMainWindow):
     def _retranslate_ui(self) -> None:
         self.setWindowTitle(t("app.title"))
         self.tytul.setText(t("app.header"))
-        for klucz, przycisk in self.nawigacja_glowna.items():
-            przycisk.setText(t("nav." + klucz))
+        for klucz, przycisk, akcja in self._menu_skroty:
+            nazwa = t("nav." + klucz)
+            przycisk.setText(nazwa)
+            przycisk.setAccessibleName(nazwa)
+            przycisk.setToolTip(f"{nazwa} ({akcja.shortcut().toString()})")
+            akcja.setText(nazwa)
+        self._dopasuj_uklad()
         self.pulpit.przetlumacz()
         self.statystyki.przetlumacz()
         self.pulpit.aktualizuj_agenta(self._agent_status_key, self._agent_report)
@@ -1252,18 +1331,18 @@ class OknoGlowne(QMainWindow):
         instrukcja.setWordWrap(True)
         instrukcja.setObjectName("podpowiedz")
         uklad.addWidget(instrukcja)
-        przyciski = QHBoxLayout()
+        przyciski = Siatka(3)
         self.btn_odczytaj = QPushButton("Odczytaj cały PDF")
         self.btn_odczytaj.clicked.connect(lambda: self._start_odczytu(False))
-        przyciski.addWidget(self.btn_odczytaj)
+        przyciski.dodaj(self.btn_odczytaj)
         self.btn_odczytaj_obszar = QPushButton("Odczytaj zaznaczenie")
         self.btn_odczytaj_obszar.clicked.connect(lambda: self._start_odczytu(True))
-        przyciski.addWidget(self.btn_odczytaj_obszar)
+        przyciski.dodaj(self.btn_odczytaj_obszar)
         self.btn_odczytaj_qr = QPushButton()
         self.btn_odczytaj_qr.setObjectName("odczytajQR")
         self.btn_odczytaj_qr.clicked.connect(self._otworz_qr)
-        przyciski.addWidget(self.btn_odczytaj_qr)
-        uklad.addLayout(przyciski)
+        przyciski.dodaj(self.btn_odczytaj_qr)
+        uklad.addWidget(przyciski)
         self.btn_anuluj = QPushButton("Anuluj")
         self.btn_anuluj.clicked.connect(self._anuluj_odczyt)
         uklad.addWidget(self.btn_anuluj)
@@ -1363,23 +1442,23 @@ class OknoGlowne(QMainWindow):
         self.postep_ai.hide()
         dane_uklad.addWidget(self.postep_ai)
 
-        analiza_akcje = QHBoxLayout()
+        analiza_akcje = Siatka(2)
         self.btn_analizuj = QPushButton()
         self.btn_analizuj.clicked.connect(self._start_analizy)
-        analiza_akcje.addWidget(self.btn_analizuj, 1)
+        analiza_akcje.dodaj(self.btn_analizuj)
         self.btn_anuluj_ai = QPushButton()
         self.btn_anuluj_ai.clicked.connect(self._anuluj_analize)
-        analiza_akcje.addWidget(self.btn_anuluj_ai)
-        dane_uklad.addLayout(analiza_akcje)
+        analiza_akcje.dodaj(self.btn_anuluj_ai)
+        dane_uklad.addWidget(analiza_akcje)
 
-        korekty = QHBoxLayout()
+        korekty = Siatka(2)
         self.btn_potwierdz_recznie = QPushButton()
         self.btn_potwierdz_recznie.clicked.connect(self._potwierdz_pole_ai)
-        korekty.addWidget(self.btn_potwierdz_recznie, 1)
+        korekty.dodaj(self.btn_potwierdz_recznie)
         self.btn_dodaj_kategorie_ai = QPushButton()
         self.btn_dodaj_kategorie_ai.clicked.connect(self._dodaj_kategorie)
-        korekty.addWidget(self.btn_dodaj_kategorie_ai, 1)
-        dane_uklad.addLayout(korekty)
+        korekty.dodaj(self.btn_dodaj_kategorie_ai)
+        dane_uklad.addWidget(korekty)
 
         self.btn_przenies = QPushButton()
         self.btn_przenies.setObjectName("przeniesSugestieAI")

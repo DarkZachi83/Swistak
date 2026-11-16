@@ -13,12 +13,13 @@ from zoneinfo import ZoneInfo
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDateEdit, QDialog,
-    QDialogButtonBox, QFormLayout, QHeaderView, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QSpinBox, QStackedWidget, QTabWidget,
+    QDialogButtonBox, QFormLayout, QFrame, QHeaderView, QHBoxLayout, QLabel,
+    QLineEdit, QMessageBox, QPushButton, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QInputDialog,
 )
 
 from i18n import category_name, t
+from gui.uklad import Siatka
 from uslugi.finanse import Finanse, cykl_miesiaca
 from uslugi.historia import HistoriaRozliczen
 from uslugi.plan_rachunkow import PlanRachunkow
@@ -210,6 +211,15 @@ class DialogPlanHistoria(QDialog):
         self.rejestr = rejestr
         self._loading = False
         outer = QVBoxLayout(self)
+        if embedded:
+            outer.setContentsMargins(0, 0, 0, 0)
+            scroll = QScrollArea()
+            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            scroll.setWidgetResizable(True)
+            tresc = QWidget()
+            scroll.setWidget(tresc)
+            outer.addWidget(scroll)
+            outer = QVBoxLayout(tresc)
         self.tytul = QLabel()
         self.tytul.setObjectName("pulpitTytul")
         if embedded:
@@ -313,22 +323,24 @@ class DialogPlanHistoria(QDialog):
             "plan.col.type","plan.col.since","plan.col.state"
         ),"planProfileTable")
         layout.addWidget(self.profiles,2)
-        buttons=QHBoxLayout()
+        self.profiles.setMinimumHeight(95)
+        buttons=Siatka(3)
         for key,slot,name in [
             ("plan.profile.create",self._create_profile,"planCreateProfile"),
             ("plan.schedule.edit",self._edit_schedule,"planEditSchedule"),
             ("plan.profile.toggle",self._toggle_profile,"planToggleProfile"),
         ]:
             button=self._przycisk(key);button.setObjectName(name)
-            button.clicked.connect(slot);buttons.addWidget(button)
-        layout.addLayout(buttons)
+            button.clicked.connect(slot);buttons.dodaj(button)
+        layout.addWidget(buttons)
         layout.addWidget(self._etykieta("plan.expected.title"))
         self.expected = self._tabela((
             "plan.col.profile","plan.col.expected","plan.col.status",
             "plan.col.linked","plan.col.exception",
         ),"planExpectedTable")
         layout.addWidget(self.expected,2)
-        actions=QHBoxLayout()
+        self.expected.setMinimumHeight(95)
+        actions=Siatka(5)
         for key,slot,name in [
             ("plan.generate",self._generate,"planGenerate"),
             ("plan.link",self._link,"planLink"),
@@ -337,8 +349,8 @@ class DialogPlanHistoria(QDialog):
             ("plan.exception.cancel",self._clear_exception,"planClearException"),
         ]:
             button=self._przycisk(key);button.setObjectName(name)
-            button.clicked.connect(slot);actions.addWidget(button)
-        layout.addLayout(actions)
+            button.clicked.connect(slot);actions.dodaj(button)
+        layout.addWidget(actions)
         return pane
 
     def _history_tab(self):
@@ -354,8 +366,9 @@ class DialogPlanHistoria(QDialog):
             "plan.col.state",
         ),"historyInvoices")
         layout.addWidget(self.history_invoices,3)
+        self.history_invoices.setMinimumHeight(95)
         self.history_invoices.itemDoubleClicked.connect(self._otworz_fakture)
-        actions=QHBoxLayout()
+        actions=Siatka(5)
         for key,slot,name in [
             ("history.mark_paid",self._paid,"historyMarkPaid"),
             ("history.revoke_paid",self._revoke_payment,"historyRevokePaid"),
@@ -364,14 +377,15 @@ class DialogPlanHistoria(QDialog):
             ("invoices.open",self._otworz_fakture,"historyOpenInvoice"),
         ]:
             button=self._przycisk(key);button.setObjectName(name)
-            button.clicked.connect(slot);actions.addWidget(button)
-        layout.addLayout(actions)
+            button.clicked.connect(slot);actions.dodaj(button)
+        layout.addWidget(actions)
         layout.addWidget(self._etykieta("history.audit.title"))
         self.audit=self._tabela((
             "history.audit.time","history.audit.object",
             "history.audit.operation","history.audit.reason",
         ),"historyAudit")
         layout.addWidget(self.audit,2)
+        self.audit.setMinimumHeight(90)
         return pane
 
     def _closing_tab(self):

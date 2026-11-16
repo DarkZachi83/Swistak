@@ -11,7 +11,7 @@ from unittest.mock import patch
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton
+from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QScrollArea
 
 import ustawienia
 from ai_core.gateway import ToolGateway
@@ -74,6 +74,37 @@ class TestPulpit(unittest.TestCase):
                 self.assertEqual(pole.text(), "0,00 zł" if klucz in window.pulpit.opisy else "0")
             self.assertTrue(window.pulpit.brak_oczekiwan.isVisible())
             worker.assert_not_called()
+
+    def test_male_okno_zachowuje_nawigacje_i_pelne_przyciski(self):
+        window = self.okno()
+        window.resize(600, 400)
+        self.app.processEvents()
+        nav = window.nawigacja_glowna
+        self.assertEqual(nav["history"].toolButtonStyle(), Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.assertEqual(nav["history"].accessibleName(), "Historia")
+        self.assertFalse(nav["history"].icon().isNull())
+        window._menu_skroty[5][2].trigger()
+        self.app.processEvents()
+        self.assertIs(window.moduly.currentWidget(), window.plan_historia)
+        self.assertEqual(window.plan_historia.findChild(QScrollArea).horizontalScrollBar().maximum(), 0)
+        for button in window.plan_historia.tabs.currentWidget().findChildren(QPushButton):
+            self.assertGreaterEqual(button.width(), button.minimumSizeHint().width())
+            self.assertGreaterEqual(button.height(), button.minimumSizeHint().height())
+        nav["new_invoice"].click()
+        window.karty.setCurrentIndex(window.ETAP_EDYCJA)
+        window.ed_kwota.setText("123,45")
+        self.app.processEvents()
+        self.assertEqual(window.dzielnik.orientation(), Qt.Orientation.Vertical)
+        self.assertEqual(window.kreator.horizontalScrollBar().maximum(), 0)
+
+        window.resize(1280, 800)
+        window.change_language("en")
+        self.app.processEvents()
+        self.assertEqual(nav["history"].toolButtonStyle(), Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.assertEqual(nav["history"].accessibleName(), "History")
+        self.assertEqual(window.dzielnik.orientation(), Qt.Orientation.Horizontal)
+        self.assertEqual(window.ed_kwota.text(), "123,45")
+        self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
 
     def test_terminy_i_miesiace_liczone_z_prawdziwych_groszy(self):
         self.faktura("po-terminie", "1,01", termin="2026-11-15", okres_do="2026-10-31")

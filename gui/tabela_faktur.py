@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from ai_core.hybrid import today_warsaw
+from gui.uklad import Siatka
 from i18n import category_name, t
 from uslugi.rachunki import RejestrRachunkow, grosze_na_kwote
 
@@ -56,30 +57,30 @@ class TabelaFaktur(QWidget):
         self.wskazowka.setObjectName("podpowiedz")
         layout.addWidget(self.wskazowka)
 
-        filters = QHBoxLayout()
+        filters = Siatka(4, szerokosc=150)
         self.szukaj = QLineEdit()
         self.szukaj.setObjectName("szukajFaktur")
         self.szukaj.setClearButtonEnabled(True)
         self.szukaj.textChanged.connect(self._filtruj)
-        filters.addWidget(self.szukaj, 1)
+        filters.dodaj(self.szukaj)
 
         self.filtr_status = QComboBox()
         self.filtr_status.addItem("", None)
         self.filtr_status.addItem("", "do_zaplaty")
         self.filtr_status.addItem("", "oplacony")
         self.filtr_status.currentIndexChanged.connect(self._filtruj)
-        filters.addWidget(self.filtr_status)
+        filters.dodaj(self.filtr_status)
 
         self.filtr_terminu = QComboBox()
         for value in (None, "overdue", "due_soon"):
             self.filtr_terminu.addItem("", value)
         self.filtr_terminu.currentIndexChanged.connect(self._filtruj)
-        filters.addWidget(self.filtr_terminu)
+        filters.dodaj(self.filtr_terminu)
 
         self.btn_odswiez = QPushButton()
         self.btn_odswiez.clicked.connect(self.odswiez)
-        filters.addWidget(self.btn_odswiez)
-        layout.addLayout(filters)
+        filters.dodaj(self.btn_odswiez)
+        layout.addWidget(filters)
 
         self.tabela = QTableWidget(0, len(self.KOLUMNY))
         self.tabela.setObjectName("tabelaFaktur")
@@ -102,6 +103,7 @@ class TabelaFaktur(QWidget):
 
         footer = QHBoxLayout()
         self.podsumowanie = QLabel()
+        self.podsumowanie.setWordWrap(True)
         self.podsumowanie.setObjectName("podpowiedz")
         footer.addWidget(self.podsumowanie, 1)
         self.btn_otworz = QPushButton()

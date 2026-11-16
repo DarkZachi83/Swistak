@@ -6,11 +6,12 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QFileDialog, QHBoxLayout, QLabel,
-    QPlainTextEdit, QPushButton, QVBoxLayout,
+    QApplication, QDialog, QFileDialog, QFrame, QLabel,
+    QPlainTextEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from ai_core.hybrid import MonitorReport
+from gui.uklad import Siatka
 from i18n import t
 from uslugi.rachunki import grosze_na_kwote
 
@@ -97,6 +98,14 @@ class PanelAgenta(QDialog):
             self.resize(800, 650)
         layout = QVBoxLayout(self)
         if embedded:
+            layout.setContentsMargins(0, 0, 0, 0)
+            scroll = QScrollArea()
+            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            scroll.setWidgetResizable(True)
+            tresc = QWidget()
+            scroll.setWidget(tresc)
+            layout.addWidget(scroll)
+            layout = QVBoxLayout(tresc)
             self.heading = QLabel()
             self.heading.setObjectName("pulpitTytul")
             layout.addWidget(self.heading)
@@ -109,29 +118,31 @@ class PanelAgenta(QDialog):
         layout.addWidget(self.summary_label)
         self.wyniki = QPlainTextEdit()
         self.wyniki.setReadOnly(True)
+        self.wyniki.setMinimumHeight(110)
         self.wyniki.setObjectName("wynikiMonitora")
         layout.addWidget(self.wyniki, 3)
         self.log_label = QLabel()
         layout.addWidget(self.log_label)
         self.dziennik = QPlainTextEdit()
         self.dziennik.setReadOnly(True)
+        self.dziennik.setMinimumHeight(90)
         self.dziennik.setObjectName("dziennikAgenta")
         layout.addWidget(self.dziennik, 2)
-        buttons = QHBoxLayout()
+        buttons = Siatka(4)
         self.manual = QPushButton()
         self.manual.clicked.connect(self.manualRequested.emit)
         self.manual.setObjectName("analizaPelnaAgenta")
-        buttons.addWidget(self.manual)
+        buttons.dodaj(self.manual)
         self.cancel = QPushButton()
         self.cancel.clicked.connect(self.cancelRequested.emit)
-        buttons.addWidget(self.cancel)
+        buttons.dodaj(self.cancel)
         self.copy = QPushButton()
         self.copy.clicked.connect(self._copy_log)
-        buttons.addWidget(self.copy)
+        buttons.dodaj(self.copy)
         self.save = QPushButton()
         self.save.clicked.connect(self._save_log)
-        buttons.addWidget(self.save)
-        layout.addLayout(buttons)
+        buttons.dodaj(self.save)
+        layout.addWidget(buttons)
         self.faktura = QPushButton()
         self.faktura.hide()
         self.faktura.clicked.connect(self._pokaz_fakture)
