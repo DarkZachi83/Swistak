@@ -42,12 +42,15 @@ def ustaw_motyw(aplikacja: QApplication) -> None:
         QFrame#menuBoczne QLabel, QFrame#pulpitKarta QLabel { background: transparent; }
         QFrame#menuBoczne QLabel { padding-left: 10px; }
         QFrame#menuBoczne QToolButton {
-            text-align: left; background: transparent; border: 1px solid transparent;
+            text-align: left; background: #30363c; border: 1px solid #444c54;
             border-radius: 6px; padding: 5px 8px;
         }
         QFrame#menuBoczne QToolButton:hover:enabled { background: #414a51; }
-        QFrame#menuBoczne QToolButton:checked { background: #305643; color: #f0fff5; }
-        QFrame#menuBoczne QToolButton:focus { border-color: #4fa3e3; }
+        QFrame#menuBoczne QToolButton:checked {
+            background: #305643; border-color: #69a786; color: #f0fff5;
+        }
+        QFrame#menuBoczne QToolButton:focus,
+        QFrame#menuBoczne QToolButton:checked:focus { border-color: #4fa3e3; }
         QFrame#etapyPanel { background: #292e33; border-radius: 8px; }
         QListWidget#etapyMenu { background: transparent; border: none; color: #e4e7e9; }
         QListWidget#etapyMenu::item { padding: 9px 8px; margin: 2px; border-radius: 5px; }

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPainter, QPdfWriter
+from PySide6.QtGui import QIcon, QPainter, QPdfWriter
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QScrollArea
 
@@ -105,6 +105,25 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(window.dzielnik.orientation(), Qt.Orientation.Horizontal)
         self.assertEqual(window.ed_kwota.text(), "123,45")
         self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
+
+    def test_ikony_menu_sa_jasne_niezaleznie_od_motywu_systemowego(self):
+        with patch.object(QIcon, "fromTheme", return_value=QIcon()) as systemowe:
+            window = self.okno()
+        systemowe.assert_not_called()
+        for klucz, przycisk in window.nawigacja_glowna.items():
+            for skala in (1.0, 1.5, 2.0):
+                for tryb in (QIcon.Mode.Normal, QIcon.Mode.Active, QIcon.Mode.Selected):
+                    with self.subTest(modul=klucz, skala=skala, tryb=tryb):
+                        obraz = przycisk.icon().pixmap(przycisk.iconSize(), skala, tryb).toImage()
+                        jasne = 0
+                        for y in range(obraz.height()):
+                            for x in range(obraz.width()):
+                                piksel = obraz.pixelColor(x, y)
+                                if piksel.alpha() >= 230 and min(
+                                    piksel.red(), piksel.green(), piksel.blue()
+                                ) >= 210:
+                                    jasne += 1
+                        self.assertGreater(jasne, 20 * skala ** 2)
 
     def test_terminy_i_miesiace_liczone_z_prawdziwych_groszy(self):
         self.faktura("po-terminie", "1,01", termin="2026-11-15", okres_do="2026-10-31")

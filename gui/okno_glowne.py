@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QSize, Qt, QThreadPool, QTimer
-from PySide6.QtGui import QAction, QActionGroup, QCursor, QIcon, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QCursor, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QButtonGroup, QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
@@ -43,6 +43,7 @@ from gui.ustawienia import Ustawienia
 from gui.dialog_kategorie import DialogKategorie
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
+from gui.ikony import ikona_nawigacji
 from gui.uklad import Siatka
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
 from uslugi.kopie_zapasowe import (
@@ -286,23 +287,21 @@ class OknoGlowne(QMainWindow):
         uklad.addSpacing(4)
 
         self.nawigacja_glowna = {}
-        ikony = QStyle.StandardPixmap
         strony = QButtonGroup(panel)
-        for klucz, akcja, ikona, standard in (
-            ("dashboard", self._pokaz_pulpit, "go-home", ikony.SP_DesktopIcon),
-            ("new_invoice", self._pokaz_kreator, "document-new", ikony.SP_FileIcon),
-            ("invoices", lambda: self._pokaz_faktury(), "folder", ikony.SP_DirIcon),
-            ("statistics", self._pokaz_statystyki, "office-chart-bar", ikony.SP_ComputerIcon),
-            ("plan", self._open_plan_historia, "view-calendar", ikony.SP_FileDialogDetailedView),
-            ("history", lambda: self._open_plan_historia(historia=True),
-             "document-open-recent", ikony.SP_BrowserReload),
-            ("agent", self._agent_show_panel, "system-search", ikony.SP_MessageBoxQuestion),
-            ("settings", self._open_settings, "preferences-system", ikony.SP_FileDialogContentsView),
-            ("about", self._about, "help-about", ikony.SP_MessageBoxInformation),
+        for klucz, akcja in (
+            ("dashboard", self._pokaz_pulpit),
+            ("new_invoice", self._pokaz_kreator),
+            ("invoices", lambda: self._pokaz_faktury()),
+            ("statistics", self._pokaz_statystyki),
+            ("plan", self._open_plan_historia),
+            ("history", lambda: self._open_plan_historia(historia=True)),
+            ("agent", self._agent_show_panel),
+            ("settings", self._open_settings),
+            ("about", self._about),
         ):
             przycisk = QToolButton()
             przycisk.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            przycisk.setIcon(QIcon.fromTheme(ikona, self.style().standardIcon(standard)))
+            przycisk.setIcon(ikona_nawigacji(klucz, 18))
             przycisk.setIconSize(QSize(18, 18))
             przycisk.setObjectName("otworzPlanHistoria" if klucz == "plan" else "nav_" + klucz)
             przycisk.clicked.connect(akcja)
