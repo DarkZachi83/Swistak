@@ -43,6 +43,8 @@ class TestLinuxBeta(unittest.TestCase):
                     "ai_core/router.py", "ai_core/orchestrator.py",
                     "docs/ai_core/contracts_v1.schema.json",
                     "docs/ai_core/tools_v1.json",
+                    "docs/ODBIOR_SWISTAKA.md", "docs/PLAN_ROZWOJU_GUI.md",
+                    "docs/ai_core/ETAP_8_ZAMKNIECIE.md",
                     "LICENSE", "NOTICE.md", "THIRD_PARTY_LICENSES.md",
                 )
                 for name in needed:

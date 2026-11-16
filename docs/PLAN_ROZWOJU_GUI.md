@@ -27,7 +27,7 @@ Moje faktury, Plan rachunków, Historia, Agent AI i Ustawienia są dostępne w g
 
 Boczne menu pokazuje ikony w wąskim oknie, a skróty `Alt+1`–`Alt+9` odpowiadają kolejności modułów. Przy małej szerokości podgląd PDF układa się nad formularzem. Przyciski i karty zawijają się, a dłuższe widoki przewijają pionowo. `Ctrl+O` otwiera import PDF na Linuxie.
 
-Odbiór na prawdziwych rachunkach wykonaj lokalnie w `./uruchom.sh --test`, korzystając z osobnej bazy. Przejdź przez import, OCR, analizę modelem w lokalnej Ollamie, korektę i zapis. Dla rachunku z kodem sprawdź QR. Zweryfikuj ponowne rozpoznanie dostawcy, datę płatności w Historii, kwoty na Pulpicie i w Statystykach, kopię i przywrócenie oraz zamknięcie programu. Sprawdź przełączenie PL/EN podczas edycji dokumentu. Prywatne PDF-y i kopie pozostają na komputerze użytkownika.
+[Scenariusz lokalnego odbioru](ODBIOR_SWISTAKA.md) obejmuje import, OCR, Ollamę, QR, wzorce, rozliczenie płatności, kopię, przywracanie i zamykanie aplikacji. Zawiera sposób uruchomienia z osobną bazą i ustawieniami wyłącznie na potrzeby odbioru.
 
 ## Docelowe moduły nawigacji
 

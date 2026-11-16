@@ -24,6 +24,8 @@ ROOT_FILES = (
     "NOTICE.md", "THIRD_PARTY_LICENSES.md",
     "licencje/rejestr.json", "assets/branding/swistak-banner.jpeg",
     "docs/LINUX_BETA.md", "docs/LICENCJONOWANIE.md",
+    "docs/ODBIOR_SWISTAKA.md", "docs/PLAN_ROZWOJU_GUI.md",
+    "docs/ai_core/ETAP_8_ZAMKNIECIE.md",
     "docs/ai_core/contracts_v1.schema.json", "docs/ai_core/tools_v1.json",
 )
 DIRECTORIES = {
