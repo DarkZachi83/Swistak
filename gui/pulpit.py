@@ -21,9 +21,11 @@ from uslugi.rachunki import RejestrRachunkow, grosze_na_kwote
 
 class Pulpit(QScrollArea):
     pokaz_faktury = Signal()
+    pokaz_naleznosci = Signal(str)
     pokaz_plan = Signal(str)
     pokaz_historie = Signal(str)
     pokaz_agenta = Signal()
+    pokaz_sprawdzana = Signal(int, str)
 
     def __init__(self, rejestr: RejestrRachunkow):
         super().__init__()
@@ -48,7 +50,7 @@ class Pulpit(QScrollArea):
 
         platnosci = self._sekcja(uklad, "dashboard.payments")
         platnosci.addWidget(self._przycisk("nav.invoices", self.pokaz_faktury.emit))
-        self._karty(uklad, ("unpaid", "overdue", "due_soon"))
+        self._karty(uklad, ("unpaid", "overdue", "due_soon"), terminy=True)
 
         rozliczenie = self._sekcja(uklad, "dashboard.month")
         miesiac_etykieta = QLabel()
@@ -78,6 +80,10 @@ class Pulpit(QScrollArea):
         self.btn_panel_agenta = self._przycisk("agent.open_short", self.pokaz_agenta.emit)
         self.btn_panel_agenta.setObjectName("otworzPanelAgenta")
         agent.addWidget(self.btn_panel_agenta)
+        self._raport = None
+        self.btn_sprawdzana = self._przycisk("agent.open_reviewed_invoice", self._pokaz_sprawdzana)
+        self.btn_sprawdzana.hide()
+        agent.addWidget(self.btn_sprawdzana)
         self.stan_agenta = QLabel()
         self.stan_agenta.setWordWrap(True)
         self.stan_agenta.setObjectName("stanAgenta")
@@ -107,7 +113,8 @@ class Pulpit(QScrollArea):
         self.napisy.append((przycisk, klucz))
         return przycisk
 
-    def _karty(self, uklad, klucze: tuple[str, ...], *, opis: bool = True) -> None:
+    def _karty(self, uklad, klucze: tuple[str, ...], *, opis: bool = True,
+               terminy: bool = False) -> None:
         siatka = QGridLayout()
         siatka.setHorizontalSpacing(10)
         for kolumna, klucz in enumerate(klucze):
@@ -130,6 +137,13 @@ class Pulpit(QScrollArea):
                 licznik.setObjectName("podpowiedz")
                 self.opisy[klucz] = licznik
                 pion.addWidget(licznik)
+            if terminy:
+                przycisk = self._przycisk(
+                    "dashboard.show_invoices",
+                    lambda checked=False, k=klucz: self.pokaz_naleznosci.emit(k),
+                )
+                przycisk.setObjectName("pulpitFaktury_" + klucz)
+                pion.addWidget(przycisk, 0, Qt.AlignmentFlag.AlignLeft)
             siatka.addWidget(karta, 0, kolumna)
             siatka.setColumnStretch(kolumna, 1)
         uklad.addLayout(siatka)
@@ -171,6 +185,8 @@ class Pulpit(QScrollArea):
             self.wartosci[klucz].setText(str(stany[klucz]))
 
     def aktualizuj_agenta(self, stan: str, raport: MonitorReport | None) -> None:
+        self._raport = raport
+        self.btn_sprawdzana.setVisible(raport is not None and raport.invoice_id is not None)
         self.stan_agenta.setText(t(stan))
         if raport is None:
             self.raport_agenta.setText(t("agent.no_results"))
@@ -183,3 +199,7 @@ class Pulpit(QScrollArea):
                   proposals=len(raport.proposals)),
                 *model_details(raport),
             ]))
+
+    def _pokaz_sprawdzana(self) -> None:
+        if self._raport is not None and self._raport.invoice_id is not None:
+            self.pokaz_sprawdzana.emit(self._raport.invoice_id, self._raport.data_revision)

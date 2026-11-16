@@ -28,7 +28,7 @@
 | **Kody QR** | Lokalnie dekoduje QR na stronach PDF, rozpoznaje wybrane polskie formaty płatności i umożliwia przeniesienie kwoty i konta do formularza po osobnym potwierdzeniu. |
 | **Lokalna AI** | Analizuje tekst rachunku przez **Ollamę** i proponuje wartości pól formularza. |
 | **Kontrola użytkownika** | Waliduje strukturę odpowiedzi AI i wybrane pola. **Dopiero człowiek zatwierdza dane i zapisuje rachunek.** |
-| **Interfejs** | PySide6 / Qt, ciemny motyw, pionowy proces **Odczyt PDF → Analiza AI → Edycja danych → Faktura → Dokumenty → Faktury**, języki **polski i angielski** przełączane bez restartu. |
+| **Interfejs** | PySide6 / Qt, ciemny motyw, kreator faktur oraz **Moje faktury**, **Plan rachunków**, **Historia**, **Agent AI** i **Ustawienia** w głównym oknie. Języki polski i angielski przełączane bez restartu. |
 
 **Technologie:** Python · PySide6 / Qt · SQLite · pdfplumber · pypdfium2 · Tesseract OCR · ZXing-C++ · Ollama.
 
@@ -114,7 +114,7 @@ W zakładce **Analiza AI → DANE** oraz w **Edycji danych** przycisk wyboru/dod
 2. **Odczytaj dokument** — w zakładce **Odczyt PDF** uruchom odczyt całego dokumentu albo zaznaczonego fragmentu. Opcjonalnie kliknij **Odczytaj QR**, sprawdź wyświetlone dane i świadomie przenieś kwotę oraz numer konta.
 3. **Uruchom lokalną analizę AI** — w zakładce **Analiza AI** poproś Ollamę o propozycje pól rachunku.
 4. **Edytuj dane** — przenieś zatwierdzone propozycje do etapu **Edycja danych**, porównaj z PDF i popraw wartości. Pola można także wypełnić ręcznie, bez Ollamy.
-5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i dopiero wtedy kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Faktury** (tabela i filtry); w **Dokumentach** pozostaje lista wszystkich PDF-ów.
+5. **Zatwierdź fakturę** — w etapie **Faktura** sprawdź podsumowanie i kliknij **Zapisz fakturę**. Wróć do zapisanej faktury przez **Moje faktury** w menu bocznym. W **Dokumentach** znajdziesz listę wszystkich PDF-ów.
 6. **Opcjonalnie ucz Świstaka** — po zapisie wybierz **Utwórz wzorzec faktury**. Sprawdź proponowany JSON z regułami i zatwierdź go osobno. Kolejne faktury będą rozpoznawane po NIP-ie sprzedawcy, nazwie i układzie, a Gemma dostanie zatwierdzone wskazówki. Zapis wzorca **nigdy nie jest automatyczny**.
 
 Obraz wyświetla się z lokalnego pliku
@@ -197,6 +197,6 @@ Plan i Historia są już w kodzie. **Implementacja i automatyczna regresja
 AI Core 1.0 są ukończone; lokalny odbiór i wydanie produkcyjne to
 odrębne kroki.**
 
-**Rozwój interfejsu:** [plan GUI](docs/PLAN_ROZWOJU_GUI.md). Pulpit i boczne
-menu są odebrane, widok Statystyk oczekuje na lokalny odbiór. Kolejny etap
-obejmuje integrację istniejących modułów ze wspólną nawigacją.
+**Rozwój interfejsu:** [plan GUI](docs/PLAN_ROZWOJU_GUI.md). Pulpit, boczne
+menu i Statystyki są odebrane. Integracja pozostałych modułów w głównym oknie
+oczekuje na lokalny odbiór.

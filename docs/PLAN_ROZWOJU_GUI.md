@@ -1,13 +1,13 @@
 # Świstak — plan następnych prac: główne menu, pulpit i statystyki
 
-**Status:** GUI-1 odebrany. GUI-2 zaimplementowany i gotowy do lokalnego odbioru. GUI-3 i GUI-4 są zaplanowane.
+**Status:** GUI-1 i GUI-2 odebrane. GUI-3 jest gotowy do lokalnego odbioru. GUI-4 jest zaplanowany.
 
 **Repozytorium:** https://github.com/DarkZachi83/Swistak · `main`  
 **Poprzedni etap:** [AI Core 1.0 — zamknięcie etapu 8](ai_core/ETAP_8_ZAMKNIECIE.md).
 
 ## Stan po GUI-1
 
-**Pulpit główny** otwiera się po uruchomieniu. Boczne menu prowadzi do kreatora **Nowa faktura**, jego tabeli **Moje faktury** oraz do istniejących okien Planu, Historii, Agenta i ustawień. Proces faktury ma sześć dotychczasowych kroków: **Odczyt PDF / skanu → Analiza AI → Edycja danych → Faktura → Dokumenty → Faktury**.
+**Pulpit główny** otwiera się po uruchomieniu. Kreator **Nowa faktura** udostępnia **Odczyt PDF / skanu → Analiza AI → Edycja danych → Faktura → Dokumenty**. Rejestr zapisanych rachunków jest dostępny jako **Moje faktury**.
 
 Pulpit sumuje aktywne należności w groszach. Zakres bliskich terminów obejmuje dziś i siedem kolejnych dni. Wydatki za miesiąc usługi są przypisane według końca okresu, a przy jego braku według daty wystawienia. Kwota faktycznie zapłacona w miesiącu obejmuje faktury z zapisaną datą płatności. Oczekiwania pochodzą z zapisów utworzonych w Planie dla wybranego miesiąca.
 
@@ -18,6 +18,10 @@ Odbiór na odrębnej bazie przez `./uruchom.sh --test`: wczytaj testowy PDF, wpi
 Widok udostępnia zakres dat, grupowanie miesięczne lub roczne, podział kwot według statusu oraz wykresy słupkowe okresów, kategorii i dostawców. Dla pełnego miesiąca lub roku porównaniem jest poprzedni miesiąc lub rok kalendarzowy. Dla dowolnego zakresu porównaniem jest bezpośrednio poprzedzający go okres o tej samej liczbie dni.
 
 Podstawa „Miesiąc usługi” używa końca okresu usługi lub daty wystawienia. Podstawa „Faktyczna płatność” obejmuje opłacone faktury z zapisaną datą płatności. Filtr kategorii ogranicza kwoty do przypisanych pozycji. Brakujące przypisanie jest widoczne jako osobna pozycja, a łączna kwota faktury pochodzi z nagłówka. Do odbioru użyj bazy testowej i porównaj wynik dla faktury, której miesiąc usługi i miesiąc płatności są różne.
+
+## Integracja modułów (GUI-3)
+
+Moje faktury, Plan rachunków, Historia, Agent AI i Ustawienia są dostępne w głównym oknie. Plan i Historia pamiętają osobno wybrany miesiąc, a skróty na Pulpicie przekazują miesiąc lub filtr należności. Zakładka zamknięcia miesiąca jest w Historii. Otwarcie innego dokumentu wymaga potwierdzenia, jeśli formularz zawiera niezapisane zmiany. Ustawienia utrwalają zmiany po wybraniu „Zapisz”.
 
 ## Docelowe moduły nawigacji
 
@@ -54,7 +58,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 - Kryteria: pulpit otwiera się jako pierwszy; żadna kwota nie jest zgadywana;
   kliknięcie `Nowa faktura` zachowuje cały stary proces i dane formularza.
 
-### GUI-2 — Statystyki (do odbioru)
+### GUI-2 — Statystyki (odebrany)
 
 - Wydatki miesięczne i roczne, porównanie okresów, kategorie/dostawcy,
   udział kategorii, płatności opłacone/nieopłacone.
@@ -66,7 +70,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 - Obsłuż pustą bazę i brak wybranych danych bez wyjątku.
 - Testy obliczeń syntetycznych i poprawności filtrów.
 
-### GUI-3 — Integracja modułów i lepsza nawigacja
+### GUI-3 — Integracja modułów i lepsza nawigacja (do odbioru)
 
 - Włącz istniejącą tabelę `Faktury` do `Moje faktury`.
 - Docelowo przenieś zawartość dialogu `Plan / Historia` do właściwych

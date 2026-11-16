@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication, QComboBox, QDialog
+from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
 import ustawienia
 from ai_core.errors import TaskCancelled
@@ -252,49 +252,27 @@ class TestStage7Qt(unittest.TestCase):
                     ustawienia.save(dict(ustawienia.DEFAULTS,language="pl"))
                     win=OknoGlowne(reg)
                     try:
-                        with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
-                            def inspect():
-                                dialog=next(x for x in QApplication.topLevelWidgets()
-                                            if x.objectName()=="ustawieniaSwistaka"
-                                            and x.parent() is win)
-                                selectors={role:dialog.findChild(
-                                    QComboBox,"specialistModel_"+role)
-                                    for role in ustawienia.SPECIALIST_ROLES}
-                                self.assertTrue(all(selectors.values()))
-                                self.assertEqual(selectors["extractor"].currentData(),"")
-                                task=pool.return_value.start.call_args.args[0]
-                                task.sygnaly.gotowe.emit(
-                                    ["gemma3:4b","verify-demo","fin-demo"],""
-                                )
-                                self.assertGreaterEqual(selectors["verifier"].count(),4)
-                                selectors["extractor"].setCurrentIndex(
-                                    selectors["extractor"].findData("gemma3:4b"))
-                                selectors["verifier"].setCurrentIndex(
-                                    selectors["verifier"].findData("verify-demo"))
-                                selectors["financial_analyst"].setCurrentIndex(
-                                    selectors["financial_analyst"].findData("fin-demo"))
-                                return QDialog.DialogCode.Accepted
-                            with patch("gui.okno_glowne.QDialog.exec",
-                                       side_effect=inspect):
-                                win._open_settings()
-                        prefs=ustawienia.load()
-                        self.assertEqual(prefs["model_verifier"],"verify-demo")
-                        self.assertEqual(prefs["model_extractor"],"gemma3:4b")
-                        self.assertEqual(prefs["model_financial_analyst"],"fin-demo")
-                        self.assertEqual(prefs["model_cycle_analyst"],"")
-                        self.assertEqual(win.ed_model.text(),"gemma3:4b")
-                        with patch("gui.okno_glowne.QThreadPool.globalInstance"):
-                            def inspect_reopen():
-                                dialog=next(x for x in QApplication.topLevelWidgets()
-                                            if x.objectName()=="ustawieniaSwistaka"
-                                            and x.parent() is win)
-                                self.assertEqual(dialog.findChild(
-                                    QComboBox,"specialistModel_verifier"
-                                ).currentData(),"verify-demo")
-                                return QDialog.DialogCode.Rejected
-                            with patch("gui.okno_glowne.QDialog.exec",
-                                       side_effect=inspect_reopen):
-                                win._open_settings()
+                        with patch("gui.ustawienia.QThreadPool.globalInstance") as pool:
+                            win._open_settings()
+                            box = win.ustawienia
+                            selectors = box.wybor_roli
+                            self.assertEqual(selectors["extractor"].currentData(), "")
+                            task = pool.return_value.start.call_args.args[0]
+                            task.sygnaly.gotowe.emit(["gemma3:4b", "verify-demo", "fin-demo"], "")
+                            self.assertGreaterEqual(selectors["verifier"].count(), 4)
+                            for role, name in (("extractor", "gemma3:4b"),
+                                               ("verifier", "verify-demo"),
+                                               ("financial_analyst", "fin-demo")):
+                                selectors[role].setCurrentIndex(selectors[role].findData(name))
+                            box.buttons.button(QDialogButtonBox.StandardButton.Save).click()
+                            prefs = ustawienia.load()
+                            self.assertEqual(prefs["model_verifier"], "verify-demo")
+                            self.assertEqual(prefs["model_extractor"], "gemma3:4b")
+                            self.assertEqual(prefs["model_financial_analyst"], "fin-demo")
+                            self.assertEqual(prefs["model_cycle_analyst"], "")
+                            win._pokaz_pulpit()
+                            win._open_settings()
+                            self.assertEqual(selectors["verifier"].currentData(), "verify-demo")
                     finally:
                         win.close()
             finally:

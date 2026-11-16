@@ -304,13 +304,14 @@ class TestAgentPanel(unittest.TestCase):
                                   return_value=root / "prefs.json"):
                     ustawienia.save({"language":"pl","ollama_model":"demo"})
                     win = OknoGlowne(rejestr)
-                    self.assertEqual(win.nawigacja.count(), 6)
+                    self.assertEqual(win.nawigacja.count(), 5)
                     self.assertEqual(win.zakladki_ai.count(), 2)
                     self.assertEqual(win.btn_panel_agenta.objectName(),
                                      "panelAgentaWAnalizie")
                     self.assertEqual(win._agent_status_key, "agent.state.waiting")
                     win._agent_show_panel()
-                    self.assertTrue(win._agent_panel.isVisible())
+                    self.assertIs(win.moduly.currentWidget(), win._agent_panel)
+                    self.assertFalse(win._agent_panel.isWindow())
                     self.assertIsNone(win._agent_report)
                     with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
                         win._agent_submit("manual")

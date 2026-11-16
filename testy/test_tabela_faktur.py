@@ -60,7 +60,7 @@ class TestTabelaFaktur(unittest.TestCase):
                     self.assertEqual(table.tabela.item(0, 4).text(), "140,05 zł")
                     self.assertIn("140,05", table.podsumowanie.text())
 
-                    win.karty.setCurrentIndex(win.ETAP_FAKTURY)
+                    win.nawigacja_glowna["invoices"].click()
                     self.assertFalse(win.podglad.isVisible())
                     table.szukaj.setText("nie ma takiej faktury")
                     self.assertTrue(table.tabela.isRowHidden(0))
@@ -76,15 +76,15 @@ class TestTabelaFaktur(unittest.TestCase):
                         "SELECT COUNT(*) FROM rachunki"
                     ).fetchone()[0], 1)
 
-                    win.karty.setCurrentIndex(win.ETAP_FAKTURY)
+                    win.nawigacja_glowna["invoices"].click()
                     table.filtr_status.setCurrentIndex(2)  # opłacone
                     self.assertTrue(table.tabela.isRowHidden(0))
                     table.filtr_status.setCurrentIndex(0)
                     self.assertFalse(table.tabela.isRowHidden(0))
 
                     win.change_language("en")
-                    self.assertEqual(win.nawigacja.item(win.ETAP_FAKTURY).text(),
-                                     "Invoices")
+                    self.assertEqual(win.nawigacja_glowna["invoices"].text(),
+                                     "My invoices")
                     self.assertEqual(table.tabela.horizontalHeaderItem(0).text(),
                                      "Supplier")
                     self.assertEqual(table.tabela.item(0, 4).text(), "140,05 PLN")

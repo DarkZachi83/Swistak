@@ -278,17 +278,16 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertEqual(dialog.profiles.item(0,0).text(),values["nazwa"])
         dialog.close()
 
-    def test_main_utrzymuje_szesc_etapow_i_ma_wejscie_plan_history(self):
+    def test_main_ma_piec_etapow_i_osadzony_plan(self):
         root=self.root
         with patch.object(ustawienia,"path_settings",return_value=root/"settings.json"):
             ustawienia.save({"language":"pl","ollama_model":"demo"})
             window=OknoGlowne(self.registry)
-            self.assertEqual(window.nawigacja.count(),6)
+            self.assertEqual(window.nawigacja.count(),5)
             self.assertEqual(window.btn_plan_historia.objectName(),"otworzPlanHistoria")
             self.assertEqual(window.akcja_plan_historia.text(),"Plan rachunków i Historia")
-            with patch("gui.okno_glowne.DialogPlanHistoria.exec",
-                       return_value=QDialog.DialogCode.Rejected):
-                window._open_plan_historia()
+            window.akcja_plan_historia.trigger()
+            self.assertIs(window.moduly.currentWidget(), window.plan_historia)
             window.close()
 
 

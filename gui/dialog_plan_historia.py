@@ -14,11 +14,11 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDateEdit, QDialog,
     QDialogButtonBox, QFormLayout, QHeaderView, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QSpinBox, QTabWidget,
+    QLineEdit, QMessageBox, QPushButton, QSpinBox, QStackedWidget, QTabWidget,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QInputDialog,
 )
 
-from i18n import t
+from i18n import category_name, t
 from uslugi.finanse import Finanse, cykl_miesiaca
 from uslugi.historia import HistoriaRozliczen
 from uslugi.plan_rachunkow import PlanRachunkow
@@ -49,7 +49,9 @@ def table_widget(headers: tuple[str, ...], name: str) -> QTableWidget:
 
 def set_rows(table: QTableWidget, rows: list[tuple[object, ...]],
              ids: list[int]) -> None:
+    selected = chosen_id(table)
     table.setSortingEnabled(False)
+    table.setRowCount(0)
     table.setRowCount(len(rows))
     for rownum, (values, ident) in enumerate(zip(rows, ids)):
         for col, val in enumerate(values):
@@ -58,6 +60,11 @@ def set_rows(table: QTableWidget, rows: list[tuple[object, ...]],
                 item.setData(ID_ROLE, ident)
             table.setItem(rownum, col, item)
     table.setSortingEnabled(True)
+    if selected is not None:
+        for row in range(table.rowCount()):
+            if table.item(row, 0).data(ID_ROLE) == selected:
+                table.selectRow(row)
+                break
 
 
 def chosen_id(table: QTableWidget) -> int | None:
@@ -96,7 +103,7 @@ class FormularzProfilu(QDialog):
         self.category = QComboBox()
         self.category.addItem(t("plan.profile.no_category"), None)
         for category in categories:
-            self.category.addItem(category["nazwa"], int(category["id"]))
+            self.category.addItem(category_name(category["nazwa"]), int(category["id"]))
         if profile and profile["kategoria_id"] is not None:
             index = self.category.findData(int(profile["kategoria_id"]))
             if index >= 0:
@@ -183,45 +190,125 @@ class DialogPlanHistoria(QDialog):
 
     daneZmienione = Signal(object)  # id faktury lub None: analiza całego zakresu
 
-    def __init__(self, rejestr: RejestrRachunkow, parent=None):
+    otworz_dokument = Signal(int)
+
+    def __init__(self, rejestr: RejestrRachunkow, parent=None, *, embedded=False):
         super().__init__(parent)
         self.setObjectName("dialogPlanHistoria")
         self.setWindowTitle(t("plan.title"))
-        self.resize(1080,790)
-        self.setMinimumSize(820,600)
+        if embedded:
+            self.setWindowFlags(Qt.WindowType.Widget)
+        else:
+            self.resize(1080,790)
+            self.setMinimumSize(820,600)
+        self._embedded = embedded
+        self._napisy = []
+        self._naglowki = []
+        self._wybrane_miesiace = {}
+        self._modul = "plan"
+        self._cykl_potwierdzenia = None
         self.rejestr = rejestr
-        self.plan = PlanRachunkow(rejestr.db)
-        self.finanse = Finanse(rejestr.db)
-        self.history = HistoriaRozliczen(rejestr.db)
         self._loading = False
         outer = QVBoxLayout(self)
+        self.tytul = QLabel()
+        self.tytul.setObjectName("pulpitTytul")
+        if embedded:
+            outer.addWidget(self.tytul)
         top = QHBoxLayout()
-        top.addWidget(QLabel(t("plan.month")))
+        top.addWidget(self._etykieta("plan.month"))
         self.month = QComboBox()
         self.month.setEditable(True)
         self.month.setObjectName("planSelectedMonth")
         top.addWidget(self.month,1)
-        self.refresh_btn = QPushButton(t("plan.refresh"))
+        self.refresh_btn = self._przycisk("plan.refresh")
         self.refresh_btn.clicked.connect(self.refresh)
         top.addWidget(self.refresh_btn)
         outer.addLayout(top)
         self.tabs = QTabWidget()
         self.tabs.setObjectName("planHistoryTabs")
-        outer.addWidget(self.tabs,1)
-        self._plan_tab()
-        self._history_tab()
-        self._closing_tab()
+        self.plan_page = self._plan_tab()
+        if embedded:
+            self.strony = QStackedWidget()
+            outer.addWidget(self.strony, 1)
+            self.strony.addWidget(self.plan_page)
+            self.strony.addWidget(self.tabs)
+        else:
+            outer.addWidget(self.tabs, 1)
+            self.tabs.addTab(self.plan_page, "")
+        self.tabs.addTab(self._history_tab(), "")
+        self.tabs.addTab(self._closing_tab(), "")
         self.month.currentTextChanged.connect(self._on_month_change)
+        self.przetlumacz()
         self.refresh()
-        self.tabs.currentChanged.connect(self.refresh)
+
+    @property
+    def plan(self):
+        return PlanRachunkow(self.rejestr.db)
+
+    @property
+    def finanse(self):
+        return Finanse(self.rejestr.db)
+
+    @property
+    def history(self):
+        return HistoriaRozliczen(self.rejestr.db)
+
+    def pokaz(self, modul: str, cykl: str = ""):
+        if modul != self._modul:
+            self._wybrane_miesiace[self._modul] = self.month.currentText()
+        previous = self.month.currentText() if modul == self._modul else self._wybrane_miesiace.get(modul, "")
+        self._modul = modul
+        self.tytul.setText(t("nav." + modul))
+        self.strony.setCurrentWidget(self.plan_page if modul == "plan" else self.tabs)
+        if cykl and modul == "history":
+            self.tabs.setCurrentIndex(0)
+        self._loading = True
+        self.month.setCurrentText(cykl or previous)
+        self._loading = False
+        self.refresh()
+
+    def reject(self) -> None:
+        if not self._embedded:
+            super().reject()
+
+    def _etykieta(self, klucz):
+        widget = QLabel()
+        widget.setWordWrap(True)
+        self._napisy.append((widget, klucz))
+        return widget
+
+    def _przycisk(self, klucz):
+        widget = QPushButton()
+        widget.setAutoDefault(False)
+        self._napisy.append((widget, klucz))
+        return widget
+
+    def _tabela(self, headers, name):
+        widget = table_widget(headers, name)
+        self._naglowki.append((widget, headers))
+        return widget
+
+    def przetlumacz(self):
+        self.tytul.setText(t("nav." + self._modul))
+        for widget, klucz in self._napisy:
+            widget.setText(t(klucz))
+        for widget, headers in self._naglowki:
+            widget.setHorizontalHeaderLabels([t(k) for k in headers])
+        keys = ("plan.tab.history", "plan.tab.closure")
+        if not self._embedded:
+            keys = ("plan.tab.plan", *keys)
+        for i, klucz in enumerate(keys):
+            self.tabs.setTabText(i, t(klucz))
+        if self.month.count():
+            self._refresh_tables()
 
     def _plan_tab(self):
         pane=QWidget()
         layout=QVBoxLayout(pane)
-        info=QLabel(t("plan.profiles.help"))
+        info=self._etykieta("plan.profiles.help")
         info.setWordWrap(True)
         layout.addWidget(info)
-        self.profiles = table_widget((
+        self.profiles = self._tabela((
             "plan.col.name","plan.col.supplier","plan.col.category",
             "plan.col.type","plan.col.since","plan.col.state"
         ),"planProfileTable")
@@ -232,11 +319,11 @@ class DialogPlanHistoria(QDialog):
             ("plan.schedule.edit",self._edit_schedule,"planEditSchedule"),
             ("plan.profile.toggle",self._toggle_profile,"planToggleProfile"),
         ]:
-            button=QPushButton(t(key));button.setObjectName(name)
+            button=self._przycisk(key);button.setObjectName(name)
             button.clicked.connect(slot);buttons.addWidget(button)
         layout.addLayout(buttons)
-        layout.addWidget(QLabel(t("plan.expected.title")))
-        self.expected = table_widget((
+        layout.addWidget(self._etykieta("plan.expected.title"))
+        self.expected = self._tabela((
             "plan.col.profile","plan.col.expected","plan.col.status",
             "plan.col.linked","plan.col.exception",
         ),"planExpectedTable")
@@ -249,10 +336,10 @@ class DialogPlanHistoria(QDialog):
             ("plan.exception",self._set_exception,"planSetException"),
             ("plan.exception.cancel",self._clear_exception,"planClearException"),
         ]:
-            button=QPushButton(t(key));button.setObjectName(name)
+            button=self._przycisk(key);button.setObjectName(name)
             button.clicked.connect(slot);actions.addWidget(button)
         layout.addLayout(actions)
-        self.tabs.addTab(pane,t("plan.tab.plan"))
+        return pane
 
     def _history_tab(self):
         pane=QWidget()
@@ -261,29 +348,31 @@ class DialogPlanHistoria(QDialog):
         self.history_summary.setObjectName("historySummary")
         self.history_summary.setWordWrap(True)
         layout.addWidget(self.history_summary)
-        self.history_invoices=table_widget((
+        self.history_invoices=self._tabela((
             "plan.col.supplier","plan.col.number","plan.col.amount",
             "plan.col.payment","plan.col.due","plan.col.paid",
             "plan.col.state",
         ),"historyInvoices")
         layout.addWidget(self.history_invoices,3)
+        self.history_invoices.itemDoubleClicked.connect(self._otworz_fakture)
         actions=QHBoxLayout()
         for key,slot,name in [
             ("history.mark_paid",self._paid,"historyMarkPaid"),
             ("history.revoke_paid",self._revoke_payment,"historyRevokePaid"),
             ("history.withdraw",self._withdraw,"historyWithdraw"),
             ("history.restore",self._restore,"historyRestore"),
+            ("invoices.open",self._otworz_fakture,"historyOpenInvoice"),
         ]:
-            button=QPushButton(t(key));button.setObjectName(name)
+            button=self._przycisk(key);button.setObjectName(name)
             button.clicked.connect(slot);actions.addWidget(button)
         layout.addLayout(actions)
-        layout.addWidget(QLabel(t("history.audit.title")))
-        self.audit=table_widget((
+        layout.addWidget(self._etykieta("history.audit.title"))
+        self.audit=self._tabela((
             "history.audit.time","history.audit.object",
             "history.audit.operation","history.audit.reason",
         ),"historyAudit")
         layout.addWidget(self.audit,2)
-        self.tabs.addTab(pane,t("plan.tab.history"))
+        return pane
 
     def _closing_tab(self):
         pane=QWidget()
@@ -292,20 +381,21 @@ class DialogPlanHistoria(QDialog):
         self.closure_status.setObjectName("closingSummary")
         self.closure_status.setWordWrap(True)
         layout.addWidget(self.closure_status)
-        layout.addWidget(QLabel(t("closing.explanation")))
-        self.close_expectations=table_widget((
+        layout.addWidget(self._etykieta("closing.explanation"))
+        self.close_expectations=self._tabela((
             "plan.col.profile","plan.col.expected","plan.col.status",
             "plan.col.linked",
         ),"closingExpectedTable")
         layout.addWidget(self.close_expectations,1)
-        self.empty_confirmation=QCheckBox(t("closing.empty_check"))
+        self.empty_confirmation=QCheckBox()
+        self._napisy.append((self.empty_confirmation, "closing.empty_check"))
         self.empty_confirmation.setObjectName("confirmEmptyMonth")
         layout.addWidget(self.empty_confirmation)
-        self.confirm_btn=QPushButton(t("closing.confirm"))
+        self.confirm_btn=self._przycisk("closing.confirm")
         self.confirm_btn.setObjectName("confirmMonthCompleteness")
         self.confirm_btn.clicked.connect(self._confirm_month)
         layout.addWidget(self.confirm_btn)
-        self.tabs.addTab(pane,t("plan.tab.closure"))
+        return pane
 
     def _selected_month(self) -> str | None:
         value=self.month.currentText().strip()
@@ -337,19 +427,29 @@ class DialogPlanHistoria(QDialog):
 
     def _refresh_tables(self):
         cycle=self._selected_month()
+        if cycle != self._cykl_potwierdzenia:
+            self.empty_confirmation.setChecked(False)
+            self._cykl_potwierdzenia = cycle
+        self._load_profiles()
         if cycle is None:
             self.history_summary.setText(t("plan.bad_month"))
             self.closure_status.setText(t("plan.bad_month"))
+            self._expectations = []
+            self._invoices = []
+            for table in (self.expected, self.history_invoices, self.close_expectations, self.audit):
+                table.setRowCount(0)
+            self.confirm_btn.setEnabled(False)
+            self.empty_confirmation.setEnabled(False)
             return
-        self._load_profiles()
         self._load_expected(cycle)
-        self._load_history(cycle)
-        self._load_closing(cycle)
+        state = self.history.miesiac(cycle)
+        self._load_history(cycle, state)
+        self._load_closing(cycle, state)
 
     def _load_profiles(self):
         self._profiles=self.history.profile()
         set_rows(self.profiles,[
-            (r["nazwa"],r["dostawca"] or "—",r["kategoria"] or "—",
+            (r["nazwa"],r["dostawca"] or "—",category_name(r["kategoria"]) if r["kategoria"] else "—",
              t("plan.type."+r["typ"]) if r["typ"] else "—",
              r["cykl_od"] or "—",
              t("plan.active") if r["aktywny"] else t("plan.inactive"))
@@ -366,9 +466,8 @@ class DialogPlanHistoria(QDialog):
             for r in self._expectations
         ],[int(r["id"]) for r in self._expectations])
 
-    def _load_history(self, cycle):
+    def _load_history(self, cycle, state):
         self._invoices=self.history.faktury(cycle)
-        state=self.history.miesiac(cycle)
         self.history_summary.setText(t(
             "history.summary",
             billed=grosze_na_kwote(state["billed_grosze"]),
@@ -394,8 +493,7 @@ class DialogPlanHistoria(QDialog):
             for r in events
         ],[int(r["id"]) for r in events])
 
-    def _load_closing(self, cycle):
-        state=self.history.miesiac(cycle)
+    def _load_closing(self, cycle, state):
         if state["closed"]:
             label=t("closing.closed")
         elif state["documents_confirmed"]:
@@ -429,6 +527,11 @@ class DialogPlanHistoria(QDialog):
     def _invoice(self):
         ident=chosen_id(self.history_invoices)
         return next((r for r in self._invoices if r["id"]==ident),None)
+
+    def _otworz_fakture(self):
+        invoice = self._invoice()
+        if invoice is not None:
+            self.otworz_dokument.emit(int(invoice["dokument_id"]))
 
     def _fail(self,error):
         QMessageBox.warning(self,t("plan.title"),str(error))

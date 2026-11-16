@@ -11,11 +11,11 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QThreadPool, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QCursor
 from PySide6.QtWidgets import (
-    QApplication, QButtonGroup, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
+    QApplication, QButtonGroup, QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QProgressBar, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
-    QWidget, QComboBox, QTabWidget, QSizePolicy, QGroupBox,
+    QWidget, QComboBox, QTabWidget,
 )
 
 from gui.okno_o_programie import OknoOProgramie
@@ -29,6 +29,7 @@ from gui.pulpit import Pulpit
 from gui.statystyki import Statystyki
 from gui.dialog_plan_historia import DialogPlanHistoria
 from ai_core.hybrid import AgentLog, MonitorReport
+from ai_core.gateway import ToolGateway
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import WynikOdczytu
@@ -38,7 +39,7 @@ from uslugi.dopasowanie_wzorca import Dopasowanie, dopasuj, zaproponuj_wzorzec
 from uslugi.propozycja_wzorca import zaproponuj_aktualizacje
 from gui.dialog_wzorca import zaakceptuj_wzorzec
 from gui.dialog_modele_lokalne import DialogModeleLokalne
-from gui.modele_worker import ZadanieListyOllama
+from gui.ustawienia import Ustawienia
 from gui.dialog_kategorie import DialogKategorie
 from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
@@ -63,8 +64,7 @@ class OknoGlowne(QMainWindow):
     ETAP_EDYCJA = 2
     ETAP_FAKTURA = 3
     ETAP_DOKUMENTY = 4
-    ETAP_FAKTURY = 5
-    ETAPY = ("tab.read", "tab.ai", "tab.edit", "tab.bill", "tab.documents", "tab.invoices")
+    ETAPY = ("tab.read", "tab.ai", "tab.edit", "tab.bill", "tab.documents")
 
     def __init__(self, rejestr: RejestrRachunkow):
         super().__init__()
@@ -81,6 +81,7 @@ class OknoGlowne(QMainWindow):
         self._messages: dict[object, tuple[str, dict]] = {}
         self._status_message: tuple[str, dict] | None = None
         self.aktualny_dokument_id: int | None = None
+        self._zapisany_formularz = ()
         self._wybrany_obszar: Zaznaczenie | None = None
         self._zadanie_odczytu: ZadanieOdczytu | None = None
         self._zadanie_ai: ZadanieAnalizy | None = None
@@ -93,7 +94,6 @@ class OknoGlowne(QMainWindow):
         self._agent_task: ZadanieMonitora | None = None
         self._agent_current_job: MonitorJob | None = None
         self._agent_report: MonitorReport | None = None
-        self._agent_panel: PanelAgenta | None = None
         self._agent_closed = False
         self._agent_startup_scheduled = False
         self._agent_status_key = "agent.state.waiting"
@@ -116,11 +116,13 @@ class OknoGlowne(QMainWindow):
         self.pulpit = Pulpit(self.rejestr)
         self.moduly.addWidget(self.pulpit)
         self.pulpit.pokaz_faktury.connect(self._pokaz_faktury)
+        self.pulpit.pokaz_naleznosci.connect(self._pokaz_faktury)
         self.pulpit.pokaz_plan.connect(lambda cykl: self._open_plan_historia(cykl=cykl))
         self.pulpit.pokaz_historie.connect(
             lambda cykl: self._open_plan_historia(historia=True, cykl=cykl)
         )
         self.pulpit.pokaz_agenta.connect(self._agent_show_panel)
+        self.pulpit.pokaz_sprawdzana.connect(self._otworz_fakture_agenta)
         self.statystyki = Statystyki(self.rejestr)
         self.moduly.addWidget(self.statystyki)
         self.kreator = QScrollArea()
@@ -219,8 +221,7 @@ class OknoGlowne(QMainWindow):
         self.karty.addWidget(self._zbuduj_liste())
         self.tabela_faktur = TabelaFaktur(self.rejestr)
         self.tabela_faktur.otworz_dokument.connect(self._otworz_fakture_z_tabeli)
-        self.karty.addWidget(self.tabela_faktur)
-        self._ostatni_etap_kreatora = self.ETAP_ODCZYT
+        self.moduly.addWidget(self.tabela_faktur)
         self.nawigacja.currentRowChanged.connect(self.karty.setCurrentIndex)
         self.karty.currentChanged.connect(self.nawigacja.setCurrentRow)
         self.karty.currentChanged.connect(self._zmieniony_etap)
@@ -243,6 +244,23 @@ class OknoGlowne(QMainWindow):
         self._message(self.info_ai, "ai.start")
         self._message(self.opis_zaznaczenia, "doc.selection_hint")
         self._aktualizuj_odczyt()
+        self.plan_historia = DialogPlanHistoria(self.rejestr, embedded=True)
+        self.plan_historia.daneZmienione.connect(self._plan_financial_change)
+        self.plan_historia.otworz_dokument.connect(self._otworz_fakture_z_tabeli)
+        self.moduly.addWidget(self.plan_historia)
+
+        self._agent_panel = PanelAgenta(embedded=True)
+        self._agent_panel.manualRequested.connect(lambda: self._agent_submit("manual"))
+        self._agent_panel.cancelRequested.connect(self._agent_cancel)
+        self._agent_panel.otworz_fakture.connect(self._otworz_fakture_agenta)
+        self.moduly.addWidget(self._agent_panel)
+        self._agent_refresh_panel()
+
+        self.ustawienia = Ustawienia(self.rejestr.katalog, self._zastosuj_ustawienia)
+        self.ustawienia.btn_wzorce.clicked.connect(self._open_patterns_manager)
+        self.ustawienia.wczytaj(self.prefs, self.ed_model.text())
+        self.moduly.addWidget(self.ustawienia)
+
         self._build_menu()
         self._retranslate_ui()
 
@@ -262,7 +280,7 @@ class OknoGlowne(QMainWindow):
         for klucz, akcja in (
             ("dashboard", self._pokaz_pulpit),
             ("new_invoice", self._pokaz_kreator),
-            ("invoices", self._pokaz_faktury),
+            ("invoices", lambda: self._pokaz_faktury()),
             ("statistics", self._pokaz_statystyki),
             ("plan", self._open_plan_historia),
             ("history", lambda: self._open_plan_historia(historia=True)),
@@ -273,7 +291,7 @@ class OknoGlowne(QMainWindow):
             przycisk = QPushButton()
             przycisk.setObjectName("otworzPlanHistoria" if klucz == "plan" else "nav_" + klucz)
             przycisk.clicked.connect(akcja)
-            if klucz in {"dashboard", "new_invoice", "invoices", "statistics"}:
+            if klucz != "about":
                 przycisk.setCheckable(True)
                 strony.addButton(przycisk)
             self.nawigacja_glowna[klucz] = przycisk
@@ -283,30 +301,26 @@ class OknoGlowne(QMainWindow):
         uklad.addStretch()
         return panel
 
+    def _pokaz_modul(self, klucz: str, widok: QWidget) -> None:
+        self.moduly.setCurrentWidget(widok)
+        self.nawigacja_glowna[klucz].setChecked(True)
+
     def _pokaz_pulpit(self) -> None:
-        self.moduly.setCurrentWidget(self.pulpit)
-        self.nawigacja_glowna["dashboard"].setChecked(True)
+        self._pokaz_modul("dashboard", self.pulpit)
         self.pulpit.odswiez()
 
     def _pokaz_statystyki(self) -> None:
         self.statystyki.odswiez()
-        self.moduly.setCurrentWidget(self.statystyki)
-        self.nawigacja_glowna["statistics"].setChecked(True)
+        self._pokaz_modul("statistics", self.statystyki)
 
     def _pokaz_kreator(self) -> None:
-        # Tabela jest również ostatnim krokiem kreatora. Powrót z niej
-        # wybiera ostatni etap edycji używany przed otwarciem listy.
-        if self.karty.currentIndex() == self.ETAP_FAKTURY:
-            self.karty.setCurrentIndex(self._ostatni_etap_kreatora)
-        self.moduly.setCurrentWidget(self.kreator)
-        self.nawigacja_glowna["new_invoice"].setChecked(True)
+        self._pokaz_modul("new_invoice", self.kreator)
 
-    def _pokaz_faktury(self) -> None:
-        if self.karty.currentIndex() == self.ETAP_FAKTURY:
-            self.tabela_faktur.odswiez()
-        self.karty.setCurrentIndex(self.ETAP_FAKTURY)
-        self.moduly.setCurrentWidget(self.kreator)
-        self.nawigacja_glowna["invoices"].setChecked(True)
+    def _pokaz_faktury(self, termin: str | None = None) -> None:
+        if termin:
+            self.tabela_faktur.pokaz_naleznosci(termin)
+        self.tabela_faktur.odswiez()
+        self._pokaz_modul("invoices", self.tabela_faktur)
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -320,38 +334,48 @@ class OknoGlowne(QMainWindow):
         self.pulpit.aktualizuj_agenta(key, self._agent_report)
 
     def _agent_refresh_panel(self) -> None:
-        if self._agent_panel is not None:
-            self._agent_panel.update_content(
-                self._agent_report, self._agent_log.text(),
-                self._agent_task is not None,
-            )
+        self._agent_panel.update_content(
+            self._agent_report, self._agent_log.text(),
+            self._agent_task is not None,
+        )
 
     def _agent_show_panel(self) -> None:
-        if self._agent_panel is None:
-            self._agent_panel = PanelAgenta(self)
-            self._agent_panel.manualRequested.connect(
-                lambda: self._agent_submit("manual")
-            )
-            self._agent_panel.cancelRequested.connect(self._agent_cancel)
         self._agent_refresh_panel()
-        self._agent_panel.show()
-        self._agent_panel.raise_()
-        self._agent_panel.activateWindow()
+        self._pokaz_modul("agent", self._agent_panel)
+
+    def _otworz_fakture_agenta(self, ident: int, rewizja: str) -> None:
+        try:
+            gateway = ToolGateway(self.rejestr.katalog / "swistak.sqlite3")
+            if gateway.revision() != rewizja:
+                self._status("agent.stale_invoice")
+                return
+            faktura = self.rejestr.db.execute(
+                "SELECT dokument_id FROM rachunki WHERE id=?", (ident,)
+            ).fetchone()
+        except (sqlite3.Error, OSError, ValueError):
+            self._status("agent.stale_invoice")
+            return
+        if faktura is None:
+            self._status("agent.stale_invoice")
+            return
+        self._otworz_fakture_z_tabeli(faktura["dokument_id"])
 
     def _open_plan_historia(self, *, historia: bool = False, cykl: str = "") -> None:
-        dialog = DialogPlanHistoria(self.rejestr, self)
-        dialog.daneZmienione.connect(self._plan_financial_change)
-        if cykl:
-            dialog.month.setCurrentText(cykl)
-        if historia:
-            dialog.tabs.setCurrentIndex(1)
-        dialog.exec()
-        dialog.deleteLater()
+        modul = "history" if historia else "plan"
+        self.plan_historia.pokaz(modul, cykl)
+        self._pokaz_modul(modul, self.plan_historia)
 
     def _plan_financial_change(self, invoice_id) -> None:
         # Płatności/profil/plan zaktualizowano transakcyjnie. Natychmiast
         # odśwież istniejące ekrany, następnie analizę w tle.
         self._odswiez_liste()
+        if self.aktualny_dokument_id is not None and isinstance(invoice_id, int):
+            faktura = self.rejestr.rachunek(self.aktualny_dokument_id)
+            if faktura is not None and faktura["id"] == invoice_id:
+                status = faktura["status"]
+                self.wybor_status.setCurrentIndex(self.wybor_status.findData(status))
+                self._zapisany_formularz = (*self._zapisany_formularz[:-1], status)
+                self.zapisz_przycisk.setEnabled(faktura["wycofano_utc"] is None)
         self._aktualizuj_podsumowanie()
         if isinstance(invoice_id, int) and not isinstance(invoice_id, bool):
             self._agent_submit("change", invoice_id)
@@ -371,6 +395,7 @@ class OknoGlowne(QMainWindow):
         if mode == "change":
             self._agent_report = None
             self.pulpit.aktualizuj_agenta(self._agent_status_key, None)
+            self._agent_refresh_panel()
         if self._agent_current_job == job:
             return
         if self._agent_queue.add(job):
@@ -610,6 +635,7 @@ class OknoGlowne(QMainWindow):
             return
         self.prefs = updated
         self.ed_model.setText(name)
+        self.ustawienia.wczytaj(self.prefs, name)
         self._status("models.selected", name=name)
 
     def _czy_mozna_przywracac(self) -> bool:
@@ -888,197 +914,21 @@ class OknoGlowne(QMainWindow):
         self.close()
 
     def _open_settings(self) -> None:
-        box = QDialog(self)
-        box.setObjectName("ustawieniaSwistaka")
-        box.setWindowTitle(t("settings.title"))
-        box.setMinimumSize(780, 540)
-        box.resize(860, 670)
-        layout = QVBoxLayout(box)
-        layout.setContentsMargins(24, 20, 24, 18)
-        layout.setSpacing(12)
+        if self.moduly.currentWidget() is not self.ustawienia:
+            self.ustawienia.odswiez_modele()
+        self._pokaz_modul("settings", self.ustawienia)
 
-        hint = QLabel(t("settings.help"))
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
-
-        # Oddzielna linia etykiety i szeroka lista — żadnego ściskania
-        # przyciskiem, nawet przy większej czcionce/DPI i długim modelu.
-        label_modelu = QLabel(t("settings.model"))
-        layout.addWidget(label_modelu)
-        model = QComboBox()
-        model.setObjectName("ustawieniaListaModeli")
-        model.setEditable(True)
-        model.setMinimumHeight(32)
-        model.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        model.setMinimumContentsLength(22)
-        current_name = self.ed_model.text().strip()
-        if current_name:
-            model.addItem(current_name)
-        model.setCurrentText(current_name)
-        layout.addWidget(model)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        scan_button = QPushButton(t("settings.find_models"))
-        scan_button.setObjectName("ustawieniaSzukajLokalnie")
-        scan_button.setToolTip(t("models.search_hint"))
-        # sizeHint uwzględnia motyw i font; minimum gwarantuje pełny napis.
-        scan_button.setMinimumWidth(max(200, scan_button.sizeHint().width() + 20))
-        row.addWidget(scan_button)
-        row.addStretch(1)
-        layout.addLayout(row)
-
-        status_modeli = QLabel(t("settings.models_loading"))
-        status_modeli.setObjectName("ustawieniaStatusModeli")
-        status_modeli.setWordWrap(True)
-        layout.addWidget(status_modeli)
-
-        # QComboBox aktualizujemy również po znalezieniu modeli w drugim
-        # oknie. Zachowujemy wybrany/wpisywany model nawet po spóźnionej
-        # odpowiedzi Ollamy — nigdy nie zastępujemy go pierwszym z listy.
-        specialist_selectors: dict[str, QComboBox] = {}
-
-        def add_available_models(names: list[str]) -> None:
-            selected = model.currentText()
-            existing = [model.itemText(i) for i in range(model.count())]
-            unique: dict[str, str] = {}
-            for item in [selected, *existing, *names]:
-                if isinstance(item, str) and item.strip() and len(item.strip()) <= 120:
-                    unique.setdefault(item.strip().casefold(), item.strip())
-            model.blockSignals(True)
-            try:
-                model.clear()
-                for value in unique.values():
-                    model.addItem(value)
-                model.setCurrentText(selected)
-            finally:
-                model.blockSignals(False)
-            # Odśwież także role specjalistów, nie zmieniając ich wyboru.
-            for selector in specialist_selectors.values():
-                current = selector.currentData()
-                for value in names:
-                    if (isinstance(value, str) and 0 < len(value.strip()) <= 120
-                            and selector.findData(value.strip()) < 0):
-                        selector.addItem(value.strip(), value.strip())
-                index = selector.findData(current)
-                if index >= 0:
-                    selector.setCurrentIndex(index)
-
-        scan_dir = self.prefs.get("model_scan_dir", "")
-        folder_label = QLabel(t("settings.model_scan_dir"))
-        layout.addWidget(folder_label)
-        custom_folder = QLineEdit(scan_dir)
-        custom_folder.setObjectName("ustawieniaKatalogModeli")
-        custom_folder.setReadOnly(True)
-        custom_folder.setPlaceholderText(t("models.custom_empty"))
-        custom_folder.setToolTip(t("models.custom_hint"))
-        layout.addWidget(custom_folder)
-
-        # Krótka wskazówka, łamana w pełnej szerokości okna.
-        note = QLabel(t("settings.model_hint"))
-        note.setObjectName("ustawieniaOpisModeli")
-        note.setWordWrap(True)
-        note.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum
-        )
-        layout.addWidget(note)
-
-        specialist_box = QGroupBox(t("settings.specialists.title"))
-        specialist_box.setObjectName("ustawieniaModeleSpecjalistyczne")
-        specialist_layout = QFormLayout(specialist_box)
-        for role in ustawienia.SPECIALIST_ROLES:
-            combo = QComboBox()
-            combo.setObjectName("specialistModel_" + role)
-            combo.addItem(t("settings.specialists.default"), "")
-            configured = self.prefs.get("model_" + role, "")
-            if configured:
-                combo.addItem(configured, configured)
-                combo.setCurrentIndex(1)
-            combo.setMinimumWidth(250)
-            specialist_layout.addRow(t("settings.specialists." + role), combo)
-            specialist_selectors[role] = combo
-        layout.addWidget(specialist_box)
-
-        data_label = QLabel(t("settings.data_dir"))
-        layout.addWidget(data_label)
-        folder = QLineEdit(str(self.rejestr.katalog))
-        folder.setReadOnly(True)
-        layout.addWidget(folder)
-
-        def find_models() -> None:
-            nonlocal scan_dir
-            picker = DialogModeleLokalne(box, katalog_uzytkownika=scan_dir)
-            result = picker.exec()
-            scan_dir = picker.katalog_uzytkownika
-            custom_folder.setText(scan_dir)
-            names = picker.dostepne_modele
-            if isinstance(names, list):
-                add_available_models(names)
-            if result != QDialog.DialogCode.Accepted:
-                return
-            name = picker.wybrany_model
-            if not isinstance(name, str) or not name.strip():
-                return
-            add_available_models([name])
-            model.setCurrentText(name)
-            status_modeli.setText(
-                t("settings.models_found", count=model.count())
-            )
-
-        scan_button.clicked.connect(find_models)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(t("settings.apply"))
-        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(t("settings.cancel"))
-        buttons.accepted.connect(box.accept)
-        buttons.rejected.connect(box.reject)
-        layout.addWidget(buttons)
-
-        # Samo otwarcie Ustawień pobiera gotowe modele z /api/tags.
-        # Wolniejsze przeszukiwanie plików jest nadal świadomym wyborem.
-        task = ZadanieListyOllama()
-        active = True
-
-        def models_ready(names: list[str], error: str) -> None:
-            if not active:
-                return
-            add_available_models(names)
-            if error:
-                status_modeli.setText(t("settings.models_unavailable"))
-            elif names:
-                status_modeli.setText(
-                    t("settings.models_found", count=len(names))
-                )
-            else:
-                status_modeli.setText(t("settings.models_empty"))
-
-        task.sygnaly.gotowe.connect(models_ready)
-        QThreadPool.globalInstance().start(task)
-        result = box.exec()
-        active = False
-        task.przerwij.set()
-        if result != QDialog.DialogCode.Accepted:
-            return
-        name = model.currentText().strip()
-        if not name or len(name) > 120:
-            QMessageBox.warning(self, t("settings.title"), t("settings.invalid"))
-            return
-        updated = dict(self.prefs, ollama_model=name, model_scan_dir=scan_dir)
-        updated.update({
-            "model_" + role: selector.currentData() or ""
-            for role, selector in specialist_selectors.items()
-        })
+    def _zastosuj_ustawienia(self, zmiany: dict) -> bool:
+        updated = dict(self.prefs, **zmiany)
         try:
             ustawienia.save(updated)
         except (OSError, ValueError) as error:
             QMessageBox.warning(self, t("settings.title"),
                                 t("settings.save_failed", error=error))
-            return
+            return False
         self.prefs = updated
-        self.ed_model.setText(name)
+        self.ed_model.setText(updated["ollama_model"])
+        return True
 
     def _open_patterns_manager(self) -> None:
         OknoWzorcow(self, self.magazyn_wzorcow).exec()
@@ -1107,8 +957,9 @@ class OknoGlowne(QMainWindow):
         self.statystyki.przetlumacz()
         self.pulpit.aktualizuj_agenta(self._agent_status_key, self._agent_report)
         self.btn_panel_agenta.setText(t("agent.open"))
-        if self._agent_panel is not None:
-            self._agent_panel.przetlumacz()
+        self._agent_panel.przetlumacz()
+        self.ustawienia.przetlumacz()
+        self.plan_historia.przetlumacz()
         for menu, key in (
             (self.menu_pliki, "menu.file"),
             (self.menu_ustawienia, "menu.settings"),
@@ -1361,18 +1212,8 @@ class OknoGlowne(QMainWindow):
         return przewijanie
 
     def _zmieniony_etap(self, indeks: int) -> None:
-        # Tabela korzysta z całej szerokości roboczej; na pozostałych etapach
-        # przywracamy ten sam podgląd PDF bez utraty dokumentu ani zoomu.
-        self.podglad.setVisible(indeks != self.ETAP_FAKTURY)
-        if indeks != self.ETAP_FAKTURY:
-            self._ostatni_etap_kreatora = indeks
-        if self.moduly.currentWidget() is self.kreator:
-            klucz = "invoices" if indeks == self.ETAP_FAKTURY else "new_invoice"
-            self.nawigacja_glowna[klucz].setChecked(True)
         if indeks == self.ETAP_FAKTURA:
             self._aktualizuj_podsumowanie()
-        elif indeks == self.ETAP_FAKTURY:
-            self.tabela_faktur.odswiez()
 
     def _aktualizuj_podsumowanie(self) -> None:
         """Wartości po korekcie, bez odczytu/zapisu bazy przy zmianie widoku."""
@@ -2004,6 +1845,7 @@ class OknoGlowne(QMainWindow):
     def closeEvent(self, event) -> None:
         self._agent_closed = True
         self._agent_timer.stop()
+        self.ustawienia.anuluj_odswiezanie()
         self._agent_queue.clear()
         if self._agent_task is not None:
             self._agent_task.anuluj()
@@ -2296,7 +2138,8 @@ class OknoGlowne(QMainWindow):
             idx = self.wybor_status.findData(zapis["status"])
             if idx >= 0:
                 self.wybor_status.setCurrentIndex(idx)
-        self.zapisz_przycisk.setEnabled(True)
+        self.zapisz_przycisk.setEnabled(zapis is None or zapis["wycofano_utc"] is None)
+        self._zapisany_formularz = self._stan_formularza()
         self._aktualizuj_odczyt()
         self.karty.setCurrentIndex(
             self.ETAP_FAKTURA if zapis is not None else self.ETAP_ODCZYT
@@ -2304,19 +2147,40 @@ class OknoGlowne(QMainWindow):
         self._status("msg.opened", name=dokument["nazwa_zrodlowa"])
 
     def _otworz_fakture_z_tabeli(self, dokument_id: int) -> None:
+        if dokument_id == self.aktualny_dokument_id:
+            self._pokaz_kreator()
+            self.karty.setCurrentIndex(self.ETAP_FAKTURA)
+            return
+        if not self._zgoda_na_zmiane_dokumentu():
+            return
         try:
-            self.podglad.show()
             self._wyswietl_dokument(dokument_id)
+            self._pokaz_kreator()
         except (ValueError, OSError, sqlite3.Error) as blad:
-            if self.karty.currentIndex() == self.ETAP_FAKTURY:
-                self.podglad.hide()
             QMessageBox.warning(self, t("msg.document_open_error"), str(blad))
 
     def _wybierz_z_listy(self, element: QListWidgetItem) -> None:
-        try:
-            self._wyswietl_dokument(int(element.data(Qt.ItemDataRole.UserRole)))
-        except (ValueError, OSError, sqlite3.Error) as blad:
-            QMessageBox.warning(self, t("msg.document_open_error"), str(blad))
+        dokument_id = int(element.data(Qt.ItemDataRole.UserRole))
+        if dokument_id != self.aktualny_dokument_id:
+            self._otworz_fakture_z_tabeli(dokument_id)
+
+    def _stan_formularza(self) -> tuple:
+        pola = (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota,
+                self.ed_wystawiono, self.ed_termin, self.ed_od, self.ed_do)
+        return (*[pole.text() for pole in pola], self.ed_uwagi.toPlainText(),
+                self.wybor_kategoria.currentData(), self.wybor_status.currentData())
+
+    def _zgoda_na_zmiane_dokumentu(self) -> bool:
+        if self._zadanie_odczytu is not None or self._zadanie_ai is not None:
+            QMessageBox.information(self, t("nav.new_invoice"), t("invoice.document_busy"))
+            return False
+        if self.aktualny_dokument_id is None or self._stan_formularza() == self._zapisany_formularz:
+            return True
+        return QMessageBox.question(
+            self, t("nav.new_invoice"), t("invoice.leave_draft"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes
 
     def podglad_dopasuj(self) -> None:
         self.podglad.dopasuj()
@@ -2329,6 +2193,8 @@ class OknoGlowne(QMainWindow):
             self.otworz_pdf(sciezka)
 
     def otworz_pdf(self, sciezka: str | Path) -> None:
+        if not self._zgoda_na_zmiane_dokumentu():
+            return
         try:
             # Zweryfikuj PDF w Qt przed dodaniem go do archiwum i bazy.
             self.aktualny_dokument_id = None
@@ -2380,6 +2246,7 @@ class OknoGlowne(QMainWindow):
                     return
                 nadpisz_id = int(istniejaca["id"])
             zapisany_id = self.rejestr.zapisz_rachunek(dane, nadpisz_id=nadpisz_id)
+            self._zapisany_formularz = self._stan_formularza()
             self._agent_submit("change", zapisany_id)
             self._odswiez_liste()
             self._aktualizuj_podsumowanie()

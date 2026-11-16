@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 import ustawienia
+from ai_core.gateway import ToolGateway
 from ai_core.hybrid import MonitorReport
-from gui.dialog_plan_historia import DialogPlanHistoria
 from gui.okno_glowne import OknoGlowne
 from i18n import current_language, set_language
 from uslugi.finanse import Finanse
@@ -41,6 +41,8 @@ class TestPulpit(unittest.TestCase):
         self.enterContext(patch.object(ustawienia, "path_settings",
                                        return_value=self.root / "config.json"))
         self.enterContext(patch("gui.pulpit.today_warsaw", return_value="2026-11-16"))
+        self.enterContext(patch("gui.tabela_faktur.today_warsaw", return_value="2026-11-16"))
+        self.enterContext(patch("gui.dialog_plan_historia.now_pl", return_value=datetime(2026, 11, 16)))
         ustawienia.save({"language": "pl", "ollama_model": "demo:1"})
 
     def okno(self):
@@ -151,15 +153,18 @@ class TestPulpit(unittest.TestCase):
             self.assertEqual(window.pulpit.wartosci[klucz].text(), "1")
         self.assertFalse(window.pulpit.brak_oczekiwan.isVisible())
         self.assertEqual(self.rejestr.db.total_changes, zmiany)
+        summary = dict.fromkeys((
+            "invoices", "unpaid_grosze", "overdue", "due_soon", "paid_without_date", "missing_expected",
+        ), 0)
         window._agent_completed(MonitorReport(
             mode="startup", invoice_id=None, reference_date="2026-11-16",
-            data_revision="syntetyczna", summary={}, model_status="local_only",
+            data_revision="syntetyczna", summary=summary, model_status="local_only",
         ))
         self.assertIn("bez LLM", window.pulpit.stan_agenta.text())
         self.assertIn("Analiza przy starcie · 2026-11-16", window.pulpit.raport_agenta.text())
         window._agent_completed(MonitorReport(
             mode="startup", invoice_id=None, reference_date="2026-11-16",
-            data_revision="syntetyczna", summary={}, model_status="model_idle",
+            data_revision="syntetyczna", summary=summary, model_status="model_idle",
             model_id="model-demo",
         ))
         self.assertIn("Model dostępny w Ollamie", window.pulpit.stan_agenta.text())
@@ -193,7 +198,7 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(nav["new_invoice"].text(), "New invoice")
         self.assertEqual(window.pulpit.wartosci["unpaid"].text(), "0,00 PLN")
         QTest.mouseClick(nav["invoices"], Qt.MouseButton.LeftButton)
-        self.assertIs(window.karty.currentWidget(), window.tabela_faktur)
+        self.assertIs(window.moduly.currentWidget(), window.tabela_faktur)
         self.assertTrue(nav["invoices"].isChecked())
         QTest.mouseClick(nav["new_invoice"], Qt.MouseButton.LeftButton)
         self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
@@ -202,22 +207,106 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(window.podglad.liczba_stron, 2)
         self.assertEqual(window.ed_kwota.text(), "123,45")
         self.assertEqual(window.pole_odczytu.toPlainText(), "Tekst z OCR")
-        self.assertEqual(window.nawigacja.count(), 6)
+        self.assertEqual(window.nawigacja.count(), 5)
 
-    def test_plan_i_historia_otwieraja_wlasciwe_karty(self):
+    def test_plan_i_historia_otwieraja_wlasciwe_ekrany(self):
         self.faktura("historyczna", "1,00", okres_do="2026-10-31")
         window = self.okno()
-        okna = []
+        widok = window.plan_historia
+        window.nawigacja_glowna["plan"].click()
+        self.assertIs(window.moduly.currentWidget(), widok)
+        self.assertIs(widok.strony.currentWidget(), widok.plan_page)
+        widok.month.setCurrentText("2026-10")
+        window.nawigacja_glowna["history"].click()
+        self.assertIs(widok.strony.currentWidget(), widok.tabs)
+        self.assertEqual(widok.month.currentText(), "2026-11")
+        widok.tabs.setCurrentIndex(1)
+        window.nawigacja_glowna["plan"].click()
+        self.assertEqual(widok.month.currentText(), "2026-10")
 
-        def zapisz_widok(dialog):
-            okna.append((dialog.tabs.currentIndex(), dialog.month.currentText()))
-            return 0
+        window.nawigacja_glowna["dashboard"].click()
+        window.pulpit.miesiac.setCurrentText("2026-10")
+        przycisk = next(w for w, k in window.pulpit.napisy if k == "plan.tab.history")
+        przycisk.click()
+        self.assertEqual(widok.tabs.currentIndex(), 0)
+        self.assertEqual(widok.month.currentText(), "2026-10")
+        self.assertTrue(window.nawigacja_glowna["history"].isChecked())
+        self.assertFalse(widok.isWindow())
+        QTest.keyClick(widok, Qt.Key.Key_Escape)
+        self.assertTrue(widok.isVisible())
+        window.change_language("en")
+        self.assertEqual(widok.tabs.tabText(0), "History")
+        self.assertEqual(widok.history_invoices.horizontalHeaderItem(0).text(), "Supplier")
+        self.assertEqual(widok.month.currentText(), "2026-10")
 
-        with patch.object(DialogPlanHistoria, "exec", zapisz_widok):
-            window.nawigacja_glowna["plan"].click()
-            window.nawigacja_glowna["history"].click()
-            window.pulpit.miesiac.setCurrentText("2026-10")
-            przycisk = next(w for w, k in window.pulpit.napisy if k == "plan.tab.history")
-            przycisk.click()
-        self.assertEqual(okna, [(0, "2026-11"), (1, "2026-11"), (1, "2026-10")])
-        self.assertTrue(window.nawigacja_glowna["dashboard"].isChecked())
+    def test_skroty_terminow_z_pulpitu_filtruja_faktury(self):
+        self.faktura("zalegla", "1,01", termin="2026-11-15")
+        self.faktura("bliska", "2,02", termin="2026-11-23")
+        self.faktura("pozniejsza", "3,03", termin="2026-11-24")
+        self.faktura("bez-daty", "4,04")
+        self.faktura("oplacona", "5,05", termin="2026-11-14", status="oplacony")
+        wycofana = self.faktura("wycofana", "6,06", termin="2026-11-13")
+        self.finanse.wycofaj(wycofana, powod="Syntetyczny test")
+        window = self.okno()
+        table = window.tabela_faktur.tabela
+        for zakres, oczekiwane in (
+            ("overdue", {"zalegla"}),
+            ("due_soon", {"bliska"}),
+            ("unpaid", {"zalegla", "bliska", "pozniejsza", "bez-daty"}),
+        ):
+            window.nawigacja_glowna["dashboard"].click()
+            window.pulpit.findChild(QPushButton, "pulpitFaktury_" + zakres).click()
+            self.assertIs(window.moduly.currentWidget(), window.tabela_faktur)
+            self.assertEqual(
+                {table.item(i, 1).text() for i in range(table.rowCount()) if not table.isRowHidden(i)},
+                oczekiwane,
+            )
+
+    def test_otwarcie_faktury_agenta_nie_porzuca_formularza_bez_zgody(self):
+        window = self.okno()
+        dokumenty = {}
+        for numer in ("Syntetyczna A", "Syntetyczna B"):
+            pdf = self.root / (numer + ".pdf")
+            writer = QPdfWriter(str(pdf))
+            painter = QPainter(writer)
+            painter.drawText(100, 100, numer)
+            self.assertTrue(painter.end())
+            dokumenty[numer], _ = self.rejestr.importuj_pdf(pdf)
+        window.otworz_pdf(self.root / "Syntetyczna A.pdf")
+        window.ed_kwota.setText("12,34")
+        ident = self.rejestr.zapisz_rachunek(DaneRachunku(
+            dokument_id=dokumenty["Syntetyczna B"], dostawca="Test B", numer="B",
+            kwota="99,00", kategoria_id=self.kategoria, data_wystawienia="2026-11-16",
+        ))
+        revision = ToolGateway(self.rejestr.katalog / "swistak.sqlite3").revision()
+        window._agent_completed(MonitorReport(
+            mode="change", invoice_id=ident, reference_date="2026-11-16",
+            data_revision=revision, summary=dict.fromkeys((
+                "invoices", "unpaid_grosze", "overdue", "due_soon",
+                "paid_without_date", "missing_expected",
+            ), 0), model_status="model_idle",
+        ))
+        window.nawigacja_glowna["dashboard"].click()
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No):
+            window.pulpit.btn_sprawdzana.click()
+        self.assertIs(window.moduly.currentWidget(), window.pulpit)
+        self.assertEqual(window.ed_kwota.text(), "12,34")
+        window.nawigacja_glowna["agent"].click()
+        QTest.keyClick(window._agent_panel, Qt.Key.Key_Escape)
+        self.assertTrue(window._agent_panel.isVisible())
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+            window._agent_panel.faktura.click()
+        self.assertIs(window.moduly.currentWidget(), window.kreator)
+        self.assertEqual(window.aktualny_dokument_id, dokumenty["Syntetyczna B"])
+        self.assertEqual(window.ed_kwota.text(), "99,00")
+        self.finanse.ustaw_oplacona(ident, "2026-11-16")
+        window.nawigacja_glowna["agent"].click()
+        window._agent_panel.faktura.click()
+        self.assertIs(window.moduly.currentWidget(), window._agent_panel)
+        self.assertIn("Dane zmieniły się", window.statusBar().currentMessage())
+        window._open_plan_historia(historia=True, cykl="2026-11")
+        historia = window.plan_historia
+        historia.history_invoices.selectRow(0)
+        historia.findChild(QPushButton, "historyOpenInvoice").click()
+        self.assertIs(window.moduly.currentWidget(), window.kreator)
+        self.assertEqual(window.aktualny_dokument_id, dokumenty["Syntetyczna B"])

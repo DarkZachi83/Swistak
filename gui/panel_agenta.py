@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QApplication, QDialog, QFileDialog, QHBoxLayout, QLabel,
     QPlainTextEdit, QPushButton, QVBoxLayout,
@@ -84,13 +84,24 @@ def report_text(report: MonitorReport | None) -> str:
 class PanelAgenta(QDialog):
     manualRequested = Signal()
     cancelRequested = Signal()
+    otworz_fakture = Signal(int, str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, embedded=False):
         super().__init__(parent)
+        self._embedded = embedded
         self.setObjectName("panelAgenta")
-        self.setMinimumSize(650, 540)
-        self.resize(800, 650)
+        if embedded:
+            self.setWindowFlags(Qt.WindowType.Widget)
+        else:
+            self.setMinimumSize(650, 540)
+            self.resize(800, 650)
         layout = QVBoxLayout(self)
+        if embedded:
+            self.heading = QLabel()
+            self.heading.setObjectName("pulpitTytul")
+            layout.addWidget(self.heading)
+        else:
+            self.heading = None
         self.info = QLabel()
         self.info.setWordWrap(True)
         layout.addWidget(self.info)
@@ -121,12 +132,18 @@ class PanelAgenta(QDialog):
         self.save.clicked.connect(self._save_log)
         buttons.addWidget(self.save)
         layout.addLayout(buttons)
+        self.faktura = QPushButton()
+        self.faktura.hide()
+        self.faktura.clicked.connect(self._pokaz_fakture)
+        layout.addWidget(self.faktura, 0, Qt.AlignmentFlag.AlignLeft)
         self.report: MonitorReport | None = None
         self.logs = ""
         self.przetlumacz()
 
     def przetlumacz(self) -> None:
         self.setWindowTitle(t("agent.title"))
+        if self.heading is not None:
+            self.heading.setText(t("nav.agent"))
         self.info.setText(t("agent.warning"))
         self.summary_label.setText(t("agent.results"))
         self.log_label.setText(t("agent.log"))
@@ -134,6 +151,7 @@ class PanelAgenta(QDialog):
         self.cancel.setText(t("agent.cancel"))
         self.copy.setText(t("agent.copy"))
         self.save.setText(t("agent.save"))
+        self.faktura.setText(t("agent.open_reviewed_invoice"))
         self.wyniki.setPlainText(report_text(self.report))
 
     def update_content(self, report: MonitorReport | None, logs: str, working: bool) -> None:
@@ -143,6 +161,15 @@ class PanelAgenta(QDialog):
         self.dziennik.setPlainText(logs)
         self.cancel.setEnabled(working)
         self.manual.setEnabled(True)
+        self.faktura.setVisible(report is not None and report.invoice_id is not None)
+
+    def _pokaz_fakture(self):
+        if self.report is not None and self.report.invoice_id is not None:
+            self.otworz_fakture.emit(self.report.invoice_id, self.report.data_revision)
+
+    def reject(self) -> None:
+        if not self._embedded:
+            super().reject()
 
     def _copy_log(self) -> None:
         QApplication.clipboard().setText(self.logs)

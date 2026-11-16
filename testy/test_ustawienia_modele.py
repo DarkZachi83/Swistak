@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QLabel, QPushButton
+from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLabel
 
 import ustawienia
 from gui.dialog_modele_lokalne import DialogModeleLokalne
@@ -148,61 +148,34 @@ class TestModelSettingsGUI(unittest.TestCase):
 
     def test_ustawienia_szerokie_bez_uciec_i_lista_automatyczna(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp)
-            registry=RejestrRachunkow(root/"dane")
+            root = Path(tmp)
+            registry = RejestrRachunkow(root / "dane")
             try:
-                with patch.object(ustawienia,"path_settings",
-                                  return_value=root/"settings.json"):
-                    ustawienia.save({"language":"pl","ollama_model":"gemma2:9b"})
-                    win=OknoGlowne(registry)
+                with patch.object(ustawienia, "path_settings", return_value=root / "settings.json"):
+                    ustawienia.save({"language": "pl", "ollama_model": "gemma2:9b"})
+                    win = OknoGlowne(registry)
                     try:
-                        # Nie wybieraj dialogu pozostawionego przez poprzednie
-                        # testy: identyfikuj okno przez jego bieżącego rodzica.
-                        self.assertEqual(win.ed_model.text(),"gemma2:9b")
-                        with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
-                            def inspect_dialog():
-                                box=next(w for w in QApplication.topLevelWidgets()
-                                         if w.objectName()=="ustawieniaSwistaka"
-                                         and w.parent() is win)
-                                self.assertGreaterEqual(box.minimumWidth(),780)
-                                self.assertGreaterEqual(box.width(),820)
-                                combo=box.findChild(QComboBox,"ustawieniaListaModeli")
-                                button=box.findChild(QPushButton,"ustawieniaSzukajLokalnie")
-                                note=box.findChild(QLabel,"ustawieniaOpisModeli")
-                                status=box.findChild(QLabel,"ustawieniaStatusModeli")
-                                self.assertIsNotNone(combo)
-                                self.assertIsNotNone(button)
-                                self.assertIsNotNone(note)
-                                self.assertTrue(note.wordWrap())
-                                self.assertIn("Szukaj lokalnie",button.text())
-                                self.assertGreaterEqual(
-                                    button.minimumWidth(),button.sizeHint().width()
-                                )
-                                self.assertNotEqual(
-                                    box.layout().indexOf(combo),
-                                    box.layout().indexOf(button),
-                                )
-                                self.assertEqual(combo.currentText(),"gemma2:9b")
-                                self.assertEqual(combo.count(),1)
-                                self.assertEqual(pool.return_value.start.call_count,1)
-                                task=pool.return_value.start.call_args.args[0]
-                                self.assertIsInstance(task,ZadanieListyOllama)
-                                task.sygnaly.gotowe.emit(
-                                    ["gemma3:4b","qwen3:8b","gemma2:9b"],""
-                                )
-                                self.assertEqual(combo.count(),3)
-                                self.assertEqual(combo.currentText(),"gemma2:9b")
-                                self.assertIn("3",status.text())
-                                combo.setEditText("my-custom-model:7b")
-                                task.sygnaly.gotowe.emit(["qwen3:8b","gemma3:4b"],"")
-                                self.assertEqual(combo.currentText(),"my-custom-model:7b")
-                                self.assertEqual(combo.count(),4)
-                                return QDialog.DialogCode.Rejected
-
-                            with patch("gui.okno_glowne.QDialog.exec",
-                                       side_effect=inspect_dialog):
-                                win._open_settings()
-                            self.assertEqual(ustawienia.load()["ollama_model"],"gemma2:9b")
+                        with patch("gui.ustawienia.QThreadPool.globalInstance") as pool:
+                            win.nawigacja_glowna["settings"].click()
+                            box = win.ustawienia
+                            self.assertIs(win.moduly.currentWidget(), box)
+                            self.assertFalse(box.isWindow())
+                            self.assertTrue(box.findChild(QLabel, "ustawieniaOpisModeli").wordWrap())
+                            self.assertIn("Szukaj lokalnie", box.szukaj.text())
+                            self.assertEqual(box.model.currentText(), "gemma2:9b")
+                            task = pool.return_value.start.call_args.args[0]
+                            self.assertIsInstance(task, ZadanieListyOllama)
+                            task.sygnaly.gotowe.emit(["gemma3:4b", "qwen3:8b", "gemma2:9b"], "")
+                            self.assertEqual(box.model.count(), 3)
+                            self.assertEqual(box.model.currentText(), "gemma2:9b")
+                            box.model.setEditText("my-custom-model:7b")
+                            task.sygnaly.gotowe.emit(["qwen3:8b", "gemma3:4b"], "")
+                            self.assertEqual(box.model.currentText(), "my-custom-model:7b")
+                            win.nawigacja_glowna["dashboard"].click()
+                            win.change_language("en")
+                            win.nawigacja_glowna["settings"].click()
+                            self.assertEqual(box.model.currentText(), "my-custom-model:7b")
+                            self.assertEqual(ustawienia.load()["ollama_model"], "gemma2:9b")
                     finally:
                         win.close()
             finally:
@@ -210,55 +183,40 @@ class TestModelSettingsGUI(unittest.TestCase):
 
     def test_settings_search_list_saves_only_after_confirm(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp)
-            registry=RejestrRachunkow(root/"dane")
+            root = Path(tmp)
+            registry = RejestrRachunkow(root / "dane")
             try:
-                with patch.object(ustawienia,"path_settings",
-                                  return_value=root/"settings.json"):
-                    ustawienia.save({"language":"pl","ollama_model":"gemma3:4b"})
-                    win=OknoGlowne(registry)
+                with (
+                    patch.object(ustawienia, "path_settings", return_value=root / "settings.json"),
+                    patch("gui.ustawienia.QThreadPool.globalInstance"),
+                    patch("gui.ustawienia.DialogModeleLokalne") as picker,
+                ):
+                    ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
+                    win = OknoGlowne(registry)
                     try:
-                        scan_dir=str(root/"faked-models")
-                        with patch("gui.okno_glowne.DialogModeleLokalne") as picker:
-                            picker.return_value.exec.return_value=QDialog.DialogCode.Accepted
-                            picker.return_value.wybrany_model="qwen3:8b"
-                            picker.return_value.dostepne_modele=["gemma3:4b","qwen3:8b"]
-                            picker.return_value.katalog_uzytkownika=scan_dir
-
-                            def open_settings():
-                                box=next(w for w in QApplication.topLevelWidgets()
-                                         if w.objectName()=="ustawieniaSwistaka"
-                                         and w.parent() is win)
-                                combo=box.findChild(type(win.wybor_kategoria),
-                                                    "ustawieniaListaModeli")
-                                self.assertTrue(combo.isEditable())
-                                self.assertEqual(combo.currentText(),"gemma3:4b")
-                                box.findChild(QPushButton,"ustawieniaSzukajLokalnie").click()
-                                self.assertEqual(combo.currentText(),"qwen3:8b")
-                                self.assertEqual(combo.count(),2)
-                                return QDialog.DialogCode.Accepted
-
-                            with patch("gui.okno_glowne.QDialog.exec",
-                                       side_effect=open_settings):
-                                win._open_settings()
-                            self.assertEqual(ustawienia.load()["ollama_model"],"qwen3:8b")
-                            self.assertEqual(ustawienia.load()["model_scan_dir"],scan_dir)
-                            self.assertEqual(win.ed_model.text(),"qwen3:8b")
-
-                        with patch("gui.okno_glowne.DialogModeleLokalne") as picker:
-                            picker.return_value.exec.return_value=QDialog.DialogCode.Accepted
-                            picker.return_value.wybrany_model="another:1b"
-                            picker.return_value.dostepne_modele=["another:1b"]
-                            picker.return_value.katalog_uzytkownika=scan_dir
-                            with patch("gui.okno_glowne.QDialog.exec",
-                                       side_effect=lambda: QDialog.DialogCode.Rejected):
-                                win._open_settings()
-                            self.assertEqual(ustawienia.load()["ollama_model"],"qwen3:8b")
+                        scan_dir = str(root / "faked-models")
+                        picker.return_value.exec.return_value = QDialog.DialogCode.Accepted
+                        picker.return_value.wybrany_model = "qwen3:8b"
+                        picker.return_value.dostepne_modele = ["gemma3:4b", "qwen3:8b"]
+                        picker.return_value.katalog_uzytkownika = scan_dir
+                        win.akcja_konfiguruj.trigger()
+                        box = win.ustawienia
+                        box.szukaj.click()
+                        self.assertEqual(box.model.currentText(), "qwen3:8b")
+                        self.assertEqual(ustawienia.load()["ollama_model"], "gemma3:4b")
+                        box.buttons.button(QDialogButtonBox.StandardButton.Save).click()
+                        self.assertEqual(ustawienia.load()["ollama_model"], "qwen3:8b")
+                        self.assertEqual(ustawienia.load()["model_scan_dir"], scan_dir)
+                        self.assertEqual(win.ed_model.text(), "qwen3:8b")
+                        box.model.setEditText("another:1b")
+                        box.buttons.button(QDialogButtonBox.StandardButton.Cancel).click()
+                        self.assertEqual(box.model.currentText(), "qwen3:8b")
+                        self.assertEqual(ustawienia.load()["ollama_model"], "qwen3:8b")
                     finally:
                         win.close()
             finally:
                 registry.zamknij()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     unittest.main()

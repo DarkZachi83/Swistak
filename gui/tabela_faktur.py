@@ -2,18 +2,22 @@
 """Tabela zapisanych faktur; archiwum wszystkich PDF pozostaje osobnym widokiem."""
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QHeaderView, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from i18n import t
+from ai_core.hybrid import today_warsaw
+from i18n import category_name, t
 from uslugi.rachunki import RejestrRachunkow, grosze_na_kwote
 
 SORT_ROLE = Qt.ItemDataRole.UserRole + 1
 STATUS_ROLE = Qt.ItemDataRole.UserRole + 2
 AMOUNT_ROLE = Qt.ItemDataRole.UserRole + 3
+DUE_ROLE = Qt.ItemDataRole.UserRole + 4
 
 
 class KomorkaFaktury(QTableWidgetItem):
@@ -44,6 +48,9 @@ class TabelaFaktur(QWidget):
         layout.setContentsMargins(10, 12, 10, 12)
         layout.setSpacing(10)
 
+        self.tytul = QLabel()
+        self.tytul.setObjectName("pulpitTytul")
+        layout.addWidget(self.tytul)
         self.wskazowka = QLabel()
         self.wskazowka.setWordWrap(True)
         self.wskazowka.setObjectName("podpowiedz")
@@ -62,6 +69,12 @@ class TabelaFaktur(QWidget):
         self.filtr_status.addItem("", "oplacony")
         self.filtr_status.currentIndexChanged.connect(self._filtruj)
         filters.addWidget(self.filtr_status)
+
+        self.filtr_terminu = QComboBox()
+        for value in (None, "overdue", "due_soon"):
+            self.filtr_terminu.addItem("", value)
+        self.filtr_terminu.currentIndexChanged.connect(self._filtruj)
+        filters.addWidget(self.filtr_terminu)
 
         self.btn_odswiez = QPushButton()
         self.btn_odswiez.clicked.connect(self.odswiez)
@@ -129,7 +142,7 @@ class TabelaFaktur(QWidget):
                 str(invoice["data_wystawienia"] or "—"),
                 str(invoice["termin_platnosci"] or "—"),
                 grosze_na_kwote(amount) + " " + t("invoices.currency"),
-                str(invoice["kategoria"] or "—"),
+                category_name(invoice["kategoria"]) if invoice["kategoria"] else "—",
                 t("form.status_paid" if status == "oplacony" else "form.status_due"),
                 str(invoice["nazwa_zrodlowa"]),
             )
@@ -147,6 +160,7 @@ class TabelaFaktur(QWidget):
                     item.setData(Qt.ItemDataRole.UserRole, int(invoice["dokument_id"]))
                     item.setData(STATUS_ROLE, status)
                     item.setData(AMOUNT_ROLE, amount)
+                    item.setData(DUE_ROLE, invoice["termin_platnosci"])
                 self.tabela.setItem(row, column, item)
         self.tabela.setSortingEnabled(True)
         if sort_column < 0 or sort_column >= len(self.KOLUMNY):
@@ -164,6 +178,9 @@ class TabelaFaktur(QWidget):
     def _filtruj(self, *_args) -> None:
         phrase = " ".join(self.szukaj.text().casefold().split())
         status_filter = self.filtr_status.currentData()
+        termin = self.filtr_terminu.currentData()
+        dzis = today_warsaw()
+        do = (date.fromisoformat(dzis) + timedelta(days=7)).isoformat()
         shown = 0
         total_grosze = 0
         for row in range(self.tabela.rowCount()):
@@ -176,6 +193,12 @@ class TabelaFaktur(QWidget):
                 for col in range(len(self.KOLUMNY))
             )
             ok = (not status_filter or status_filter == status) and phrase in text
+            if termin:
+                termin_platnosci = first.data(DUE_ROLE)
+                w_terminie = bool(termin_platnosci and (
+                    termin_platnosci < dzis if termin == "overdue" else dzis <= termin_platnosci <= do
+                ))
+                ok = ok and status == "do_zaplaty" and w_terminie
             self.tabela.setRowHidden(row, not ok)
             if ok:
                 shown += 1
@@ -189,12 +212,21 @@ class TabelaFaktur(QWidget):
         self._zmieniono_wybor()
 
     def przetlumacz(self) -> None:
+        self.tytul.setText(t("nav.invoices"))
         self.wskazowka.setText(t("invoices.hint"))
         self.szukaj.setPlaceholderText(t("invoices.search"))
         self.filtr_status.setItemText(0, t("invoices.all_statuses"))
         self.filtr_status.setItemText(1, t("form.status_due"))
         self.filtr_status.setItemText(2, t("form.status_paid"))
+        self.filtr_terminu.setItemText(0, t("invoices.all_due_dates"))
+        self.filtr_terminu.setItemText(1, t("dashboard.overdue"))
+        self.filtr_terminu.setItemText(2, t("dashboard.due_soon"))
         self.btn_odswiez.setText(t("button.refresh"))
         self.btn_otworz.setText(t("invoices.open"))
         self.tabela.setHorizontalHeaderLabels([t(key) for key in self.KOLUMNY])
         self.odswiez()
+
+    def pokaz_naleznosci(self, zakres: str) -> None:
+        self.szukaj.clear()
+        self.filtr_status.setCurrentIndex(self.filtr_status.findData("do_zaplaty"))
+        self.filtr_terminu.setCurrentIndex(max(0, self.filtr_terminu.findData(zakres)))
