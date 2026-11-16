@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from baza.polaczenie import transakcja
@@ -90,6 +90,29 @@ def uniewaznij_kompletnosc(db: sqlite3.Connection, cykl: str | None, powod: str)
 class Finanse:
     def __init__(self, db: sqlite3.Connection):
         self.db = db
+
+    def podsumowanie_terminow(self, dzisiaj: date) -> dict[str, int]:
+        """Aktywne należności. Okno płatności obejmuje dziś i kolejne 7 dni."""
+        dzien = dzisiaj.isoformat()
+        koniec = (dzisiaj + timedelta(days=7)).isoformat()
+        row = self.db.execute(
+            """
+            WITH naleznosci AS (
+                SELECT kwota_grosze, termin_platnosci < :dzis AS po_terminie,
+                       termin_platnosci BETWEEN :dzis AND :koniec AS wkrotce
+                FROM rachunki WHERE wycofano_utc IS NULL AND status='do_zaplaty'
+            )
+            SELECT COUNT(*) AS unpaid_count,
+                   COALESCE(SUM(kwota_grosze), 0) AS unpaid_grosze,
+                   COUNT(*) FILTER (WHERE po_terminie) AS overdue_count,
+                   COALESCE(SUM(kwota_grosze) FILTER (WHERE po_terminie), 0) AS overdue_grosze,
+                   COUNT(*) FILTER (WHERE wkrotce) AS due_soon_count,
+                   COALESCE(SUM(kwota_grosze) FILTER (WHERE wkrotce), 0) AS due_soon_grosze
+            FROM naleznosci
+            """,
+            {"dzis": dzien, "koniec": koniec},
+        ).fetchone()
+        return dict(row)
 
     def _faktura(self, ident: int) -> sqlite3.Row:
         if type(ident) is not int or ident <= 0:

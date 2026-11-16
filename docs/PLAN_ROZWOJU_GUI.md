@@ -1,14 +1,17 @@
 # Świstak — plan następnych prac: główne menu, pulpit i statystyki
 
-**Status:** plan zatwierdzony co do kierunku 14.11.2026, **nie zaimplementowany**.  
+**Status:** GUI-1 zaimplementowany, oczekuje na lokalny odbiór. GUI-2–GUI-4 są zaplanowane.
+
 **Repozytorium:** https://github.com/DarkZachi83/Swistak · `main`  
 **Poprzedni etap:** [AI Core 1.0 — zamknięcie etapu 8](ai_core/ETAP_8_ZAMKNIECIE.md).
 
-## Diagnoza obecnego UI
+## Stan po GUI-1
 
-Aktualny główny ekran Świstaka jest przede wszystkim **procesem obsługi faktury** z sześcioma krokami: **Odczyt PDF / skanu → Analiza AI → Edycja danych → Faktura → Dokumenty → Faktury**. Istnieją także okna **Plan / Historia**, **Panel Agenta**, **Ustawienia** i **O programie**, ale nie istnieje jeszcze odrębny, codzienny **pulpit główny**, pełna nawigacja po funkcjach programu ani ekran statystyk z wykresami.
+**Pulpit główny** otwiera się po uruchomieniu. Boczne menu prowadzi do kreatora **Nowa faktura**, jego tabeli **Moje faktury** oraz do istniejących okien Planu, Historii, Agenta i ustawień. Proces faktury ma sześć dotychczasowych kroków: **Odczyt PDF / skanu → Analiza AI → Edycja danych → Faktura → Dokumenty → Faktury**.
 
-Nie należy przedstawiać dotychczasowej analizy AI ani dialogu Plan / Historia jako gotowego docelowego pulpitu. Stare sześć kart można zachować jako wewnętrzny kreator **Nowa faktura**.
+Pulpit sumuje aktywne należności w groszach. Zakres bliskich terminów obejmuje dziś i siedem kolejnych dni. Wydatki za miesiąc usługi są przypisane według końca okresu, a przy jego braku według daty wystawienia. Kwota faktycznie zapłacona w miesiącu obejmuje faktury z zapisaną datą płatności. Oczekiwania pochodzą z zapisów utworzonych w Planie dla wybranego miesiąca.
+
+Odbiór na odrębnej bazie przez `./uruchom.sh --test`: wczytaj testowy PDF, wpisz dane w formularzu i wróć do niego po przejściu przez Pulpit i Moje faktury. Zweryfikuj sumy dla zapisanych testowych faktur, przełącz PL/EN i sprawdź pulpit przy wyłączonej Ollamie.
 
 ## Docelowe moduły nawigacji
 
@@ -28,7 +31,7 @@ obecnej stylistyki Świstaka / AI Bobra.
 
 ## Harmonogram realizacji
 
-### GUI-1 — Menu główne i Pulpit (pierwszy następny etap)
+### GUI-1 — Menu główne i Pulpit (do odbioru)
 
 - Utwórz docelową nawigację modułów i ekran startowy `Pulpit główny`.
 - Wykorzystaj obecne `QStackedWidget`/PySide6 tak, aby nie resetować

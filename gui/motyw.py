@@ -35,6 +35,20 @@ def ustaw_motyw(aplikacja: QApplication) -> None:
         QPushButton:disabled { color: #737a80; }
         QLabel#naglowek { font-size: 19px; font-weight: 700; }
         QLabel#podpowiedz { color: #a3a9b1; }
+        QFrame#menuBoczne, QFrame#pulpitKarta {
+            background: #2b3035; border: 1px solid #383e44; border-radius: 8px;
+        }
+        QFrame#menuBoczne QLabel, QFrame#pulpitKarta QLabel { background: transparent; }
+        QFrame#menuBoczne QLabel { padding-left: 10px; }
+        QFrame#menuBoczne QPushButton {
+            text-align: left; background: transparent; border-color: transparent;
+        }
+        QFrame#menuBoczne QPushButton:hover:enabled { background: #414a51; }
+        QFrame#menuBoczne QPushButton:checked { background: #305643; color: #f0fff5; }
+        QFrame#menuBoczne QPushButton:focus { border-color: #4fa3e3; }
+        QLabel#pulpitTytul { font-size: 27px; font-weight: 700; }
+        QLabel#pulpitSekcja { font-size: 16px; font-weight: 700; }
+        QLabel#pulpitWartosc { font-size: 22px; font-weight: 700; }
         QGraphicsView { background: #171b1f; border: 1px solid #45484b;
                         border-radius: 8px; }
         QStatusBar { background: #2b3035; }

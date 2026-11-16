@@ -38,8 +38,8 @@ class TestPostepAgenta(unittest.TestCase):
                     win = OknoGlowne(db)
                     win.show()
                     self.app.processEvents()
-                    # Pasek jest na wewnętrznej karcie DANE, a start aplikacji
-                    # pokazuje Odczyt PDF: najpierw odsłoń panel analizy.
+                    # Pasek należy do karty DANE wewnątrz kreatora faktury.
+                    win.nawigacja_glowna["new_invoice"].click()
                     win.karty.setCurrentIndex(win.ETAP_ANALIZA)
                     win.zakladki_ai.setCurrentIndex(0)
                     self.app.processEvents()

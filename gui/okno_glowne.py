@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-"""Świstak — podgląd PDF, import, formularz i lokalna lista rachunków."""
+"""Główna nawigacja Świstaka, pulpit i kreator faktur."""
 from __future__ import annotations
 
 import sqlite3
@@ -11,7 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QThreadPool, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QCursor
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
+    QApplication, QButtonGroup, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
     QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPushButton, QProgressBar, QScrollArea, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QPlainTextEdit, QTextEdit, QVBoxLayout,
@@ -25,6 +25,7 @@ from gui.dialog_qr import DialogQR
 from gui.analiza_worker import ZadanieAnalizy
 from gui.agent_worker import ZadanieMonitora
 from gui.panel_agenta import PanelAgenta
+from gui.pulpit import Pulpit
 from gui.dialog_plan_historia import DialogPlanHistoria
 from ai_core.hybrid import AgentLog, MonitorReport
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
@@ -54,7 +55,7 @@ import ustawienia
 
 
 class OknoGlowne(QMainWindow):
-    """Etapy pracy: OCR → AI → korekta → faktura → archiwum."""
+    """Pulpit rachunków i zachowany proces OCR → AI → korekta → faktura."""
 
     ETAP_ODCZYT = 0
     ETAP_ANALIZA = 1
@@ -104,33 +105,30 @@ class OknoGlowne(QMainWindow):
 
         centrum = QWidget()
         self.setCentralWidget(centrum)
-        pion = QVBoxLayout(centrum)
-        pion.setContentsMargins(15, 14, 15, 14)
-        pion.setSpacing(12)
+        uklad = QHBoxLayout(centrum)
+        uklad.setContentsMargins(15, 14, 15, 14)
+        uklad.setSpacing(14)
+        uklad.addWidget(self._zbuduj_menu_boczne())
 
-        naglowek = QHBoxLayout()
-        tytul = QLabel("Świstak")
-        self.tytul = tytul
-        tytul.setObjectName("naglowek")
-        naglowek.addWidget(tytul)
-        opis = QLabel("Archiwum rachunków • lokalna Ollama")
-        self.opis_aplikacji = opis
-        opis.setObjectName("podpowiedz")
-        naglowek.addWidget(opis)
-        naglowek.addStretch()
-        self.agent_status = QLabel()
-        self.agent_status.setObjectName("stanAgenta")
-        self.agent_status.setWordWrap(True)
-        naglowek.addWidget(self.agent_status)
-        self.btn_panel_agenta_header = QPushButton()
-        self.btn_panel_agenta_header.setObjectName("otworzPanelAgenta")
-        self.btn_panel_agenta_header.clicked.connect(self._agent_show_panel)
-        naglowek.addWidget(self.btn_panel_agenta_header)
-        self.btn_plan_historia = QPushButton()
-        self.btn_plan_historia.setObjectName("otworzPlanHistoria")
-        self.btn_plan_historia.clicked.connect(self._open_plan_historia)
-        naglowek.addWidget(self.btn_plan_historia)
-        pion.addLayout(naglowek)
+        self.moduly = QStackedWidget()
+        uklad.addWidget(self.moduly, 1)
+        self.pulpit = Pulpit(self.rejestr)
+        self.moduly.addWidget(self.pulpit)
+        self.pulpit.pokaz_faktury.connect(self._pokaz_faktury)
+        self.pulpit.pokaz_plan.connect(lambda cykl: self._open_plan_historia(cykl=cykl))
+        self.pulpit.pokaz_historie.connect(
+            lambda cykl: self._open_plan_historia(historia=True, cykl=cykl)
+        )
+        self.pulpit.pokaz_agenta.connect(self._agent_show_panel)
+        self.kreator = QScrollArea()
+        self.kreator.setFrameShape(QFrame.Shape.NoFrame)
+        self.kreator.setWidgetResizable(True)
+        self.moduly.addWidget(self.kreator)
+        tresc_kreatora = QWidget()
+        self.kreator.setWidget(tresc_kreatora)
+        pion = QVBoxLayout(tresc_kreatora)
+        pion.setContentsMargins(0, 0, 0, 0)
+        pion.setSpacing(12)
 
         pasek = QFrame()
         pasek.setObjectName("pasek")
@@ -219,6 +217,7 @@ class OknoGlowne(QMainWindow):
         self.tabela_faktur = TabelaFaktur(self.rejestr)
         self.tabela_faktur.otworz_dokument.connect(self._otworz_fakture_z_tabeli)
         self.karty.addWidget(self.tabela_faktur)
+        self._ostatni_etap_kreatora = self.ETAP_ODCZYT
         self.nawigacja.currentRowChanged.connect(self.karty.setCurrentIndex)
         self.karty.currentChanged.connect(self.nawigacja.setCurrentRow)
         self.karty.currentChanged.connect(self._zmieniony_etap)
@@ -236,7 +235,6 @@ class OknoGlowne(QMainWindow):
         pion.addWidget(self.opis_zaznaczenia)
         self._status("msg.status")
         self._aktualizuj_nawigacje(0, 0)
-        self._odswiez_liste()
         self._wyczysc_formularz()
         self._message(self.info_odczytu, "read.start")
         self._message(self.info_ai, "ai.start")
@@ -244,6 +242,66 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_odczyt()
         self._build_menu()
         self._retranslate_ui()
+
+    def _zbuduj_menu_boczne(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("menuBoczne")
+        uklad = QVBoxLayout(panel)
+        uklad.setContentsMargins(9, 14, 9, 9)
+        uklad.setSpacing(5)
+        self.tytul = QLabel()
+        self.tytul.setObjectName("naglowek")
+        uklad.addWidget(self.tytul)
+        uklad.addSpacing(10)
+
+        self.nawigacja_glowna = {}
+        strony = QButtonGroup(panel)
+        for klucz, akcja in (
+            ("dashboard", self._pokaz_pulpit),
+            ("new_invoice", self._pokaz_kreator),
+            ("invoices", self._pokaz_faktury),
+            ("statistics", None),
+            ("plan", self._open_plan_historia),
+            ("history", lambda: self._open_plan_historia(historia=True)),
+            ("agent", self._agent_show_panel),
+            ("settings", self._open_settings),
+            ("about", self._about),
+        ):
+            przycisk = QPushButton()
+            przycisk.setObjectName("otworzPlanHistoria" if klucz == "plan" else "nav_" + klucz)
+            if akcja is None:
+                przycisk.setEnabled(False)
+            else:
+                przycisk.clicked.connect(akcja)
+            if klucz in {"dashboard", "new_invoice", "invoices"}:
+                przycisk.setCheckable(True)
+                strony.addButton(przycisk)
+            self.nawigacja_glowna[klucz] = przycisk
+            uklad.addWidget(przycisk)
+        self.nawigacja_glowna["dashboard"].setChecked(True)
+        self.btn_plan_historia = self.nawigacja_glowna["plan"]
+        uklad.addStretch()
+        return panel
+
+    def _pokaz_pulpit(self) -> None:
+        self.moduly.setCurrentWidget(self.pulpit)
+        self.nawigacja_glowna["dashboard"].setChecked(True)
+        self.pulpit.odswiez()
+
+    def _pokaz_kreator(self) -> None:
+        # Tabela jest również ostatnim krokiem kreatora. Powrót z niej
+        # wybiera ostatni etap edycji używany przed otwarciem listy.
+        if self.karty.currentIndex() == self.ETAP_FAKTURY:
+            self.karty.setCurrentIndex(self._ostatni_etap_kreatora)
+        self.moduly.setCurrentWidget(self.kreator)
+        self.nawigacja_glowna["new_invoice"].setChecked(True)
+
+    def _pokaz_faktury(self) -> None:
+        if self.karty.currentIndex() == self.ETAP_FAKTURY:
+            self.tabela_faktur.odswiez()
+        self.karty.setCurrentIndex(self.ETAP_FAKTURY)
+        self.moduly.setCurrentWidget(self.kreator)
+        self.nawigacja_glowna["invoices"].setChecked(True)
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -254,7 +312,7 @@ class OknoGlowne(QMainWindow):
 
     def _agent_set_status(self, key: str) -> None:
         self._agent_status_key = key
-        self.agent_status.setText(t(key))
+        self.pulpit.aktualizuj_agenta(key, self._agent_report)
 
     def _agent_refresh_panel(self) -> None:
         if self._agent_panel is not None:
@@ -275,17 +333,20 @@ class OknoGlowne(QMainWindow):
         self._agent_panel.raise_()
         self._agent_panel.activateWindow()
 
-    def _open_plan_historia(self) -> None:
-        """Plan, Historia i rozliczenia bez kolejnego katalogu worktree."""
+    def _open_plan_historia(self, *, historia: bool = False, cykl: str = "") -> None:
         dialog = DialogPlanHistoria(self.rejestr, self)
         dialog.daneZmienione.connect(self._plan_financial_change)
+        if cykl:
+            dialog.month.setCurrentText(cykl)
+        if historia:
+            dialog.tabs.setCurrentIndex(1)
         dialog.exec()
+        dialog.deleteLater()
 
     def _plan_financial_change(self, invoice_id) -> None:
         # Płatności/profil/plan zaktualizowano transakcyjnie. Natychmiast
         # odśwież istniejące ekrany, następnie analizę w tle.
         self._odswiez_liste()
-        self.tabela_faktur.odswiez()
         self._aktualizuj_podsumowanie()
         if isinstance(invoice_id, int) and not isinstance(invoice_id, bool):
             self._agent_submit("change", invoice_id)
@@ -304,6 +365,7 @@ class OknoGlowne(QMainWindow):
         # świadomy zapis formularza może zmieniać SQLite.
         if mode == "change":
             self._agent_report = None
+            self.pulpit.aktualizuj_agenta(self._agent_status_key, None)
         if self._agent_current_job == job:
             return
         if self._agent_queue.add(job):
@@ -1044,10 +1106,11 @@ class OknoGlowne(QMainWindow):
     def _retranslate_ui(self) -> None:
         self.setWindowTitle(t("app.title"))
         self.tytul.setText(t("app.header"))
-        self.opis_aplikacji.setText(t("app.subtitle"))
-        self.agent_status.setText(t(self._agent_status_key))
-        self.btn_panel_agenta_header.setText(t("agent.open_short"))
-        self.btn_plan_historia.setText(t("plan.open_short"))
+        for klucz, przycisk in self.nawigacja_glowna.items():
+            przycisk.setText(t("nav." + klucz))
+        self.nawigacja_glowna["statistics"].setToolTip(t("nav.statistics_pending"))
+        self.pulpit.przetlumacz()
+        self.pulpit.aktualizuj_agenta(self._agent_status_key, self._agent_report)
         self.btn_panel_agenta.setText(t("agent.open"))
         if self._agent_panel is not None:
             self._agent_panel.przetlumacz()
@@ -1306,6 +1369,11 @@ class OknoGlowne(QMainWindow):
         # Tabela korzysta z całej szerokości roboczej; na pozostałych etapach
         # przywracamy ten sam podgląd PDF bez utraty dokumentu ani zoomu.
         self.podglad.setVisible(indeks != self.ETAP_FAKTURY)
+        if indeks != self.ETAP_FAKTURY:
+            self._ostatni_etap_kreatora = indeks
+        if self.moduly.currentWidget() is self.kreator:
+            klucz = "invoices" if indeks == self.ETAP_FAKTURY else "new_invoice"
+            self.nawigacja_glowna[klucz].setChecked(True)
         if indeks == self.ETAP_FAKTURA:
             self._aktualizuj_podsumowanie()
         elif indeks == self.ETAP_FAKTURY:
@@ -2175,6 +2243,8 @@ class OknoGlowne(QMainWindow):
         if keep_row >= 0:
             self.lista_dokumentow.setCurrentRow(keep_row)
         self.tabela_faktur.odswiez()
+        if self.moduly.currentWidget() is self.pulpit:
+            self.pulpit.odswiez()
 
     def _wyczysc_formularz(self) -> None:
         self._message(self.nazwa_dokumentu, "doc.import_first")
@@ -2268,6 +2338,7 @@ class OknoGlowne(QMainWindow):
             self.podglad.otworz(sciezka)
             dokument_id, czy_nowy = self.rejestr.importuj_pdf(sciezka)
             self._wyswietl_dokument(dokument_id)
+            self._pokaz_kreator()
             self._odswiez_liste()
             if not czy_nowy:
                 self._status("msg.duplicate")

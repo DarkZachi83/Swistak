@@ -87,26 +87,37 @@ class HistoriaRozliczen:
             "ORDER BY p.aktywny DESC,p.nazwa,p.id LIMIT 500"
         )]
 
-    def miesiac(self, cykl: str, *, dzisiaj: str | None = None) -> dict:
+    def sumy_miesiaca(self, cykl: str) -> dict[str, int]:
+        """Kwoty w groszach z całego miesiąca rozliczeniowego i miesiąca płatności."""
         cykl_miesiaca(cykl)
-        current = self.finanse.ocena_cyklu(cykl,dzisiaj=dzisiaj)
-        invoices = self.faktury(cykl)
-        active=[r for r in invoices if r["wycofano_utc"] is None]
-        active_total=sum(int(r["kwota_grosze"]) for r in active)
-        paid_total=sum(int(r["kwota_grosze"]) for r in active if r["status"]=="oplacony")
-        payments_month=self.db.execute(
-            "SELECT COALESCE(SUM(kwota_grosze),0) AS suma,COUNT(*) AS ile "
-            "FROM rachunki WHERE wycofano_utc IS NULL AND status='oplacony' "
-            "AND substr(data_oplacenia,1,7)=?",(cykl,)
+        billed = self.db.execute(
+            """
+            SELECT COUNT(*) FILTER (WHERE wycofano_utc IS NULL) AS billed_count,
+                   COALESCE(SUM(kwota_grosze) FILTER (WHERE wycofano_utc IS NULL), 0)
+                       AS billed_grosze,
+                   COUNT(*) FILTER (WHERE wycofano_utc IS NULL AND status='oplacony')
+                       AS paid_service_count,
+                   COALESCE(SUM(kwota_grosze) FILTER (
+                       WHERE wycofano_utc IS NULL AND status='oplacony'), 0) AS paid_service_grosze,
+                   COUNT(*) FILTER (WHERE wycofano_utc IS NOT NULL) AS withdrawn_count
+            FROM rachunki WHERE substr(COALESCE(okres_do,data_wystawienia),1,7)=?
+            """,
+            (cykl,),
         ).fetchone()
+        payments = self.db.execute(
+            "SELECT COALESCE(SUM(kwota_grosze),0) AS payments_in_month_grosze, "
+            "COUNT(*) AS payments_in_month_count "
+            "FROM rachunki WHERE wycofano_utc IS NULL AND status='oplacony' "
+            "AND substr(data_oplacenia,1,7)=?", (cykl,),
+        ).fetchone()
+        return {**dict(billed), **dict(payments)}
+
+    def miesiac(self, cykl: str, *, dzisiaj: str | None = None) -> dict:
+        current = self.finanse.ocena_cyklu(cykl,dzisiaj=dzisiaj)
         expected=self.oczekiwania(cykl,dzisiaj=dzisiaj)
         return {
             **current,
-            "billed_grosze": active_total,
-            "paid_service_grosze": paid_total,
-            "payments_in_month_grosze": int(payments_month["suma"]),
-            "payments_in_month_count": int(payments_month["ile"]),
-            "withdrawn_count": len(invoices)-len(active),
+            **self.sumy_miesiaca(cykl),
             "uncertain_count": sum(row["state"]=="uncertain" for row in expected),
             "expected_count": len(expected),
             "unresolved_count": sum(row["state"] not in {"received","not_issued"}
