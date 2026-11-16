@@ -11,10 +11,11 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication
 
 import ustawienia
-from ai_core.errors import TaskCancelled
+from ai_core.errors import InvalidResponse, ModelUnavailable, TaskCancelled
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import AgentLog, HybridAgent, MonitorReport
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
+from ai_core.ollama import OllamaProvider
 from gui.okno_glowne import OknoGlowne
 from gui.panel_agenta import PanelAgenta, report_text
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow
@@ -115,6 +116,62 @@ class TestHybridAgent(unittest.TestCase):
         self.assertEqual(report.summary["due_soon"], 0)
         self.assertFalse(report.findings)
         self.assertEqual(self.register.rachunek(1)["status"], "do_zaplaty")
+
+    def test_start_sprawdza_ollame_nawet_przy_pustej_bazie(self):
+        self.register.db.execute("DELETE FROM rachunki")
+        provider = OllamaProvider()
+        with patch.object(provider, "_request", return_value={"models": [{"name": "model-demo"}]}) as http:
+            report = self._agent(provider).run("startup")
+        self.assertEqual(report.model_status, "model_idle")
+        self.assertEqual(report.model_id, "model-demo")
+        http.assert_called_once_with("/api/tags", timeout=2.5)
+
+    def test_start_bez_alertow_nie_laduje_modelu_z_faktura(self):
+        self.register.db.execute(
+            "UPDATE rachunki SET status='oplacony',data_oplacenia='2026-11-03' WHERE id=?",
+            (self.invoice_id,),
+        )
+        provider = OllamaProvider()
+        with patch.object(provider, "_request", return_value={"models": [{"name": "model-demo"}]}) as http:
+            report = self._agent(provider).run("startup")
+        self.assertEqual(report.model_status, "model_idle")
+        self.assertEqual(report.summary["invoices"], 1)
+        http.assert_called_once_with("/api/tags", timeout=2.5)
+
+    def test_brak_modelu_i_brak_odpowiedzi_ollamy_to_rozne_przyczyny(self):
+        provider = OllamaProvider()
+        with patch.object(provider, "list_models", return_value=["inny-model"]):
+            report = self._agent(provider).run("startup")
+        self.assertEqual(report.model_status, "local_only")
+        self.assertEqual(report.model_reason, "model_missing")
+        self.assertIn("model-demo", report_text(report))
+        with patch.object(provider, "list_models", side_effect=ModelUnavailable("offline")):
+            report = self._agent(provider).run("startup")
+        self.assertEqual(report.model_reason, "ollama_unavailable")
+
+    def test_model_bez_narzedzi_zostaje_dostepny_bez_wywolania_chat(self):
+        provider = OllamaProvider()
+        with patch.object(provider, "_request", side_effect=[
+            {"models": [{"name": "model-demo"}]}, {"capabilities": ["completion", "vision"]},
+        ]) as http:
+            report = self._agent(provider).run("manual")
+        self.assertEqual(report.model_status, "model_no_tools")
+        self.assertEqual([call.args[0] for call in http.call_args_list], ["/api/tags", "/api/show"])
+
+    def test_blad_analizy_zachowuje_model_i_kontrole_lokalna(self):
+        provider = OllamaProvider()
+        with (
+            patch.object(provider, "_request", side_effect=[
+                {"models": [{"name": "model-demo"}]}, {"capabilities": ["completion", "tools"]},
+            ]),
+            patch.object(provider, "run_tools", side_effect=InvalidResponse("Dane dostawcy DEMO")),
+        ):
+            report = self._agent(provider).run("manual")
+        self.assertEqual(report.model_status, "model_error")
+        self.assertEqual(report.model_reason, "invalid_response")
+        self.assertEqual(report.model_id, "model-demo")
+        self.assertEqual(report.summary["overdue"], 1)
+        self.assertNotIn("Dane dostawcy DEMO", report_text(report))
 
     def test_po_zapisie_tylko_wskazany_rachunek(self):
         agent = self._agent(UnavailableProvider())

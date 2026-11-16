@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-from ai_core.errors import InvalidResponse, TaskCancelled
+from ai_core.errors import InvalidResponse, ModelUnavailable, TaskCancelled, TaskTimeout
 from ai_core.gateway import ToolGateway
 from ai_core.ollama import OllamaProvider
 from ai_core.orchestrator import AgentOrchestrator
@@ -37,12 +37,13 @@ class MonitorReport:
     reference_date: str
     data_revision: str
     summary: dict[str, int]
-    model_status: str  # local_only | model_ready | model_error
+    model_status: str  # local_only | model_idle | model_no_tools | model_ready | model_error
     model_id: str | None = None
     findings: tuple[dict, ...] = ()
     proposals: tuple[dict, ...] = ()
     uncertainties: tuple[str, ...] = ()
     specialists: tuple[dict, ...] = ()  # odrębne, zweryfikowane kontrole
+    model_reason: str | None = None
 
 
 class AgentLog:
@@ -59,6 +60,7 @@ class AgentLog:
             "queued", "started", "local_done", "ai_done", "offline",
             "cancelled", "error", "stale", "local_check",
             "model_check", "model_run",
+            "model_idle", "model_no_tools", "model_error",
         }:
             raise ValueError("Nieznane zdarzenie dziennika")
         stamp = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -256,25 +258,44 @@ class HybridAgent:
         base = dict(
             mode=mode, invoice_id=invoice_id,
             reference_date=self.reference_date, data_revision=revision,
-            summary=summary,
+            summary=summary, model_id=self.model_id,
         )
-        # Nie przesyłamy pustych rekordów do modelu. Brak Ollamy nie blokuje
-        # deterministycznych sum i terminów.
-        if not summary["invoices"] and not summary["missing_expected"]:
-            return MonitorReport(**base, model_status="local_only")
         if progress:
             progress("health")
         try:
             provider = self.provider_factory()
             self._check()
             if isinstance(provider, OllamaProvider):
-                # Test dostępności 2,5 s; generowanie zachowuje swój budżet.
-                available = provider.health_check(self.model_id, timeout=2.5)
+                models = provider.list_models(timeout=2.5)
+                available = self.model_id in models
+                unavailable_reason = "model_missing"
             else:
                 available = provider.health_check(self.model_id)
-            if not available:
-                return MonitorReport(**base, model_status="local_only")
+                unavailable_reason = "ollama_unavailable"
+        except (ModelUnavailable, TaskTimeout, InvalidResponse) as exc:
+            available = False
+            unavailable_reason = (
+                "invalid_model_list" if isinstance(exc, InvalidResponse) else "ollama_unavailable"
+            )
+        self._check()
+        if self.gateway.revision() != revision:
+            raise InvalidResponse("Dane zmieniły się podczas sprawdzania Ollamy")
+        if not available:
+            return MonitorReport(**base, model_status="local_only",
+                                 model_reason=unavailable_reason)
+        has_records = summary["invoices"] or summary["missing_expected"]
+        needs_review = any(summary[key] for key in (
+            "overdue", "due_soon", "paid_without_date", "missing_expected",
+        ))
+        # /api/tags sprawdza rejestr modeli bez ładowania wag. Pełna analiza
+        # na żądanie nadal działa dla każdego zakresu zawierającego dane.
+        if not has_records or (mode == "startup" and not needs_review):
+            return MonitorReport(**base, model_status="model_idle")
+        if self._without_native_tools(provider, self.model_id):
             self._check()
+            return MonitorReport(**base, model_status="model_no_tools")
+        self._check()
+        try:
             if progress:
                 progress("llm")
             router = ModelRouter(
@@ -324,7 +345,7 @@ class HybridAgent:
                                     if isinstance(provider, OllamaProvider)
                                     else provider.health_check(model_name)
                                 )
-                                if not available:
+                                if not available or self._without_native_tools(provider, model_name):
                                     advisory.append(entry)
                                     continue
                                 specialist_task = self._task(
@@ -377,7 +398,6 @@ class HybridAgent:
                     "model_ready" if response["status"] in ("completed", "partial")
                     else "model_error"
                 ),
-                model_id=self.model_id,
                 findings=tuple(response["findings"][:20]),
                 proposals=tuple(response["proposed_actions"][:20]),
                 uncertainties=tuple(response["uncertainties"][:20]),
@@ -385,13 +405,28 @@ class HybridAgent:
             )
         except TaskCancelled:
             raise
-        except InvalidResponse as exc:
+        except Exception as exc:
+            self._check()
             # Stare ustalenia nigdy nie wracają jako aktualne.
             if self.gateway.revision() != revision:
-                raise
-            return MonitorReport(**base, model_status="model_error")
-        except Exception:
-            self._check()
-            if self.gateway.revision() != revision:
-                raise InvalidResponse("Dane zmieniły się podczas analizy")
-            return MonitorReport(**base, model_status="model_error")
+                raise InvalidResponse("Dane zmieniły się podczas analizy") from exc
+            reason = "analysis_failed"
+            if isinstance(exc, (TaskTimeout, TimeoutError)):
+                reason = "timeout"
+            elif isinstance(exc, InvalidResponse):
+                reason = "invalid_response"
+            elif isinstance(exc, ModelUnavailable):
+                reason = "request_failed"
+            return MonitorReport(**base, model_status="model_error", model_reason=reason)
+
+    @staticmethod
+    def _without_native_tools(provider: OllamaProvider, model: str) -> bool:
+        if not isinstance(provider, OllamaProvider):
+            return False
+        try:
+            capabilities = provider.get_capabilities(model, timeout=2.5)
+        except (ModelUnavailable, TaskTimeout, InvalidResponse):
+            # Niekompletne metadane starszego serwera. Wynik /api/chat
+            # poinformuje, czy można wykonać analizę.
+            return False
+        return capabilities["declared"]["native_tools"] is False

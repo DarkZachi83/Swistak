@@ -435,10 +435,14 @@ class OknoGlowne(QMainWindow):
             self._agent_set_status("agent.state.error")
         elif state == "cancelled":
             self._agent_set_status("agent.state.cancelled")
-        elif report is not None and report.model_status == "local_only":
-            self._agent_set_status("agent.state.offline")
-        elif report is not None and report.model_status == "model_error":
-            self._agent_set_status("agent.state.model_error")
+        elif report is not None:
+            self._agent_set_status({
+                "local_only": "agent.state.offline",
+                "model_idle": "agent.state.model_idle",
+                "model_no_tools": "agent.state.model_no_tools",
+                "model_ready": "agent.state.ready",
+                "model_error": "agent.state.model_error",
+            }[report.model_status])
         else:
             self._agent_set_status("agent.state.ready")
         self._agent_refresh_panel()
@@ -448,12 +452,9 @@ class OknoGlowne(QMainWindow):
             self._agent_dispatch()
 
     def _agent_completed(self, report: MonitorReport) -> None:
-        if report.model_status == "model_ready":
-            event = "ai_done"
-        elif report.model_status == "local_only":
-            event = "offline"
-        else:
-            event = "local_done"
+        event = {"model_ready": "ai_done", "local_only": "offline"}.get(
+            report.model_status, report.model_status
+        )
         self._agent_finish(event, report)
 
     def _agent_error(self, _code: str) -> None:

@@ -157,6 +157,13 @@ class TestPulpit(unittest.TestCase):
         ))
         self.assertIn("bez LLM", window.pulpit.stan_agenta.text())
         self.assertIn("Analiza przy starcie · 2026-11-16", window.pulpit.raport_agenta.text())
+        window._agent_completed(MonitorReport(
+            mode="startup", invoice_id=None, reference_date="2026-11-16",
+            data_revision="syntetyczna", summary={}, model_status="model_idle",
+            model_id="model-demo",
+        ))
+        self.assertIn("Model dostępny w Ollamie", window.pulpit.stan_agenta.text())
+        self.assertIn("Skonfigurowany model: model-demo", window.pulpit.raport_agenta.text())
 
     def test_nawigacja_i_tlumaczenie_zachowuja_pdf_i_edycje(self):
         window = self.okno()

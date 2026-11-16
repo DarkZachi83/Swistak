@@ -128,8 +128,8 @@ class OllamaProvider:
         return sorted({m["name"] for m in models if isinstance(m, dict)
                        and isinstance(m.get("name"), str) and m["name"]})
 
-    def get_capabilities(self, model_id: str) -> dict[str, Any]:
-        data = self._request("/api/show", {"model": model_id})
+    def get_capabilities(self, model_id: str, *, timeout: float | None = None) -> dict[str, Any]:
+        data = self._request("/api/show", {"model": model_id}, timeout=timeout)
         caps = data.get("capabilities", [])
         if not isinstance(caps, list):
             caps = []
@@ -142,7 +142,8 @@ class OllamaProvider:
         # Informacja diagnostyczna, nie wynik testu zgodności konkretnej roli.
         return {"provider_id": "ollama", "model_id": model_id,
                 "declared": {"text": "completion" in caps, "vision": "vision" in caps,
-                             "native_tools": "tools" in caps, "structured_json": None,
+                             "native_tools": "tools" in caps if caps else None,
+                             "structured_json": None,
                              "streaming": True, "context_tokens": context_tokens},
                 "verified": False}
 

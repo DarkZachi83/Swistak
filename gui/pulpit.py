@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from ai_core.hybrid import MonitorReport, today_warsaw
+from gui.panel_agenta import model_details
 from i18n import t
 from uslugi.finanse import Finanse
 from uslugi.historia import HistoriaRozliczen
@@ -174,10 +175,11 @@ class Pulpit(QScrollArea):
         if raport is None:
             self.raport_agenta.setText(t("agent.no_results"))
         else:
-            self.raport_agenta.setText(t(
-                "dashboard.agent_report",
-                scope=t("agent.scope." + raport.mode),
-                date=raport.reference_date,
-                findings=len(raport.findings),
-                proposals=len(raport.proposals),
-            ))
+            self.raport_agenta.setText("\n".join([
+                t("dashboard.agent_report",
+                  scope=t("agent.scope." + raport.mode),
+                  date=raport.reference_date,
+                  findings=len(raport.findings),
+                  proposals=len(raport.proposals)),
+                *model_details(raport),
+            ]))

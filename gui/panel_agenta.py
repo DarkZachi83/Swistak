@@ -15,6 +15,15 @@ from i18n import t
 from uslugi.rachunki import grosze_na_kwote
 
 
+def model_details(report: MonitorReport) -> list[str]:
+    lines = []
+    if report.model_id:
+        lines.append(t("agent.model.selected", model=report.model_id))
+    if report.model_reason:
+        lines.append(t("agent.reason." + report.model_reason))
+    return lines
+
+
 def report_text(report: MonitorReport | None) -> str:
     if report is None:
         return t("agent.no_results")
@@ -29,6 +38,7 @@ def report_text(report: MonitorReport | None) -> str:
         t("agent.paid_without_date", count=data["paid_without_date"]),
         t("agent.missing", count=data["missing_expected"]),
         t("agent.model." + report.model_status),
+        *model_details(report),
     ]
     if report.findings:
         lines.append("")
