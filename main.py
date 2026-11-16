@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 
+from PySide6.QtCore import QEvent, QThreadPool
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from gui.motyw import ustaw_motyw
@@ -40,7 +41,18 @@ def main() -> int:
             okno.otworz_pdf(sys.argv[1])
         return aplikacja.exec()
     finally:
-        rejestr.zamknij()
+        try:
+            # Zamknięcie okien anuluje pracę także przy wyjściu przez app.quit().
+            aplikacja.closeAllWindows()
+            # QRunnable może jeszcze zwalniać zasoby PDFium lub Ollamy po
+            # anulowaniu. Musi skończyć przed finalizacją bibliotek Pythona.
+            QThreadPool.globalInstance().waitForDone()
+            for widget in aplikacja.topLevelWidgets():
+                if isinstance(widget, OknoGlowne):
+                    widget.deleteLater()
+            aplikacja.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        finally:
+            rejestr.zamknij()
 
 
 if __name__ == "__main__":

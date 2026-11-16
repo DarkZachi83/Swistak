@@ -2010,6 +2010,7 @@ class OknoGlowne(QMainWindow):
             self._zadanie_odczytu.przerwij.set()
         if self._zadanie_ai is not None:
             self._zadanie_ai.anuluj()
+        self.podglad.zamknij_dokument()
         super().closeEvent(event)
 
     def _aktualizuj_info_wzorca(self) -> None:
