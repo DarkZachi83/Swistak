@@ -343,11 +343,14 @@ class TestAgentPanel(unittest.TestCase):
                     self.assertIs(win.moduly.currentWidget(), win.monitor.panel)
                     self.assertFalse(win.monitor.panel.isWindow())
                     self.assertIsNone(win.monitor.report)
+                    win.kreator.ed_model.setText(" model-wpisany ")
                     with patch("gui.monitor_agenta.QThreadPool.globalInstance") as pool:
                         win.monitor.zlec("manual")
                         self.assertEqual(win.monitor._current_job,
                                          MonitorJob("manual"))
                         pool.return_value.start.assert_called_once()
+                        self.assertEqual(pool.return_value.start.call_args.args[0].model,
+                                         "model-wpisany")
                         win.monitor.anuluj()
                     win.close()
             finally:

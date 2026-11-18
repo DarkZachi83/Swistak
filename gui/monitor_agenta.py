@@ -2,11 +2,11 @@
 """Kolejka monitora Agenta i aktualizacja jego widoku w Qt."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QThreadPool, QTimer, Signal
+from PySide6.QtCore import QObject, QThreadPool, QTimer, Signal, Slot
 
+import ustawienia
 from ai_core.hybrid import AgentLog, MonitorReport
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
 from gui.agent_worker import ZadanieMonitora
@@ -19,13 +19,11 @@ class MonitorAgenta(QObject):
 
     status_zmieniony = Signal(str, object)
 
-    def __init__(
-        self, baza: Path, pobierz_ustawienia: Callable[[], tuple[str, dict[str, str]]],
-        parent: QObject,
-    ):
+    def __init__(self, baza: Path, prefs: dict[str, str], parent: QObject):
         super().__init__(parent)
         self._baza = baza
-        self._pobierz_ustawienia = pobierz_ustawienia
+        self.wczytaj_ustawienia(prefs)
+        self._model = self._model_domyslny
         self._log = AgentLog()
         self._queue = MonitorQueue()
         self._task: ZadanieMonitora | None = None
@@ -36,15 +34,31 @@ class MonitorAgenta(QObject):
         self.status_key = "agent.state.waiting"
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
-        self._timer.timeout.connect(lambda: self.zlec("startup"))
+        self._timer.timeout.connect(self._zlec_start)
         self.panel = PanelAgenta(embedded=True)
-        self.panel.manualRequested.connect(lambda: self.zlec("manual"))
+        self.panel.manualRequested.connect(self._zlec_recznie)
         self.panel.cancelRequested.connect(self.anuluj)
         self.odswiez_panel()
 
     @property
     def pracuje(self) -> bool:
         return self._task is not None
+
+    def wczytaj_ustawienia(self, prefs: dict[str, str]) -> None:
+        self._model_domyslny = prefs.get("ollama_model", "gemma3:4b")
+        self._modele_specjalistyczne = ustawienia.modele_specjalistyczne(prefs)
+
+    @Slot(str)
+    def zmien_model(self, model: str) -> None:
+        self._model = model.strip()
+
+    @Slot()
+    def _zlec_start(self) -> None:
+        self.zlec("startup")
+
+    @Slot()
+    def _zlec_recznie(self) -> None:
+        self.zlec("manual")
 
     def przerwij_tlo(self) -> None:
         if (self._task is not None and self._current_job is not None
@@ -107,10 +121,9 @@ class MonitorAgenta(QObject):
             self._set_status("agent.state.ready")
             self.odswiez_panel()
             return
-        model, modele_specjalistyczne = self._pobierz_ustawienia()
         worker = ZadanieMonitora(
-            self._baza, model, job, locale=current_language(),
-            specialists=modele_specjalistyczne,
+            self._baza, self._model or self._model_domyslny, job,
+            locale=current_language(), specialists=self._modele_specjalistyczne,
         )
         self._task = worker
         self._current_job = job

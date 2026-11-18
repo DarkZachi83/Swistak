@@ -84,8 +84,9 @@ class OknoGlowne(QMainWindow):
         self.moduly.addWidget(self.plan_historia)
 
         self.monitor = MonitorAgenta(
-            self.rejestr.katalog / "swistak.sqlite3", self._ustawienia_monitora, self,
+            self.rejestr.katalog / "swistak.sqlite3", self.prefs, self,
         )
+        self.kreator.ed_model.textChanged.connect(self.monitor.zmien_model)
         self.monitor.status_zmieniony.connect(self.pulpit.aktualizuj_agenta)
         self.monitor.panel.otworz_fakture.connect(self._otworz_fakture_agenta)
         self.kreator.analiza_zadana.connect(self.monitor.przerwij_tlo)
@@ -210,10 +211,6 @@ class OknoGlowne(QMainWindow):
         self.ustawienia.anuluj_odswiezanie()
         self.kreator.zamknij()
         super().closeEvent(event)
-
-    def _ustawienia_monitora(self) -> tuple[str, dict[str, str]]:
-        model = self.kreator.ed_model.text().strip() or self.prefs.get("ollama_model", "gemma3:4b")
-        return model, ustawienia.modele_specjalistyczne(self.prefs)
 
     def _agent_show_panel(self) -> None:
         self.monitor.odswiez_panel()
@@ -351,8 +348,7 @@ class OknoGlowne(QMainWindow):
             QMessageBox.warning(self, t("models.title"),
                                 t("settings.save_failed", error=error))
             return
-        self.prefs = updated
-        self.kreator.wczytaj_ustawienia(updated)
+        self._wczytaj_ustawienia_modeli(updated)
         self.ustawienia.wczytaj(self.prefs, name)
         self._status("models.selected", name=name)
 
@@ -369,9 +365,13 @@ class OknoGlowne(QMainWindow):
             QMessageBox.warning(self, t("settings.title"),
                                 t("settings.save_failed", error=error))
             return False
-        self.prefs = updated
-        self.kreator.wczytaj_ustawienia(updated)
+        self._wczytaj_ustawienia_modeli(updated)
         return True
+
+    def _wczytaj_ustawienia_modeli(self, prefs: dict[str, str]) -> None:
+        self.prefs = prefs
+        self.monitor.wczytaj_ustawienia(prefs)
+        self.kreator.wczytaj_ustawienia(prefs)
 
     def _about(self) -> None:
         OknoOProgramie(self).exec()
