@@ -50,7 +50,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         with patch.object(QMessageBox, "warning",
                                           return_value=QMessageBox.StandardButton.No):
                             with patch("gui.okno_glowne.QFileDialog.getSaveFileName") as choose:
-                                win._wyczysc_baze()
+                                win.operacje_danych.wyczysc_baze()
                                 choose.assert_not_called()
                         self.assertEqual(reg.rachunek(doc)["kwota_grosze"], 9922)
                         zip_path = home / "kopia-przed-resetem.zip"
@@ -63,7 +63,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                                          return_value=("NIE USUWAJ", True)),
                             patch.object(QMessageBox, "information"),
                         ):
-                            win._wyczysc_baze()
+                            win.operacje_danych.wyczysc_baze()
                         self.assertTrue(zip_path.is_file())
                         self.assertEqual(reg.rachunek(doc)["kwota_grosze"], 9922)
                         win.change_language("en")
@@ -111,7 +111,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         patch.object(QMessageBox, "information"),
                         patch.object(OknoGlowne, "show", observe_show),
                     ):
-                        old_win._wyczysc_baze()
+                        old_win.akcja_wyczysc.trigger()
                     new_win = old_win._okno_po_wyczyszczeniu
                     self.assertEqual(old_visible_on_new_show, [False])
                     self.assertFalse(old_win.isVisible())

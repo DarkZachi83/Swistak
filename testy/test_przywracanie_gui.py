@@ -79,7 +79,7 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                         patch.object(QMessageBox, "information"),
                         patch.object(OknoGlowne, "show", observe_show),
                     ):
-                        previous_window._przywroc_kopie()
+                        previous_window.akcja_przywroc.trigger()
                     restored_window = previous_window._okno_po_przywroceniu
                     self.assertIsNotNone(restored_window)
                     self.assertEqual(old_visible_on_new_show, [False])
