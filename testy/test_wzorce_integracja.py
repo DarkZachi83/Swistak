@@ -152,12 +152,12 @@ class TestInterfejsWzorcow(unittest.TestCase):
 
                     with patch("gui.zakladka_analizy.zaakceptuj_wzorzec",
                                return_value=None):
-                        kreator._zaproponuj_zapis_wzorca()
+                        formularz.btn_proponuj_wzorzec.click()
                     self.assertEqual(store.lista(), [])  # anulowanie dialogu
 
                     with patch("gui.zakladka_analizy.zaakceptuj_wzorzec",
                                side_effect=lambda parent, candidate, **kw: candidate):
-                        kreator._zaproponuj_zapis_wzorca()
+                        formularz.btn_proponuj_wzorzec.click()
                     templates = store.lista()
                     self.assertEqual(len(templates), 1)
                     item = templates[0]
@@ -175,7 +175,7 @@ class TestInterfejsWzorcow(unittest.TestCase):
                     )
                     with patch("gui.zakladka_analizy.zaakceptuj_wzorzec",
                                side_effect=lambda parent, candidate, **kw: candidate):
-                        kreator._zaproponuj_zapis_wzorca()
+                        formularz.btn_proponuj_wzorzec.click()
                     updated = store.pobierz(item["template_id"])
                     self.assertEqual(updated["revision"], 2)
                     self.assertEqual(len(updated["agent_notes"]), 2)

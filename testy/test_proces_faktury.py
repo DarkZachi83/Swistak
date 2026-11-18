@@ -8,11 +8,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PySide6.QtGui import QPainter, QPdfWriter
-from PySide6.QtWidgets import QApplication, QHeaderView
+from PySide6.QtWidgets import QApplication, QDialog, QHeaderView
 
 import ustawienia
 from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
+from uslugi.kody_qr import PlatnoscQR
 from uslugi.rachunki import RejestrRachunkow
 
 
@@ -61,11 +62,22 @@ class TestProcesFaktury(unittest.TestCase):
                     self.assertIsNotNone(document_id)
                     self.assertIsNone(db.rachunek(document_id))
 
-                    kreator.nawigacja.setCurrentRow(kreator.ETAP_EDYCJA)
+                    platnosc = PlatnoscQR("", "PL", "0" * 26, 9876, "DEMO", "DEMO")
+                    with patch("gui.kreator_faktury.DialogQR") as dialog:
+                        dialog.return_value.wybrana_platnosc = platnosc
+                        dialog.return_value.exec.return_value = QDialog.DialogCode.Rejected
+                        kreator.odczyt.btn_odczytaj_qr.click()
+                        self.assertEqual(formularz.stan().kwota, "")
+                        self.assertEqual(formularz.stan().numer_konta, "")
+                        dialog.return_value.exec.return_value = QDialog.DialogCode.Accepted
+                        kreator.odczyt.btn_odczytaj_qr.click()
                     self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
+                    self.assertEqual(formularz.stan().kwota, "98,76")
+                    self.assertEqual(formularz.stan().numer_konta, platnosc.numer_konta)
+                    self.assertIsNone(db.rachunek(document_id))
+                    formularz.ed_konto.clear()
                     formularz.ed_dostawca.setText("DEMO Sp. z o.o.")
                     formularz.ed_numer.setText("FAKTURA-SZTUCZNA-2026")
-                    formularz.ed_kwota.setText("98,76")
                     formularz.ed_wystawiono.setText("2026-11-02")
                     formularz.ed_uwagi.setPlainText("Test korekty — bez danych klienta")
                     formularz.wybor_kategoria.setCurrentIndex(1)

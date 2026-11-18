@@ -49,7 +49,6 @@ class KreatorFaktury(QScrollArea):
     def __init__(self, rejestr: RejestrRachunkow, prefs: dict):
         super().__init__()
         self.rejestr = rejestr
-        self._messages: dict[QLabel, tuple[str, dict]] = {}
         self.magazyn_wzorcow = MagazynWzorcow(rejestr.katalog)
         self.aktualny_dokument_id: int | None = None
         self._zapisany_formularz: StanFormularza | None = None
@@ -148,15 +147,11 @@ class KreatorFaktury(QScrollArea):
         self.formularz = FormularzFaktury(self.rejestr, self)
         self.karty.addWidget(self.formularz.edycja)
         self.karty.addWidget(self.formularz.podsumowanie)
-        self.formularz.btn_przejdz_faktura.clicked.connect(
-            lambda: self.karty.setCurrentIndex(self.ETAP_FAKTURA)
-        )
-        self.formularz.btn_powrot_edycja.clicked.connect(
-            lambda: self.karty.setCurrentIndex(self.ETAP_EDYCJA)
-        )
-        self.formularz.btn_dodaj_kategorie.clicked.connect(self._dodaj_kategorie)
-        self.formularz.zapisz_przycisk.clicked.connect(self._zapisz_rachunek)
-        self.formularz.btn_proponuj_wzorzec.clicked.connect(self._zaproponuj_zapis_wzorca)
+        self.formularz.podsumowanie_zadane.connect(self._pokaz_podsumowanie)
+        self.formularz.edycja_zadana.connect(self._pokaz_edycje)
+        self.formularz.wybor_kategorii.connect(self._dodaj_kategorie)
+        self.formularz.zapis_zadany.connect(self._zapisz_rachunek)
+        self.formularz.wzorzec_zadany.connect(self._zaproponuj_zapis_wzorca)
         self.karty.addWidget(self._zbuduj_liste())
         self.odczyt.odczyt_zadany.connect(self._start_odczytu)
         self.odczyt.analiza_zadana.connect(self.analiza.uruchom)
@@ -189,8 +184,7 @@ class KreatorFaktury(QScrollArea):
         self.opis_zaznaczenia.setWordWrap(True)
         pion.addWidget(self.opis_zaznaczenia)
         self._aktualizuj_nawigacje(0, 0)
-        self._wyczysc_formularz()
-        self._message(self.opis_zaznaczenia, "doc.selection_hint")
+        self._ustaw_opis_zaznaczenia("doc.selection_hint")
         self._aktualizuj_dostepnosc()
 
     def dopasuj_uklad(self, width: int) -> None:
@@ -231,19 +225,17 @@ class KreatorFaktury(QScrollArea):
         for index, key in enumerate(self.ETAPY):
             self.nawigacja.item(index).setText(t(key))
             self.nawigacja.item(index).setToolTip(t(key))
-        self._aktualizuj_podsumowanie(zachowaj_komunikat=True)
-
         self.hint_listy.setText(t("list.hint"))
         self.btn_odswiez.setText(t("button.refresh"))
         self.odczyt.przetlumacz()
         self.analiza.przetlumacz()
-        for widget, (key, values) in list(self._messages.items()):
-            widget.setText(t(key, **values))
+        klucz, wartosci = self._komunikat_zaznaczenia
+        self.opis_zaznaczenia.setText(t(klucz, **wartosci))
         self._aktualizuj_nawigacje(self.podglad.strona, self.podglad.liczba_stron)
 
-    def _message(self, widget: QLabel, key: str, **values) -> None:
-        self._messages[widget] = (key, values)
-        widget.setText(t(key, **values))
+    def _ustaw_opis_zaznaczenia(self, klucz: str, **wartosci) -> None:
+        self._komunikat_zaznaczenia = (klucz, wartosci)
+        self.opis_zaznaczenia.setText(t(klucz, **wartosci))
 
     def otworz_menedzer_wzorcow(self) -> None:
         OknoWzorcow(self.window(), self.magazyn_wzorcow).exec()
@@ -275,48 +267,28 @@ class KreatorFaktury(QScrollArea):
                 ):
                     self.formularz.wczytaj_platnosc(faktura)
                     self._zapisany_formularz = zapisany._replace(status=status, oplacono=oplacono)
-                self.formularz.zapisz_przycisk.setEnabled(faktura["wycofano_utc"] is None)
+                self.formularz.ustaw_zapis_aktywny(faktura["wycofano_utc"] is None)
         self._aktualizuj_podsumowanie()
 
     def _zmieniony_etap(self, indeks: int) -> None:
         if indeks == self.ETAP_FAKTURA:
             self._aktualizuj_podsumowanie()
 
-    def _aktualizuj_podsumowanie(self, *, zachowaj_komunikat: bool = False) -> None:
-        """Wartości po korekcie, bez odczytu/zapisu bazy przy zmianie widoku."""
-        self.formularz.odswiez_podsumowanie()
-        if not zachowaj_komunikat or self.formularz.info_faktury not in self._messages:
-            self._message(
-                self.formularz.info_faktury,
-                "invoice.review" if self.aktualny_dokument_id is not None
-                else "invoice.no_document",
-            )
+    def _aktualizuj_podsumowanie(self) -> None:
+        self.formularz.odswiez_podsumowanie(dokument=self.aktualny_dokument_id is not None)
+
+    @Slot()
+    def _pokaz_podsumowanie(self) -> None:
+        self.karty.setCurrentWidget(self.formularz.podsumowanie)
+
+    @Slot()
+    def _pokaz_edycje(self) -> None:
+        self.karty.setCurrentWidget(self.formularz.edycja)
 
     @Slot(dict)
     def _zastosuj_sugestie(self, sugestie: dict[str, str]) -> None:
-        pola_do_formularza = {
-            "dostawca": self.formularz.ed_dostawca,
-            "numer_faktury": self.formularz.ed_numer,
-            "kwota_do_zaplaty": self.formularz.ed_kwota,
-            "data_wystawienia": self.formularz.ed_wystawiono,
-            "termin_platnosci": self.formularz.ed_termin,
-            "okres_od": self.formularz.ed_od,
-            "okres_do": self.formularz.ed_do,
-            "numer_konta_bankowego": self.formularz.ed_konto,
-        }
-        for pole, kontrolka in pola_do_formularza.items():
-            if pole in sugestie:
-                kontrolka.setText(sugestie[pole])
-        if "kategoria_sugerowana" in sugestie:
-            nazwa = sugestie["kategoria_sugerowana"]
-            identyfikator = next(
-                (int(row["id"]) for row in self.rejestr.kategorie()
-                 if row["nazwa"] == nazwa), None
-            )
-            id_kategorii = self.formularz.wybor_kategoria.findData(identyfikator)
-            if id_kategorii >= 0:
-                self.formularz.wybor_kategoria.setCurrentIndex(id_kategorii)
-        self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+        self.formularz.wypelnij_z_analizy(sugestie)
+        self._pokaz_edycje()
         self._status("ai.saved_hint")
 
     @Slot()
@@ -372,21 +344,16 @@ class KreatorFaktury(QScrollArea):
                 return
             # Zgoda w oknie QR dotyczy tylko dwóch pól. Żadnych
             # automatycznych zapisów do SQLite ani operacji bankowych.
-            self.formularz.ed_kwota.setText(grosze_na_kwote(platnosc.kwota_grosze))
-            self.formularz.ed_konto.setText(platnosc.numer_konta)
-            self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+            self.formularz.wypelnij_z_qr(
+                kwota_grosze=platnosc.kwota_grosze, numer_konta=platnosc.numer_konta,
+            )
+            self._pokaz_edycje()
             self._status("qr.applied")
         except (OSError, ValueError, sqlite3.Error) as blad:
             QMessageBox.warning(self.window(), t("qr.title"), str(blad))
 
     def _aktualizuj_tekst_propozycji(self) -> None:
-        existing = self.analiza.ma_aktywny_wzorzec
-        self.formularz.btn_proponuj_wzorzec.setText(t(
-            "patterns.propose_update" if existing else "patterns.propose"
-        ))
-        self.formularz.info_propozycji_wzorca.setText(t(
-            "patterns.offer_update" if existing else "patterns.offer_new"
-        ))
+        self.formularz.ustaw_tryb_propozycji_wzorca(self.analiza.ma_aktywny_wzorzec)
 
     def _zaproponuj_zapis_wzorca(self) -> None:
         """Wyłącznie po zapisie faktury, z osobnym przeglądem JSON i zgodą."""
@@ -394,11 +361,8 @@ class KreatorFaktury(QScrollArea):
             self.aktualny_dokument_id
         ) is None:
             return
-        kategoria = (
-            self.formularz.wybor_kategoria.currentText()
-            if self.formularz.wybor_kategoria.currentData() is not None else None
-        )
-        self.analiza.zaproponuj_zapis_wzorca(self.formularz.ed_dostawca.text(), kategoria)
+        dostawca, kategoria = self.formularz.dane_do_wzorca()
+        self.analiza.zaproponuj_zapis_wzorca(dostawca, kategoria)
 
     def _zbuduj_liste(self) -> QWidget:
         panel = QWidget()
@@ -460,31 +424,22 @@ class KreatorFaktury(QScrollArea):
         if keep_row >= 0:
             self.lista_dokumentow.setCurrentRow(keep_row)
 
-    def _wyczysc_formularz(self) -> None:
-        self._message(self.formularz.nazwa_dokumentu, "doc.import_first")
-        self.formularz.wyczysc()
-
     def _wyswietl_dokument(self, dokument_id: int) -> None:
         self._wybrany_obszar = None
         self.analiza.resetuj_dokument()
-        self.formularz.btn_proponuj_wzorzec.hide()
-        self.formularz.info_propozycji_wzorca.hide()
+        self.formularz.ukryj_propozycje_wzorca()
         self.odczyt.resetuj_dokument()
         sciezka = self.rejestr.sciezka_pdf(dokument_id)
         # Przy błędzie (np. uszkodzony plik archiwalny) nie pozwalaj zapisywać
         # pól pod niewłaściwym dokumentem.
         self.aktualny_dokument_id = None
-        self.formularz.zapisz_przycisk.setEnabled(False)
+        self.formularz.ustaw_zapis_aktywny(False)
         self._aktualizuj_dostepnosc()
         self.podglad.otworz(sciezka)
         dokument = self.rejestr.dokument(dokument_id)
         self.aktualny_dokument_id = dokument_id
         zapis = self.rejestr.rachunek(dokument_id)
-        self._wyczysc_formularz()
-        self._message(self.formularz.nazwa_dokumentu, "doc.original", name=dokument["nazwa_zrodlowa"])
-        if zapis is not None:
-            self.formularz.wczytaj(zapis)
-        self.formularz.zapisz_przycisk.setEnabled(zapis is None or zapis["wycofano_utc"] is None)
+        self.formularz.wczytaj_dokument(dokument["nazwa_zrodlowa"], zapis)
         self._zapisany_formularz = self.formularz.stan()
         self._aktualizuj_dostepnosc()
         self.karty.setCurrentIndex(
@@ -538,7 +493,7 @@ class KreatorFaktury(QScrollArea):
         try:
             # Zweryfikuj PDF w Qt przed dodaniem go do archiwum i bazy.
             self.aktualny_dokument_id = None
-            self.formularz.zapisz_przycisk.setEnabled(False)
+            self.formularz.ustaw_zapis_aktywny(False)
             self._aktualizuj_dostepnosc()
             self.podglad.otworz(sciezka)
             dokument_id, czy_nowy = self.rejestr.importuj_pdf(sciezka)
@@ -579,8 +534,8 @@ class KreatorFaktury(QScrollArea):
                     QMessageBox.StandardButton.No,
                 )
                 if odpowiedz != QMessageBox.StandardButton.Yes:
-                    self.karty.setCurrentIndex(self.ETAP_EDYCJA)
-                    self.formularz.ed_oplacono.setFocus()
+                    self._pokaz_edycje()
+                    self.formularz.ustaw_fokus_daty(wystawienia=False)
                     return
             # Nie nadpisuj daty, której użytkownik nie zmienił w otwartym formularzu.
             if platnosc_bez_zmian:
@@ -607,23 +562,18 @@ class KreatorFaktury(QScrollArea):
             self.formularz.wczytaj_platnosc(self.rejestr.rachunek(self.aktualny_dokument_id))
             self._zapisany_formularz = self.formularz.stan()
             self.faktura_zapisana.emit(zapisany_id)
-            self._aktualizuj_podsumowanie()
-            self.formularz.btn_proponuj_wzorzec.show()
-            self.formularz.info_propozycji_wzorca.show()
-            self._aktualizuj_tekst_propozycji()
-            self._message(self.formularz.info_faktury, "invoice.saved")
+            self.formularz.oznacz_zapisana(aktualizacja_wzorca=self.analiza.ma_aktywny_wzorzec)
             self._status("msg.saved")
         except DataPlatnosciZPrzyszlosci:
             QMessageBox.warning(self.window(), t("msg.bill_save_error"), t("payment.future"))
-            self.karty.setCurrentIndex(self.ETAP_EDYCJA)
-            self.formularz.ed_oplacono.setFocus()
+            self._pokaz_edycje()
+            self.formularz.ustaw_fokus_daty(wystawienia=False)
         except (BrakDatyWystawienia, BrakDatyOplacenia) as blad:
             wystawienia = isinstance(blad, BrakDatyWystawienia)
             klucz = "form.issued_required" if wystawienia else "form.paid_date_required"
-            pole = self.formularz.ed_wystawiono if wystawienia else self.formularz.ed_oplacono
             QMessageBox.warning(self.window(), t("msg.bill_save_error"), t(klucz))
-            self.karty.setCurrentIndex(self.ETAP_EDYCJA)
-            pole.setFocus()
+            self._pokaz_edycje()
+            self.formularz.ustaw_fokus_daty(wystawienia=wystawienia)
         except (ValueError, OSError, sqlite3.Error) as blad:
             QMessageBox.warning(self.window(), t("msg.bill_save_error"), str(blad))
 
@@ -642,9 +592,9 @@ class KreatorFaktury(QScrollArea):
         self._wybrany_obszar = pole
         self._aktualizuj_dostepnosc()
         if pole is None:
-            self._message(self.opis_zaznaczenia, "doc.selection_hint")
+            self._ustaw_opis_zaznaczenia("doc.selection_hint")
             return
-        self._message(
-            self.opis_zaznaczenia, "doc.selection", page=pole.strona + 1,
+        self._ustaw_opis_zaznaczenia(
+            "doc.selection", page=pole.strona + 1,
             left=pole.lewo, top=pole.gora, right=pole.prawo, bottom=pole.dol
         )

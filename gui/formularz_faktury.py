@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import NamedTuple
 
-from PySide6.QtCore import QObject, QSignalBlocker, Qt
+from PySide6.QtCore import QObject, QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QScrollArea, QTextEdit, QVBoxLayout, QWidget,
@@ -31,7 +31,13 @@ class StanFormularza(NamedTuple):
 
 
 class FormularzFaktury(QObject):
-    """Pola edycji i osobny widok do sprawdzenia danych przed zapisem."""
+    """Widoki edycji i podsumowania, akcje użytkownika i stan formularza."""
+
+    podsumowanie_zadane = Signal()
+    edycja_zadana = Signal()
+    wybor_kategorii = Signal()
+    zapis_zadany = Signal()
+    wzorzec_zadany = Signal()
 
     _FORM_KEYS = (
         "form.supplier", "form.invoice", "form.account", "form.amount",
@@ -42,8 +48,13 @@ class FormularzFaktury(QObject):
     def __init__(self, rejestr: RejestrRachunkow, parent: QWidget):
         super().__init__(parent)
         self.rejestr = rejestr
+        self._nazwa_pliku: str | None = None
+        self._klucz_podsumowania = "invoice.no_document"
+        self._aktualizacja_wzorca = False
         self.edycja = self._zbuduj_formularz()
         self.podsumowanie = self._zbuduj_fakture()
+        self.odswiez_kategorie()
+        self.ustaw_zapis_aktywny(False)
 
     def _zbuduj_formularz(self) -> QWidget:
         przewijanie = QScrollArea()
@@ -74,6 +85,7 @@ class FormularzFaktury(QObject):
         kategoria_uklad.addWidget(self.wybor_kategoria, 1)
         dodaj = QPushButton("+")
         self.btn_dodaj_kategorie = dodaj
+        dodaj.clicked.connect(self.wybor_kategorii)
         kategoria_uklad.addWidget(dodaj)
 
         self.wybor_status = QComboBox()
@@ -105,6 +117,7 @@ class FormularzFaktury(QObject):
             self._form_labels.append(etykieta)
         uklad.addLayout(forma)
         self.btn_przejdz_faktura = QPushButton()
+        self.btn_przejdz_faktura.clicked.connect(self.podsumowanie_zadane)
         uklad.addWidget(self.btn_przejdz_faktura)
         komunikat = QLabel()
         self.tekst_ostrzezenia_form = komunikat
@@ -155,10 +168,12 @@ class FormularzFaktury(QObject):
         uklad.addLayout(podsumowanie)
 
         self.btn_powrot_edycja = QPushButton()
+        self.btn_powrot_edycja.clicked.connect(self.edycja_zadana)
         uklad.addWidget(self.btn_powrot_edycja)
 
         self.zapisz_przycisk = QPushButton()
         self.zapisz_przycisk.setObjectName("zapiszFakture")
+        self.zapisz_przycisk.clicked.connect(self.zapis_zadany)
         uklad.addWidget(self.zapisz_przycisk)
         self.info_propozycji_wzorca = QLabel()
         self.info_propozycji_wzorca.setWordWrap(True)
@@ -166,6 +181,7 @@ class FormularzFaktury(QObject):
         self.info_propozycji_wzorca.hide()
         uklad.addWidget(self.info_propozycji_wzorca)
         self.btn_proponuj_wzorzec = QPushButton()
+        self.btn_proponuj_wzorzec.clicked.connect(self.wzorzec_zadany)
         self.btn_proponuj_wzorzec.hide()
         uklad.addWidget(self.btn_proponuj_wzorzec)
         uklad.addStretch()
@@ -194,15 +210,49 @@ class FormularzFaktury(QObject):
         for key, label in self.podsumowanie_etykiety.items():
             label.setText(t(key))
         self.btn_dodaj_kategorie.setToolTip(t("categories.open"))
+        self._odswiez_nazwe_pliku()
+        self._odswiez_wartosci_podsumowania()
+        self.info_faktury.setText(t(self._klucz_podsumowania))
+        self._odswiez_tekst_propozycji()
 
-    def odswiez_podsumowanie(self) -> None:
+    def odswiez_podsumowanie(self, *, dokument: bool) -> None:
+        self._odswiez_wartosci_podsumowania()
+        self._pokaz_komunikat_podsumowania("invoice.review" if dokument else "invoice.no_document")
+
+    def oznacz_zapisana(self, *, aktualizacja_wzorca: bool) -> None:
+        self._odswiez_wartosci_podsumowania()
+        self._pokaz_komunikat_podsumowania("invoice.saved")
+        self.ustaw_tryb_propozycji_wzorca(aktualizacja_wzorca)
+        self.info_propozycji_wzorca.show()
+        self.btn_proponuj_wzorzec.show()
+
+    def ustaw_tryb_propozycji_wzorca(self, aktualizacja: bool) -> None:
+        self._aktualizacja_wzorca = aktualizacja
+        self._odswiez_tekst_propozycji()
+
+    def ukryj_propozycje_wzorca(self) -> None:
+        self.info_propozycji_wzorca.hide()
+        self.btn_proponuj_wzorzec.hide()
+
+    def _odswiez_tekst_propozycji(self) -> None:
+        self.btn_proponuj_wzorzec.setText(t(
+            "patterns.propose_update" if self._aktualizacja_wzorca else "patterns.propose"
+        ))
+        self.info_propozycji_wzorca.setText(t(
+            "patterns.offer_update" if self._aktualizacja_wzorca else "patterns.offer_new"
+        ))
+
+    def _pokaz_komunikat_podsumowania(self, klucz: str) -> None:
+        self._klucz_podsumowania = klucz
+        self.info_faktury.setText(t(klucz))
+
+    def _odswiez_wartosci_podsumowania(self) -> None:
         wartosci = {
             "dostawca": self.ed_dostawca.text(),
             "numer": self.ed_numer.text(),
             "konto": self.ed_konto.text(),
             "kwota": self.ed_kwota.text(),
-            "kategoria": self.wybor_kategoria.currentText()
-            if self.wybor_kategoria.currentData() is not None else "",
+            "kategoria": self._nazwa_wybranej_kategorii() or "",
             "wystawiono": self.ed_wystawiono.text(),
             "termin": self.ed_termin.text(),
             "od": self.ed_od.text(),
@@ -214,7 +264,21 @@ class FormularzFaktury(QObject):
         for pole, wartosc in wartosci.items():
             self.podsumowanie_wartosci[pole].setText(wartosc.strip() or "—")
 
-    def wczytaj(self, zapis: sqlite3.Row) -> None:
+    def wczytaj_dokument(self, nazwa_pliku: str, zapis: sqlite3.Row | None) -> None:
+        self._nazwa_pliku = nazwa_pliku
+        self._odswiez_nazwe_pliku()
+        self._wyczysc_pola()
+        if zapis is not None:
+            self._wczytaj_rachunek(zapis)
+        self.ustaw_zapis_aktywny(zapis is None or zapis["wycofano_utc"] is None)
+
+    def _odswiez_nazwe_pliku(self) -> None:
+        if self._nazwa_pliku is None:
+            self.nazwa_dokumentu.setText(t("doc.import_first"))
+        else:
+            self.nazwa_dokumentu.setText(t("doc.original", name=self._nazwa_pliku))
+
+    def _wczytaj_rachunek(self, zapis: sqlite3.Row) -> None:
         self.ed_dostawca.setText(zapis["dostawca"])
         self.ed_numer.setText(zapis["numer"])
         self.ed_konto.setText(zapis["numer_konta"])
@@ -227,7 +291,7 @@ class FormularzFaktury(QObject):
         self.odswiez_kategorie(zapis["kategoria_id"])
         self.wczytaj_platnosc(zapis)
 
-    def wyczysc(self) -> None:
+    def _wyczysc_pola(self) -> None:
         for pole in (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota, self.ed_wystawiono,
                      self.ed_termin, self.ed_od, self.ed_do):
             pole.clear()
@@ -235,7 +299,48 @@ class FormularzFaktury(QObject):
         self.wybor_status.setCurrentIndex(0)
         self.ed_oplacono.clear()
         self.odswiez_kategorie()
-        self.zapisz_przycisk.setEnabled(False)
+
+    def wypelnij_z_analizy(self, sugestie: dict[str, str]) -> None:
+        """Uzupełnij pola zaakceptowanymi sugestiami analizy."""
+        pola = {
+            "dostawca": self.ed_dostawca,
+            "numer_faktury": self.ed_numer,
+            "kwota_do_zaplaty": self.ed_kwota,
+            "data_wystawienia": self.ed_wystawiono,
+            "termin_platnosci": self.ed_termin,
+            "okres_od": self.ed_od,
+            "okres_do": self.ed_do,
+            "numer_konta_bankowego": self.ed_konto,
+        }
+        for pole, kontrolka in pola.items():
+            if pole in sugestie:
+                kontrolka.setText(sugestie[pole])
+        if "kategoria_sugerowana" in sugestie:
+            nazwa = sugestie["kategoria_sugerowana"]
+            identyfikator = next(
+                (int(row["id"]) for row in self.rejestr.kategorie() if row["nazwa"] == nazwa),
+                None,
+            )
+            self._wybierz_kategorie(identyfikator)
+
+    def wypelnij_z_qr(self, *, kwota_grosze: int, numer_konta: str) -> None:
+        self.ed_kwota.setText(grosze_na_kwote(kwota_grosze))
+        self.ed_konto.setText(numer_konta)
+
+    def dane_do_wzorca(self) -> tuple[str, str | None]:
+        return self.ed_dostawca.text(), self._nazwa_wybranej_kategorii()
+
+    def _nazwa_wybranej_kategorii(self) -> str | None:
+        if self.wybor_kategoria.currentData() is None:
+            return None
+        return self.wybor_kategoria.currentText()
+
+    def ustaw_zapis_aktywny(self, aktywny: bool) -> None:
+        self.zapisz_przycisk.setEnabled(aktywny)
+
+    def ustaw_fokus_daty(self, *, wystawienia: bool) -> None:
+        pole = self.ed_wystawiono if wystawienia else self.ed_oplacono
+        pole.setFocus()
 
     def stan(self) -> StanFormularza:
         return StanFormularza(
@@ -259,10 +364,12 @@ class FormularzFaktury(QObject):
         for wiersz in self.rejestr.kategorie():
             self.wybor_kategoria.addItem(wiersz["nazwa"], int(wiersz["id"]))
         self._localize_categories()
-        if wybrana is not None:
-            numer = self.wybor_kategoria.findData(wybrana)
-            if numer >= 0:
-                self.wybor_kategoria.setCurrentIndex(numer)
+        self._wybierz_kategorie(wybrana)
+
+    def _wybierz_kategorie(self, identyfikator: int | None) -> None:
+        numer = self.wybor_kategoria.findData(identyfikator)
+        if numer >= 0:
+            self.wybor_kategoria.setCurrentIndex(numer)
 
     def wczytaj_platnosc(self, zapis: sqlite3.Row) -> None:
         with QSignalBlocker(self.wybor_status):
