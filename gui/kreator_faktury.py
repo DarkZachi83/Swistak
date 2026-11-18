@@ -255,6 +255,7 @@ class KreatorFaktury(QScrollArea):
     def _status(self, key: str, **values) -> None:
         self.status_zmieniony.emit(key, values)
 
+    @property
     def pracuje(self) -> bool:
         return self.odczyt.pracuje or self.analiza.pracuje
 
@@ -320,7 +321,7 @@ class KreatorFaktury(QScrollArea):
         self.analiza.ustaw_wejscie(
             self.aktualny_dokument_id, self.odczyt.tekst, odczyt_trwa=self.odczyt.pracuje,
         )
-        pracuje = self.pracuje()
+        pracuje = self.pracuje
         self.otworz_przycisk.setEnabled(not pracuje)
         self.lista_dokumentow.setEnabled(not pracuje)
 
@@ -335,7 +336,7 @@ class KreatorFaktury(QScrollArea):
 
     @Slot(bool)
     def _start_odczytu(self, tylko_obszar: bool) -> None:
-        if self.aktualny_dokument_id is None or self.pracuje():
+        if self.aktualny_dokument_id is None or self.pracuje:
             return
         obszar = self._wybrany_obszar if tylko_obszar else None
         if tylko_obszar and obszar is None:
@@ -351,7 +352,7 @@ class KreatorFaktury(QScrollArea):
 
     def _otworz_qr(self) -> None:
         """Odczytaj QR lokalnie, bez zapisu i bez wywołania bankowości."""
-        if self.aktualny_dokument_id is None or self.pracuje():
+        if self.aktualny_dokument_id is None or self.pracuje:
             return
         try:
             pdf = self.rejestr.sciezka_pdf(self.aktualny_dokument_id)
@@ -485,7 +486,7 @@ class KreatorFaktury(QScrollArea):
             self.otworz_fakture(dokument_id)
 
     def _zgoda_na_zmiane_dokumentu(self) -> bool:
-        if self.pracuje():
+        if self.pracuje:
             QMessageBox.information(self.window(), t("nav.new_invoice"), t("invoice.document_busy"))
             return False
         if self.aktualny_dokument_id is None or self.formularz.stan() == self._zapisany_formularz:

@@ -7,12 +7,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog
 
 import ustawienia
 from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from i18n import set_language
+from uslugi.czyszczenie_bazy import podmien_na_pusta
 from uslugi.kopie_zapasowe import przygotuj_przywracanie
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow
 
@@ -27,7 +29,10 @@ class TestWyczyscBazeGUI(unittest.TestCase):
 
     def _use_fake_invoice(self, home, reg):
         file = home / "syntetyczny.pdf"
-        file.write_bytes(b"%PDF-1.4\n% FIKCYJNE KOSZTY\n%%EOF\n")
+        writer = QPdfWriter(str(file))
+        painter = QPainter(writer)
+        painter.drawText(100, 120, "Syntetyczna faktura testowa")
+        self.assertTrue(painter.end())
         doc, _ = reg.importuj_pdf(file)
         reg.zapisz_rachunek(DaneRachunku(
             dokument_id=doc, dostawca="DEMO", numer="TEST/2026",
@@ -74,7 +79,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
             finally:
                 reg.zamknij()
 
-    def test_potwierdzony_reset_pusty_stan_i_zachowany_zip(self):
+    def test_potwierdzony_reset_zamyka_pdf_przed_podmiana_i_zachowuje_zip(self):
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp)
             data = home / "dane"
@@ -85,20 +90,28 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                 with patch.object(ustawienia, "path_settings",
                                   return_value=home / "settings.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
-                    self._use_fake_invoice(home, reg)
+                    doc = self._use_fake_invoice(home, reg)
                     reg.dodaj_kategorie("Wlasna testowa")
                     (data / "wzorce").mkdir()
                     (data / "wzorce" / "fikcyjny.json").write_text('{"demo":true}')
                     old_win = OknoGlowne(reg)
                     old_win.show()
                     self.app.processEvents()
+                    old_win.kreator.otworz_fakture(doc)
+                    podglad = old_win.kreator.podglad
+                    self.assertEqual(podglad.liczba_stron, 1)
                     zip_path = home / "obowiazkowa-kopia.zip"
                     old_visible_on_new_show = []
+                    pages_on_swap = []
                     original_show = OknoGlowne.show
 
                     def observe_show(window):
                         old_visible_on_new_show.append(old_win.isVisible())
                         return original_show(window)
+
+                    def observe_swap(root, stage):
+                        pages_on_swap.append(podglad.liczba_stron)
+                        return podmien_na_pusta(root, stage)
 
                     with (
                         patch.object(QMessageBox, "warning",
@@ -111,9 +124,11 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                                      return_value=QMessageBox.StandardButton.Yes),
                         patch.object(QMessageBox, "information"),
                         patch.object(OknoGlowne, "show", observe_show),
+                        patch("gui.operacje_danych.podmien_na_pusta", side_effect=observe_swap),
                     ):
                         old_win.akcja_wyczysc.trigger()
                     new_win = old_win._okno_po_wyczyszczeniu
+                    self.assertEqual(pages_on_swap, [0])
                     self.assertEqual(old_visible_on_new_show, [False])
                     self.assertFalse(old_win.isVisible())
                     self.assertTrue(new_win.isVisible())

@@ -44,6 +44,7 @@ class TestInterfejsAI(unittest.TestCase):
                 dokument_id = kreator.aktualny_dokument_id
                 self.assertIsNotNone(dokument_id)
                 self.assertIsNone(rejestr.rachunek(dokument_id))
+                self.assertIs(kreator.pracuje, False)
 
                 tresc_strony = (
                     "Sprzedawca: Zakład DEMO\n"
@@ -59,10 +60,12 @@ class TestInterfejsAI(unittest.TestCase):
                     start.assert_called_once()
                     zadanie_odczytu = start.call_args.args[0]
                     self.assertTrue(odczyt.pracuje)
+                    self.assertIs(kreator.pracuje, True)
                     self.assertFalse(analiza.btn_analizuj.isEnabled())
                     odczyt.btn_anuluj.click()
                     self.assertTrue(zadanie_odczytu.przerwij.is_set())
                     zadanie_odczytu.sygnaly.anulowano.emit()
+                    self.assertIs(kreator.pracuje, False)
                     self.assertTrue(odczyt.btn_odczytaj.isEnabled())
 
                     odczyt.btn_odczytaj.click()
@@ -73,6 +76,7 @@ class TestInterfejsAI(unittest.TestCase):
                     self.assertEqual(start.call_count, 3)
                     zadanie_analizy = start.call_args.args[0]
                     self.assertEqual(zadanie_analizy.tekst, tekst)
+                    self.assertIs(kreator.pracuje, True)
                     self.assertFalse(odczyt.btn_odczytaj.isEnabled())
                     self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_ANALIZA)
                 self.assertFalse(analiza.btn_przenies.isEnabled())
@@ -98,6 +102,7 @@ class TestInterfejsAI(unittest.TestCase):
                 oceny = ocena_json(dane, tekst, kategorie)
                 wynik = AnalizaModelu("gemma3:4b", oceny)
                 zadanie_analizy.sygnaly.gotowe.emit(dokument_id, wynik)
+                self.assertIs(kreator.pracuje, False)
                 self.assertTrue(odczyt.btn_odczytaj.isEnabled())
                 self.assertTrue(analiza.btn_przenies.isEnabled())
                 self.assertIsNone(rejestr.rachunek(dokument_id))

@@ -384,7 +384,7 @@ class OknoGlowne(QMainWindow):
         self._status(key, **values)
 
     def _zadania_w_toku(self) -> bool:
-        return self.kreator.pracuje() or self.monitor.pracuje
+        return self.kreator.pracuje or self.monitor.pracuje
 
     def otworz_pdf(self, sciezka: str | Path) -> None:
         self.kreator.otworz_pdf(sciezka)
