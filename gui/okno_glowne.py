@@ -2036,7 +2036,7 @@ class OknoGlowne(QMainWindow):
             platnosc_bez_zmian = self._zapisany_formularz[-2:] == (status, data_oplacenia)
             daty_zmienione = (
                 not platnosc_bez_zmian
-                or self._zapisany_formularz[-3].strip() != (wystawiono or "")
+                or self._zapisany_formularz[4].strip() != (wystawiono or "")
             )
             if (data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono)
                     and daty_zmienione):
