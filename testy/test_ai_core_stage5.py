@@ -340,11 +340,12 @@ class TestAgentPanel(unittest.TestCase):
                     self.assertEqual(win.kreator.analiza.btn_panel_agenta.objectName(),
                                      "panelAgentaWAnalizie")
                     self.assertEqual(win.monitor.status_key, "agent.state.waiting")
-                    win._agent_show_panel()
+                    win.kreator.analiza.btn_panel_agenta.click()
                     self.assertIs(win.moduly.currentWidget(), win.monitor.panel)
                     self.assertFalse(win.monitor.panel.isWindow())
                     self.assertIsNone(win.monitor.report)
                     win.kreator.analiza.ed_model.setText(" model-wpisany ")
+                    self.assertEqual(win.kreator.model, " model-wpisany ")
                     with patch("gui.monitor_agenta.QThreadPool.globalInstance") as pool:
                         win.monitor.zlec("manual")
                         self.assertEqual(win.monitor._current_job,

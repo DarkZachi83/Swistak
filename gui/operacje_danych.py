@@ -116,7 +116,7 @@ class OperacjeDanych:
             # podczas zmiany nazwy katalogu danych.
             QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
             try:
-                okno.kreator.podglad.zamknij_dokument()
+                okno.kreator.zamknij_dokument()
                 okno.rejestr.zamknij()
                 previous = podmien_dane(kopia, folder)
                 okno.rejestr.otworz_ponownie()
@@ -230,7 +230,7 @@ class OperacjeDanych:
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
             stage = przygotuj_pusta_baze(root)
-            okno.kreator.podglad.zamknij_dokument()
+            okno.kreator.zamknij_dokument()
             okno.rejestr.zamknij()
             previous = podmien_na_pusta(root, stage)
             stage = None  # nowy folder jest już głównym katalogiem danych

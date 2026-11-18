@@ -41,6 +41,10 @@ class KreatorFaktury(QScrollArea):
     ETAPY = ("tab.read", "tab.ai", "tab.edit", "tab.bill", "tab.documents")
 
     pokaz_kreator = Signal()
+    pokaz_agenta = Signal()
+    wybor_modelu = Signal()
+    model_zmieniony = Signal(str)
+    analiza_zadana = Signal()
     odswiez_dokumenty = Signal()
     kategorie_zmienione = Signal()
     faktura_zapisana = Signal(int)
@@ -160,6 +164,10 @@ class KreatorFaktury(QScrollArea):
         self.odczyt.tekst_odczytany.connect(self.analiza.wykryj_wzorzec)
         self.odczyt.stan_pracy_zmieniony.connect(self._aktualizuj_dostepnosc)
         self.odczyt.status_zmieniony.connect(self.status_zmieniony)
+        self.analiza.pokaz_agenta.connect(self.pokaz_agenta)
+        self.analiza.wybor_modelu.connect(self.wybor_modelu)
+        self.analiza.model_zmieniony.connect(self.model_zmieniony)
+        self.analiza.analiza_zadana.connect(self.analiza_zadana)
         self.analiza.wybor_kategorii.connect(self._dodaj_kategorie)
         self.analiza.rozpoczeto.connect(self._pokaz_analize)
         self.analiza.stan_pracy_zmieniony.connect(self._aktualizuj_dostepnosc)
@@ -250,10 +258,21 @@ class KreatorFaktury(QScrollArea):
     def pracuje(self) -> bool:
         return self.odczyt.pracuje or self.analiza.pracuje
 
+    @property
+    def model(self) -> str:
+        return self.analiza.model
+
+    def wczytaj_ustawienia_modeli(self, prefs: dict[str, str]) -> None:
+        self.analiza.wczytaj_ustawienia(prefs)
+
+    def zamknij_dokument(self) -> None:
+        """Zwolnij uchwyt podglądu PDF przed podmianą katalogu danych."""
+        self.podglad.zamknij_dokument()
+
     def zamknij(self) -> None:
         self.odczyt.zamknij()
         self.analiza.zamknij()
-        self.podglad.zamknij_dokument()
+        self.zamknij_dokument()
 
     def odswiez_platnosc(self, invoice_id) -> None:
         if self.aktualny_dokument_id is not None and isinstance(invoice_id, int):
