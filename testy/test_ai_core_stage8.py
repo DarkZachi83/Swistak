@@ -18,7 +18,9 @@ from urllib.error import HTTPError
 
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import HybridAgent
-from ai_core.ollama import EXTRACTION_CONTEXT_TOKENS, OllamaProvider
+from ai_core.ollama import (
+    EXTRACTION_CONTEXT_TOKENS, MAX_EXTRACTION_CONTEXT_TOKENS, OllamaProvider,
+)
 from ai_core.errors import ExtractionContextExceeded, InvalidResponse
 from tools.audyt_ai_core import REQUIRED_RUNTIME, run_audit
 from tools.build_linux_beta import ARCHIVE_ROOT, build
@@ -119,7 +121,7 @@ class TestStage8Release(unittest.TestCase):
                 "sys.path.insert(0, sys.argv[1]); "
                 "from ai_core.contracts import analysis_schema; "
                 "from ai_core.gateway import ToolGateway; "
-                "from ai_core.ollama import EXTRACTION_CONTEXT_TOKENS, OllamaProvider; "
+                "from ai_core.ollama import OllamaProvider; "
                 "assert 'findings' in analysis_schema()['properties']; "
                 "g=ToolGateway(Path(sys.argv[1])/'missing.sqlite3'); "
                 "assert len(g.descriptors(['invoice.search']))==1; "
@@ -149,18 +151,44 @@ class TestKontekstEkstrakcji(unittest.TestCase):
     def setUp(self):
         self.provider = OllamaProvider()
 
-    def test_budzet_odrzuca_dokument_przed_wyslaniem_i_uwzglednia_wzorzec(self):
-        tekst = "Zażółć gęślą jaźń. Syntetyczna pozycja dokumentu.\n" * 90
-        self.assertLess(len(tekst), 30000)
-        with patch.object(self.provider, "_request") as wyslij:
-            with self.assertRaises(ExtractionContextExceeded):
-                analizuj_przez_ai_core(tekst, ["Energia"], provider=self.provider)
-            with patch("uslugi.analiza_llm.wskazowki_dla_modelu", return_value="ą" * 2400):
+    def test_pelne_dluzsze_ocr_ze_wzorcem_miesci_sie_w_kontekscie(self):
+        pozycja = "Dystrybucja energii, opłata zmienna, zużycie 13 kWh, kwota 18,45 zł.\n"
+        tresc = FakeExtraction().generate_structured(
+            task_id="syntetyczne", model_id="gemma3:4b", messages=[],
+            schema={"required": ["kwota_do_zaplaty"]}, timeout=10,
+        )
+        odpowiedz = {"message": {"content": json.dumps(tresc)}, "prompt_eval_count": 1900}
+        for powtorzenia, kontekst in ((80, EXTRACTION_CONTEXT_TOKENS),
+                                      (380, MAX_EXTRACTION_CONTEXT_TOKENS)):
+            with self.subTest(kontekst=kontekst):
+                tekst = FAKE_INVOICE_TEXT + pozycja * powtorzenia
+                with (patch.object(self.provider, "_request", side_effect=[
+                          {"model_info": {"general.architecture": "gemma3",
+                                          "gemma3.vision.context_length": 1024,
+                                          "gemma3.context_length": 32768}},
+                          odpowiedz,
+                      ]) as wyslij,
+                      patch("uslugi.analiza_llm.wskazowki_dla_modelu",
+                            return_value="Wskazówka do rozpoznania faktury. " * 30)):
+                    wynik = analizuj_przez_ai_core(tekst, ["Energia"], wzorzec={},
+                                                   provider=self.provider)
+                self.assertEqual(wynik.oceny["kwota_do_zaplaty"].wartosc, "174,80")
+                self.assertEqual(wyslij.call_args_list[0].args,
+                                 ("/api/show", {"model": "gemma3:4b"}))
+                payload = wyslij.call_args.args[1]
+                self.assertEqual(payload["options"]["num_ctx"], kontekst)
+                self.assertTrue(payload["messages"][-1]["content"].endswith(tekst))
+                self.assertIn("WZORZEC_JSON", payload["messages"][0]["content"])
+
+    def test_budzet_uwzglednia_maly_kontekst_i_dlugi_wzorzec(self):
+        with patch.object(self.provider, "_request",
+                          return_value={"model_info": {"test.context_length": 2048}}) as wyslij:
+            with patch("uslugi.analiza_llm.wskazowki_dla_modelu", return_value="ą" * 4000):
                 with self.assertRaises(ExtractionContextExceeded):
-                    analizuj_przez_ai_core(
-                        FAKE_INVOICE_TEXT, ["Energia"], wzorzec={}, provider=self.provider,
-                    )
-            wyslij.assert_not_called()
+                    analizuj_przez_ai_core(FAKE_INVOICE_TEXT, ["Energia"], wzorzec={},
+                                           provider=self.provider)
+            wyslij.assert_called_once()
+            self.assertEqual(wyslij.call_args.args[0], "/api/show")
 
     def test_krotki_tekst_trafia_w_calosci_a_odpowiedz_przy_limicie_jest_odrzucona(self):
         tresc = FakeExtraction().generate_structured(
@@ -203,7 +231,7 @@ class TestKontekstEkstrakcji(unittest.TestCase):
                     FAKE_INVOICE_TEXT, ["Energia"], provider=self.provider,
                     model_ekstrakcji="test:specjalista",
                 )
-            wyslij.assert_called_once()
+            self.assertEqual(wyslij.call_count, 2)  # /api/show i /api/chat
             self.assertNotIn("DEMO-PRIVATE", str(wyjatek.exception))
             self.assertIn("Odczytaj zaznaczenie", str(wyjatek.exception))
 

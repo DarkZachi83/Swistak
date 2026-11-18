@@ -54,6 +54,9 @@ class FakeOllama(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/api/show":
+            self._send_json({"model_info": {"test.context_length": 16384}})
+            return
         self.server.requests.append(body)
         if body["model"] == "fake-missing":
             self.send_error(503, "No local model")
@@ -67,7 +70,10 @@ class FakeOllama(BaseHTTPRequestHandler):
             ]}
         else:
             message = {"content": json.dumps(response)}
-        payload = json.dumps({"message": message}).encode()
+        self._send_json({"message": message})
+
+    def _send_json(self, response):
+        payload = json.dumps(response).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))

@@ -53,7 +53,8 @@ class TestWzorzecGemma(unittest.TestCase):
         handler.open.return_value = io.BytesIO(
             json.dumps(mocked_result).encode("utf-8")
         )
-        with patch("ai_core.ollama.build_opener", return_value=handler):
+        with patch("ai_core.ollama.OllamaProvider.get_capabilities",
+                   return_value={"declared": {"context_tokens": None}}), patch("ai_core.ollama.build_opener", return_value=handler):
             analizuj_lokalnie(TEKST, ["Internet", "Inne"],
                             model="model-test:1", wzorzec=template)
         request = handler.open.call_args.args[0]

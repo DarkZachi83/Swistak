@@ -99,7 +99,8 @@ class TestPostepAgenta(unittest.TestCase):
             json.dumps(response).encode("utf-8")
         )
         stages = []
-        with patch("ai_core.ollama.build_opener", return_value=handler):
+        with patch("ai_core.ollama.OllamaProvider.get_capabilities",
+                   return_value={"declared": {"context_tokens": None}}), patch("ai_core.ollama.build_opener", return_value=handler):
             result = analizuj_lokalnie(
                 "FAKTURA FIKCYJNA. Kwota nieznana.",
                 ["Inne"], postep=stages.append,

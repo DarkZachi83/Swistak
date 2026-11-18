@@ -26,40 +26,52 @@ from .provider import StreamEvent
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_STREAM_LINE = 128 * 1024
 EXTRACTION_CONTEXT_TOKENS = 8192
+MAX_EXTRACTION_CONTEXT_TOKENS = 16384
 EXTRACTION_REPLY_RESERVE = 1536
 CHAT_TEMPLATE_RESERVE = 256
 
 
 def structured_chat_payload(
     model_id: str, messages: list[dict[str, str]], schema: dict[str, Any],
+    *, context_tokens: int = EXTRACTION_CONTEXT_TOKENS,
 ) -> dict[str, Any]:
-    # Użyj bajtów UTF-8 jako ostrożnego oszacowania kosztu tekstu OCR.
-    # Schemat służy jako gramatyka odpowiedzi; dolicz jego rozmiar do rezerwy.
-    schema_bytes = len(json.dumps(
-        schema, ensure_ascii=False, separators=(",", ":"),
-    ).encode("utf-8"))
-    message_bytes = sum(len(message["content"].encode("utf-8")) for message in messages)
-    if (message_bytes + schema_bytes + CHAT_TEMPLATE_RESERVE + EXTRACTION_REPLY_RESERVE
-            > EXTRACTION_CONTEXT_TOKENS):
-        raise ExtractionContextExceeded()
     return {
         "model": model_id, "stream": False, "format": schema,
-        "options": {"temperature": 0, "num_ctx": EXTRACTION_CONTEXT_TOKENS},
+        "options": {"temperature": 0, "num_ctx": context_tokens},
         "truncate": False, "shift": False, "messages": messages,
     }
 
 
-def check_structured_context_response(response: dict[str, Any]) -> None:
+def _extraction_reply_reserve(context_tokens: int) -> int:
+    return min(EXTRACTION_REPLY_RESERVE, context_tokens // 4)
+
+
+def _extraction_context(messages: list[dict[str, str]], model_limit: int | None) -> int:
+    # Około 1 tokenu na 3 znaki plus 25% zapasu na polski OCR.
+    # Format jest gramatyką odpowiedzi. Instrukcja, OCR i wzorzec
+    # w messages są liczone jako tekst wejściowy.
+    chars = sum(len(message["content"]) for message in messages)
+    estimated_prompt = (5 * chars + 11) // 12 + CHAT_TEMPLATE_RESERVE
+    maximum = min(model_limit or EXTRACTION_CONTEXT_TOKENS, MAX_EXTRACTION_CONTEXT_TOKENS)
+    base = min(EXTRACTION_CONTEXT_TOKENS, maximum)
+    if estimated_prompt <= base - _extraction_reply_reserve(base):
+        return base
+    if estimated_prompt <= maximum - _extraction_reply_reserve(maximum):
+        return maximum
+    raise ExtractionContextExceeded()
+
+
+def check_structured_context_response(response: dict[str, Any], context_tokens: int) -> None:
     # Ollama raportuje prompt faktycznie przyjęty przez runner. Sama metryka
     # nie gwarantuje, że starsza wersja nie skróciła tekstu przed pomiarem.
     evaluated = response.get("prompt_eval_count")
     if (type(evaluated) is int
-            and evaluated > EXTRACTION_CONTEXT_TOKENS - EXTRACTION_REPLY_RESERVE):
+            and evaluated > context_tokens - _extraction_reply_reserve(context_tokens)):
         raise ExtractionContextExceeded()
     if response.get("done_reason") == "length":
         generated = response.get("eval_count")
         if (type(evaluated) is int and type(generated) is int
-                and evaluated + generated >= EXTRACTION_CONTEXT_TOKENS - 1):
+                and evaluated + generated >= context_tokens - 1):
             raise ExtractionContextExceeded()
         raise InvalidResponse("Ollama osiągnęła limit długości odpowiedzi przed zakończeniem analizy")
 
@@ -198,9 +210,15 @@ class OllamaProvider:
         model_info = data.get("model_info", {})
         context_tokens = None
         if isinstance(model_info, dict):
-            context_tokens = next((v for k, v in model_info.items()
-                                  if k.endswith(".context_length")
-                                  and type(v) is int and v > 0), None)
+            architecture = model_info.get("general.architecture")
+            if isinstance(architecture, str):
+                value = model_info.get(f"{architecture}.context_length")
+                if type(value) is int and value > 0:
+                    context_tokens = value
+            if context_tokens is None:
+                context_tokens = next((v for k, v in model_info.items()
+                                       if k.count(".") == 1 and k.endswith(".context_length")
+                                       and type(v) is int and v > 0), None)
         # Informacja diagnostyczna, nie wynik testu zgodności konkretnej roli.
         return {"provider_id": "ollama", "model_id": model_id,
                 "declared": {"text": "completion" in caps, "vision": "vision" in caps,
@@ -390,11 +408,24 @@ class OllamaProvider:
         if limit <= 0:
             raise ValueError("Nieprawidłowy limit czasu")
         try:
-            payload = structured_chat_payload(model_id, messages, schema)
-            data = self._request("/api/chat", payload, task_id=task_id, timeout=limit)
+            start = time.monotonic()
+            try:
+                capabilities = self.get_capabilities(model_id, timeout=min(limit, 2.0))
+                model_limit = capabilities["declared"]["context_tokens"]
+            except (InvalidResponse, ModelUnavailable, TaskTimeout):
+                # Starszy serwer lub brak metadanych nie blokuje zwykłej analizy.
+                model_limit = None
             if self._is_cancelled(task_id):
                 raise TaskCancelled("Zadanie zostało anulowane")
-            check_structured_context_response(data)
+            context_tokens = _extraction_context(messages, model_limit)
+            payload = structured_chat_payload(model_id, messages, schema, context_tokens=context_tokens)
+            remaining = limit - (time.monotonic() - start)
+            if remaining <= 0:
+                raise TaskTimeout("Ollama nie odpowiedziała w ustalonym czasie")
+            data = self._request("/api/chat", payload, task_id=task_id, timeout=remaining)
+            if self._is_cancelled(task_id):
+                raise TaskCancelled("Zadanie zostało anulowane")
+            check_structured_context_response(data, context_tokens)
             message = data.get("message")
             if not isinstance(message, dict) or message.get("tool_calls"):
                 raise InvalidResponse("Ekstrakcja nie pozwala na wywoływanie narzędzi")

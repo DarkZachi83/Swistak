@@ -118,7 +118,8 @@ class TestTransport(unittest.TestCase):
         handler.open.return_value = io.BytesIO(
             json.dumps(zwrot, ensure_ascii=False).encode("utf-8")
         )
-        with patch("ai_core.ollama.build_opener", return_value=handler) as opener:
+        with patch("ai_core.ollama.OllamaProvider.get_capabilities",
+                   return_value={"declared": {"context_tokens": None}}), patch("ai_core.ollama.build_opener", return_value=handler) as opener:
             analiza = analizuj_lokalnie(DANE, KATEGORIE)
         self.assertIsInstance(analiza, AnalizaModelu)
         self.assertEqual(analiza.model, "gemma3:4b")
