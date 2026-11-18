@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.analiza_llm import POLA, AnalizaModelu, ocena_json
 from uslugi.rachunki import RejestrRachunkow
@@ -94,7 +95,7 @@ class TestInterfejsAI(unittest.TestCase):
                 formularz.ed_wystawiono.setText("2026-11-02")
                 kreator._zapisz_rachunek()  # odrębny, świadomy zapis
                 self.assertEqual(rejestr.rachunek(dokument_id)["kwota_grosze"], 18950)
-                okno.close()
+                zamknij_widget(okno)
             finally:
                 rejestr.zamknij()
 

@@ -15,6 +15,7 @@ from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.dialog_kategorie import DialogKategorie
 from gui.okno_glowne import OknoGlowne
 from uslugi.analiza_llm import POLA, AnalizaModelu, ocena_json, normalizuj_date
@@ -213,7 +214,7 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
                     self.assertIsNone(db.rachunek(document_id))
                     formularz.zapisz_przycisk.click()
                     self.assertEqual(db.rachunek(document_id)["kwota_grosze"], 7750)
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 db.zamknij()
 

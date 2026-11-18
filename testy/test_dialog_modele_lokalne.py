@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QDialog
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.dialog_modele_lokalne import DialogModeleLokalne
 from gui.okno_glowne import OknoGlowne
 from i18n import set_language
@@ -43,7 +44,7 @@ class TestDialogLokalnychModeli(unittest.TestCase):
             dialog._zatwierdz()
             self.assertEqual(dialog.wybrany_model, "qwen3:8b")
         finally:
-            dialog.close()
+            zamknij_widget(dialog)
 
     def test_blad_ollamy_pokazuje_dysk_bez_pozornej_gotowosci(self):
         with patch("gui.dialog_modele_lokalne.QThreadPool.globalInstance"):
@@ -55,7 +56,7 @@ class TestDialogLokalnychModeli(unittest.TestCase):
             self.assertEqual(dialog.lista_dysk.count(), 1)
             self.assertIn("Ollama", dialog.status.text())
         finally:
-            dialog.close()
+            zamknij_widget(dialog)
 
     def test_wybor_zapisuje_model_do_ustawien(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -85,7 +86,7 @@ class TestDialogLokalnychModeli(unittest.TestCase):
                             kreator.btn_szukaj_modeli.click()
                         self.assertEqual(kreator.ed_model.text(), "qwen3:8b")
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 db.zamknij()
 

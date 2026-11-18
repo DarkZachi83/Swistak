@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QMessageBox, QInputDialog
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from i18n import set_language
 from uslugi.kopie_zapasowe import przygotuj_przywracanie
@@ -69,7 +70,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         win.change_language("en")
                         self.assertIn("Clear database", win.akcja_wyczysc.text())
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 reg.zamknij()
 
@@ -131,9 +132,9 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         back.sprzataj()
             finally:
                 if new_win:
-                    new_win.close()
+                    zamknij_widget(new_win)
                 if old_win:
-                    old_win.close()
+                    zamknij_widget(old_win)
                 reg.zamknij()
 
 

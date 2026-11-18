@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 from PySide6.QtWidgets import QApplication
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.analiza_worker import ZadanieAnalizy
 from gui.okno_glowne import OknoGlowne
 from i18n import set_language
@@ -88,7 +89,7 @@ class TestPostepAgenta(unittest.TestCase):
                         self.assertEqual(kreator.postep_ai.accessibleName(),
                                          "AI agent progress")
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 db.zamknij()
 

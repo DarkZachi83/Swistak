@@ -11,6 +11,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from ai_core.errors import TaskCancelled
 from ai_core.hybrid import HybridAgent
 from gui.analiza_worker import ZadanieAnalizy
@@ -274,7 +275,7 @@ class TestStage7Qt(unittest.TestCase):
                             win._open_settings()
                             self.assertEqual(selectors["verifier"].currentData(), "verify-demo")
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 reg.zamknij()
 

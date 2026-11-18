@@ -14,6 +14,7 @@ from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QApplication, QDateEdit, QDialog
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.dialog_plan_historia import DialogPlanHistoria, FormularzProfilu, chosen_id
 from gui.okno_glowne import OknoGlowne
 from uslugi.finanse import Finanse
@@ -192,7 +193,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertEqual(self.db.execute(
             "SELECT COUNT(*) FROM dziennik_zdarzen"
         ).fetchone()[0],before)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_karta_planu_widzi_profil_i_nie_tworzony_automatycznie_rachunek(self):
         self.plan.utworz_profil("DEMO Energia",cykl_od="2026-10")
@@ -206,7 +207,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertEqual(self.db.execute(
             "SELECT COUNT(*) FROM rachunki"
         ).fetchone()[0],2)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_razem_ze_zmiana_stanu_odswieza_agent_i_przekazuje_invoice_id(self):
         dialog=DialogPlanHistoria(self.registry)
@@ -228,7 +229,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertGreater(self.db.execute(
             "SELECT COUNT(*) FROM dziennik_zdarzen WHERE operacja='oplacenie'"
         ).fetchone()[0],0)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_historia_ostrzega_przed_wczesna_platnoscia(self):
         dialog = DialogPlanHistoria(self.registry)
@@ -250,7 +251,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertIsNone(self.db.execute(
             "SELECT data_oplacenia FROM rachunki WHERE id=?", (ident,),
         ).fetchone()[0])
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_odmowa_potwierdzenia_miesiaca_nie_powoduje_zapisu(self):
         dialog=DialogPlanHistoria(self.registry)
@@ -263,7 +264,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertEqual(self.db.execute(
             "SELECT COUNT(*) FROM cykle_rozliczeniowe"
         ).fetchone()[0],before)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_zamkniecie_wymaga_zgody_i_zachowuje_nieoplacenie(self):
         dialog=DialogPlanHistoria(self.registry)
@@ -279,7 +280,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
             "2026-10",dzisiaj="2026-11-13"
         )["closed"])
         self.assertEqual(received, [None])
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_nowy_profil_wymaga_potwierdzenia_i_potem_widoczny_w_tabeli(self):
         dialog=DialogPlanHistoria(self.registry)
@@ -300,7 +301,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
             dialog._create_profile()
         self.assertEqual(dialog.profiles.rowCount(),1)
         self.assertEqual(dialog.profiles.item(0,0).text(),values["nazwa"])
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_main_ma_piec_etapow_i_osadzony_plan(self):
         root=self.root
@@ -312,7 +313,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
             self.assertEqual(window.akcja_plan_historia.text(),"Plan rachunków i Historia")
             window.akcja_plan_historia.trigger()
             self.assertIs(window.moduly.currentWidget(), window.plan_historia)
-            window.close()
+            zamknij_widget(window)
 
 
 if __name__=="__main__":

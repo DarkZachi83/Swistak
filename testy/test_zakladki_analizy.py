@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.analiza_llm import POLA
 from uslugi.rachunki import RejestrRachunkow
@@ -70,7 +71,7 @@ class TestZakladkiAnalizy(unittest.TestCase):
                             self.assertIn("INFO", info.call_args.args[1])
                             self.assertIn("Odczyt PDF", info.call_args.args[2])
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 db.zamknij()
 
@@ -124,7 +125,7 @@ class TestZakladkiAnalizy(unittest.TestCase):
                         self.assertEqual(kreator.tabela_ai.item(0, 4).text(), "—")
                         self.assertEqual(kreator.notatki_wzorca.toPlainText(), "")
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 db.zamknij()
 

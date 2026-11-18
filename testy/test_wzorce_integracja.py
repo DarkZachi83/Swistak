@@ -16,6 +16,7 @@ from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.analiza_llm import POLA, analizuj_lokalnie
 from uslugi.dopasowanie_wzorca import zaproponuj_wzorzec
@@ -190,7 +191,7 @@ class TestInterfejsWzorcow(unittest.TestCase):
                         job = pool.return_value.start.call_args.args[0]
                         self.assertEqual(job.wzorzec["template_id"],
                                          updated["template_id"])
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 db.zamknij()
 

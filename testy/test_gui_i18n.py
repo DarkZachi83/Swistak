@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QApplication
 
 import i18n
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.rachunki import RejestrRachunkow
 
@@ -100,7 +101,7 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(formularz.wybor_kategoria.currentText(), "Gaz")
                     self.assertEqual(ustawienia.load()["language"], "pl")
 
-                    okno.close()
+                    zamknij_widget(okno)
             finally:
                 db.zamknij()
                 i18n.set_language("pl")
@@ -117,7 +118,7 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(okno.kreator.nawigacja.item(3).text(), "Invoice")
                     self.assertEqual(okno.prefs["language"], "en")
                     self.assertTrue(okno._lang_actions["en"].isChecked())
-                    okno.close()
+                    zamknij_widget(okno)
             finally:
                 db.zamknij()
                 i18n.set_language("pl")

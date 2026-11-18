@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
 
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_wzorcow import OknoWzorcow
 from uslugi.dopasowanie_wzorca import zaproponuj_wzorzec
 from uslugi.wzorce import MagazynWzorcow
@@ -62,7 +63,7 @@ class TestMenedzerWzorcow(unittest.TestCase):
             self.assertEqual(fourth["name"], first["name"])
             self.assertTrue((store.katalog / "historia" /
                 f"{first['template_id']}.rev-000003.json").is_file())
-            ui.close()
+            zamknij_widget(ui)
 
     def test_nie_ma_zapisu_przy_otwarciu_formularza(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -73,7 +74,7 @@ class TestMenedzerWzorcow(unittest.TestCase):
             self.assertFalse(dialog.przywroc.isEnabled())
             self.assertFalse(dialog.zmien_status.isEnabled())
             self.assertFalse(store.katalog.exists())
-            dialog.close()
+            zamknij_widget(dialog)
 
 
 if __name__ == "__main__":

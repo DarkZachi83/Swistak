@@ -11,6 +11,7 @@ from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.finanse import Finanse
 from uslugi.rachunki import (
@@ -221,7 +222,7 @@ class TestDuplikatWInterfejsie(unittest.TestCase):
                     self.assertEqual(db.db.execute(
                         "SELECT COUNT(*) FROM rachunki"
                     ).fetchone()[0], 1)
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 db.zamknij()
 

@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from ai_core.errors import InvalidResponse, ModelUnavailable, TaskCancelled
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import AgentLog, HybridAgent, MonitorReport
@@ -323,7 +324,7 @@ class TestAgentPanel(unittest.TestCase):
         self.assertIn("180,00", report_text(report))
         self.assertFalse(panel.cancel.isEnabled())
         self.assertTrue(panel.manual.isEnabled())
-        panel.close()
+        zamknij_widget(panel)
 
     def test_gui_nie_dodaje_siodmego_etapu_i_ma_panel(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -352,7 +353,7 @@ class TestAgentPanel(unittest.TestCase):
                         self.assertEqual(pool.return_value.start.call_args.args[0].model,
                                          "model-wpisany")
                         win.monitor.anuluj()
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 rejestr.zamknij()
 

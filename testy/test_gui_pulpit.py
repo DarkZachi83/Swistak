@@ -14,6 +14,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QScrollArea
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from ai_core.errors import ExtractionContextExceeded
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import MonitorReport
@@ -49,7 +50,7 @@ class TestPulpit(unittest.TestCase):
 
     def okno(self):
         window = OknoGlowne(self.rejestr)
-        self.addCleanup(window.close)
+        self.addCleanup(zamknij_widget, window)
         window.show()
         window.monitor._timer.stop()
         self.app.processEvents()

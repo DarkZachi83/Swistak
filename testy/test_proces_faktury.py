@@ -11,6 +11,7 @@ from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication, QHeaderView
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.rachunki import RejestrRachunkow
 
@@ -92,7 +93,7 @@ class TestProcesFaktury(unittest.TestCase):
                     self.assertIn("has been saved", formularz.info_faktury.text())
                     win.change_language("pl")
                     self.assertIn("zapisana", formularz.info_faktury.text())
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 db.zamknij()
 
@@ -115,7 +116,7 @@ class TestProcesFaktury(unittest.TestCase):
                     self.assertEqual(kreator.nawigacja.currentRow(), kreator.ETAP_EDYCJA)
                     self.assertEqual(formularz.ed_dostawca.text(), "WYŁĄCZNIE SYNTETYCZNE")
                     self.assertEqual(formularz.ed_kwota.text(), "12,34")
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 db.zamknij()
 

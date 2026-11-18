@@ -11,6 +11,7 @@ from PySide6.QtGui import QColor, QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import QApplication, QDialog
 
 import gui.okno_o_programie as about_module
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_o_programie import GITHUB, OknoOProgramie
 import i18n
 
@@ -46,11 +47,11 @@ class TestOknoOProgramie(unittest.TestCase):
             with patch.object(about_module, "ILLUSTRATIONS", (pic,)):
                 win = OknoOProgramie()
                 self.assertFalse(win.hero.pixmap().isNull())
-                win.close()
+                zamknij_widget(win)
             with patch.object(about_module, "ILLUSTRATIONS", (Path(tmp) / "missing.jpeg",)):
                 win = OknoOProgramie()
                 self.assertIn("assets/about", win.hero.text())
-                win.close()
+                zamknij_widget(win)
 
     def test_repo_korzysta_wylacznie_z_jpeg(self):
         self.assertTrue(about_module.ILLUSTRATIONS)
@@ -79,7 +80,7 @@ class TestOknoOProgramie(unittest.TestCase):
             win.star_button.click()
             opening.assert_called_once()
             self.assertEqual(opening.call_args.args[0].toString(), GITHUB)
-            win.close()
+            zamknij_widget(win)
 
 
 if __name__ == "__main__":

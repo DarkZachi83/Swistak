@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
+from testy.pomoc_qt import zamknij_widget
 from gui.dialog_kategorie import DialogKategorie, DialogScalKategorie
 from i18n import set_language
 from uslugi.rachunki import RejestrRachunkow
@@ -41,7 +42,7 @@ class TestDialogKategorii(unittest.TestCase):
         self.assertEqual(dialog.result(), QDialog.DialogCode.Accepted)
         self.assertEqual(dialog.wybrana_id, selected)
         self.assertEqual(len(self.db.kategorie()), 6)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_literowka_pokazuje_podpowiedz_i_wymaga_zgody(self):
         dialog = DialogKategorie(self.db, self.wzorce)
@@ -57,7 +58,7 @@ class TestDialogKategorii(unittest.TestCase):
         self.assertEqual(dialog.result(), QDialog.DialogCode.Accepted)
         self.assertIn(dialog.wybrana_id, [int(x["id"]) for x in self.db.kategorie()])
         self.assertEqual(len(self.db.kategorie()), 7)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_nazwa_rownowazna_nie_tworzy_drugiej(self):
         dialog = DialogKategorie(self.db, self.wzorce)
@@ -67,7 +68,7 @@ class TestDialogKategorii(unittest.TestCase):
             info.assert_called_once()
         self.assertNotEqual(dialog.result(), QDialog.DialogCode.Accepted)
         self.assertEqual(len(self.db.kategorie()), 6)
-        dialog.close()
+        zamknij_widget(dialog)
 
     def test_wzorzec_zalezy_od_nazwy_i_blokuje_scalanie(self):
         source = self.db.dodaj_kategorie("Energi", zezwol_na_podobna=True)
@@ -95,7 +96,7 @@ class TestDialogKategorii(unittest.TestCase):
         self.assertEqual(dialog.result(), QDialog.DialogCode.Accepted)
         self.assertEqual(dialog.wybrany_cel, target)
         self.assertNotIn(source, [int(row["id"]) for row in self.db.kategorie()])
-        dialog.close()
+        zamknij_widget(dialog)
 
 
 if __name__ == "__main__":

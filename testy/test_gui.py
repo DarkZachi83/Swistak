@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.rachunki import RejestrRachunkow
 
@@ -45,7 +46,7 @@ class TestGUI(unittest.TestCase):
                 kreator._wyswietl_dokument(dokument)
                 self.assertEqual(formularz.ed_dostawca.text(), "Dostawca testowy")
                 self.assertEqual(formularz.ed_kwota.text(), "19,99")
-                okno.close()
+                zamknij_widget(okno)
             finally:
                 rejestr.zamknij()
 

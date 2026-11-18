@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from i18n import set_language
 from uslugi.kopie_zapasowe import utworz_kopie
@@ -96,9 +97,9 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                     self.assertTrue((backups[0] / "swistak.sqlite3").is_file())
             finally:
                 if restored_window is not None:
-                    restored_window.close()
+                    zamknij_widget(restored_window)
                 if previous_window is not None:
-                    previous_window.close()
+                    zamknij_widget(previous_window)
                 reg.zamknij()
 
 

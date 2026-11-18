@@ -10,6 +10,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from i18n import set_language
 from uslugi.rachunki import RejestrRachunkow
@@ -46,7 +47,7 @@ class TestBackupMenu(unittest.TestCase):
                         self.assertIn("Create backup", win.akcja_kopia.text())
                         self.assertIn("Restore backup", win.akcja_przywroc.text())
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 db.zamknij()
 

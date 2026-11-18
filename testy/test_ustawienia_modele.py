@@ -11,6 +11,7 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLabel
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.dialog_modele_lokalne import DialogModeleLokalne
 from gui.modele_worker import ZadanieListyOllama
 from uslugi.modele_lokalne import BladOllama
@@ -123,7 +124,7 @@ class TestModelSettingsGUI(unittest.TestCase):
                 self.assertEqual(dialog.katalog_uzytkownika,"")
                 self.assertEqual(pool.return_value.start.call_count,3)
             finally:
-                dialog.close()
+                zamknij_widget(dialog)
 
     def test_quick_ollama_worker_does_not_scan_files(self):
         worker=ZadanieListyOllama()
@@ -177,7 +178,7 @@ class TestModelSettingsGUI(unittest.TestCase):
                             self.assertEqual(box.model.currentText(), "my-custom-model:7b")
                             self.assertEqual(ustawienia.load()["ollama_model"], "gemma2:9b")
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 registry.zamknij()
 
@@ -213,7 +214,7 @@ class TestModelSettingsGUI(unittest.TestCase):
                         self.assertEqual(box.model.currentText(), "qwen3:8b")
                         self.assertEqual(ustawienia.load()["ollama_model"], "qwen3:8b")
                     finally:
-                        win.close()
+                        zamknij_widget(win)
             finally:
                 registry.zamknij()
 

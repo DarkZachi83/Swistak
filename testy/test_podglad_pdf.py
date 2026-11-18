@@ -9,6 +9,7 @@ from pathlib import Path
 from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication
 
+from testy.pomoc_qt import zamknij_widget
 from gui.podglad_pdf import PodgladPDF
 
 
@@ -54,7 +55,7 @@ class TestPodgladPDF(unittest.TestCase):
             self.assertLessEqual(document_screen_width, viewer.viewport().width())
             self.assertGreater(viewer.verticalScrollBar().maximum(), 0)
             self.assertEqual(viewer._tryb_dopasowania, "szerokosc")
-            viewer.close()
+            zamknij_widget(viewer)
 
     def test_fit_page_zoom_and_resize(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -80,7 +81,7 @@ class TestPodgladPDF(unittest.TestCase):
             self.app.processEvents()
             self.assertGreater(viewer.transform().m11(), scale_before)
             self.assertEqual(viewer._tryb_dopasowania, "szerokosc")
-            viewer.close()
+            zamknij_widget(viewer)
 
     def test_przelaczenie_strony_nie_zmienia_oryginalu_pdf(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -96,7 +97,7 @@ class TestPodgladPDF(unittest.TestCase):
             viewer.dopasuj_szerokosc()
             self.assertEqual(pdf.read_bytes(), before)
             self.assertEqual(viewer.strona, 0)
-            viewer.close()
+            zamknij_widget(viewer)
 
 
 if __name__ == "__main__":

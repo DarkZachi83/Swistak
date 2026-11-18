@@ -12,6 +12,7 @@ from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QApplication
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from i18n import current_language, set_language
 from uslugi.finanse import Finanse
@@ -153,7 +154,7 @@ class TestWidokStatystyk(BazaStatystyk):
         okno = OknoGlowne(self.rejestr)
         okno.show()
         okno.monitor._timer.stop()
-        self.addCleanup(okno.close)
+        self.addCleanup(zamknij_widget, okno)
         okno.nawigacja_glowna["statistics"].click()
         self.app.processEvents()
         return okno

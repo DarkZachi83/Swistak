@@ -12,6 +12,7 @@ from PySide6.QtGui import QPainter, QPdfWriter
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
+from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from gui.tabela_faktur import TabelaFaktur
 from i18n import set_language
@@ -92,7 +93,7 @@ class TestTabelaFaktur(unittest.TestCase):
                                      "Supplier")
                     self.assertEqual(table.tabela.item(0, 4).text(), "140,05 PLN")
                     self.assertEqual(table.szukaj.text(), "fikcyjny")
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 set_language("pl")
                 db.zamknij()
@@ -123,7 +124,7 @@ class TestTabelaFaktur(unittest.TestCase):
                 self.assertEqual(table.tabela.item(1, 4).text(), "100,00 zł")
                 table.tabela.sortItems(4, Qt.SortOrder.DescendingOrder)
                 self.assertEqual(table.tabela.item(0, 4).text(), "100,00 zł")
-                table.close()
+                zamknij_widget(table)
             finally:
                 set_language("pl")
                 db.zamknij()
@@ -158,7 +159,7 @@ class TestTabelaFaktur(unittest.TestCase):
                     self.assertEqual(db.faktury()[0]["id"], ident)
                     self.assertEqual(win.tabela_faktur.tabela.item(0, 4).text(),
                                      "25,00 zł")
-                    win.close()
+                    zamknij_widget(win)
             finally:
                 set_language("pl")
                 db.zamknij()
