@@ -44,27 +44,28 @@ class TestZakladkiAnalizy(unittest.TestCase):
                                   return_value=root / "prefs.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
                     try:
-                        self.assertEqual(win.zakladki_ai.count(), 2)
-                        self.assertEqual(win.zakladki_ai.tabText(0), "DANE")
-                        self.assertEqual(win.zakladki_ai.tabText(1), "AGENT")
-                        self.assertEqual(win.zakladki_ai.currentIndex(), 0)
-                        self.assertEqual(win.tabela_ai.columnCount(), 5)
-                        self.assertEqual(win.tabela_ai.horizontalHeaderItem(4).text(),
+                        self.assertEqual(kreator.zakladki_ai.count(), 2)
+                        self.assertEqual(kreator.zakladki_ai.tabText(0), "DANE")
+                        self.assertEqual(kreator.zakladki_ai.tabText(1), "AGENT")
+                        self.assertEqual(kreator.zakladki_ai.currentIndex(), 0)
+                        self.assertEqual(kreator.tabela_ai.columnCount(), 5)
+                        self.assertEqual(kreator.tabela_ai.horizontalHeaderItem(4).text(),
                                          "Komentarz")
-                        self.assertTrue(win.karta_ai_dane.isAncestorOf(win.tabela_ai))
-                        self.assertTrue(win.karta_ai_dane.isAncestorOf(win.btn_analizuj))
-                        self.assertTrue(win.karta_ai_dane.isAncestorOf(win.btn_przenies))
-                        self.assertTrue(win.karta_ai_dane.isAncestorOf(win.btn_info_ai))
-                        self.assertTrue(win.karta_ai_agent.isAncestorOf(win.ed_model))
-                        self.assertTrue(win.karta_ai_agent.isAncestorOf(
-                            win.btn_wybierz_wzorzec
+                        self.assertTrue(kreator.karta_ai_dane.isAncestorOf(kreator.tabela_ai))
+                        self.assertTrue(kreator.karta_ai_dane.isAncestorOf(kreator.btn_analizuj))
+                        self.assertTrue(kreator.karta_ai_dane.isAncestorOf(kreator.btn_przenies))
+                        self.assertTrue(kreator.karta_ai_dane.isAncestorOf(kreator.btn_info_ai))
+                        self.assertTrue(kreator.karta_ai_agent.isAncestorOf(kreator.ed_model))
+                        self.assertTrue(kreator.karta_ai_agent.isAncestorOf(
+                            kreator.btn_wybierz_wzorzec
                         ))
-                        self.assertTrue(win.karta_ai_agent.isAncestorOf(
-                            win.notatki_wzorca
+                        self.assertTrue(kreator.karta_ai_agent.isAncestorOf(
+                            kreator.notatki_wzorca
                         ))
                         with patch.object(QMessageBox, "information") as info:
-                            win.btn_info_ai.click()
+                            kreator.btn_info_ai.click()
                             info.assert_called_once()
                             self.assertIn("INFO", info.call_args.args[1])
                             self.assertIn("Odczyt PDF", info.call_args.args[2])
@@ -86,41 +87,42 @@ class TestZakladkiAnalizy(unittest.TestCase):
                                   return_value=root / "prefs.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
                     try:
                         win.otworz_pdf(pdf_a)
                         field = POLA[0]
                         note = "Szukaj nazwy bezpośrednio nad tabelą"
                         with patch.object(QInputDialog, "getMultiLineText",
                                           return_value=(note, True)):
-                            win.tabela_ai.itemDoubleClicked.emit(
-                                win.tabela_ai.item(0, 4)
+                            kreator.tabela_ai.itemDoubleClicked.emit(
+                                kreator.tabela_ai.item(0, 4)
                             )
-                        self.assertEqual(win._komentarze_wzorca[field], note)
-                        self.assertEqual(win.tabela_ai.item(0, 4).text(), note)
+                        self.assertEqual(kreator._komentarze_wzorca[field], note)
+                        self.assertEqual(kreator.tabela_ai.item(0, 4).text(), note)
 
-                        win.zakladki_ai.setCurrentIndex(1)
-                        win.ed_model.setText("synthetic:4b")
-                        win.notatki_wzorca.setPlainText("Zasada bez danych nabywcy")
+                        kreator.zakladki_ai.setCurrentIndex(1)
+                        kreator.ed_model.setText("synthetic:4b")
+                        kreator.notatki_wzorca.setPlainText("Zasada bez danych nabywcy")
                         win.change_language("en")
-                        self.assertEqual(win.zakladki_ai.tabText(0), "DATA")
-                        self.assertEqual(win.zakladki_ai.tabText(1), "AGENT")
-                        self.assertEqual(win.zakladki_ai.currentIndex(), 1)
-                        self.assertEqual(win.ed_model.text(), "synthetic:4b")
+                        self.assertEqual(kreator.zakladki_ai.tabText(0), "DATA")
+                        self.assertEqual(kreator.zakladki_ai.tabText(1), "AGENT")
+                        self.assertEqual(kreator.zakladki_ai.currentIndex(), 1)
+                        self.assertEqual(kreator.ed_model.text(), "synthetic:4b")
                         self.assertEqual(
-                            win.notatki_wzorca.toPlainText(),
+                            kreator.notatki_wzorca.toPlainText(),
                             "Zasada bez danych nabywcy",
                         )
-                        self.assertEqual(win.tabela_ai.horizontalHeaderItem(4).text(),
+                        self.assertEqual(kreator.tabela_ai.horizontalHeaderItem(4).text(),
                                          "Comment")
-                        self.assertEqual(win.tabela_ai.item(0, 4).text(), note)
-                        win.zakladki_ai.setCurrentIndex(0)
-                        self.assertEqual(win._komentarze_wzorca[field], note)
+                        self.assertEqual(kreator.tabela_ai.item(0, 4).text(), note)
+                        kreator.zakladki_ai.setCurrentIndex(0)
+                        self.assertEqual(kreator._komentarze_wzorca[field], note)
 
                         # Nowa faktura nie może odziedziczyć uwag poprzedniej.
                         win.otworz_pdf(pdf_b)
-                        self.assertEqual(win._komentarze_wzorca, {})
-                        self.assertEqual(win.tabela_ai.item(0, 4).text(), "—")
-                        self.assertEqual(win.notatki_wzorca.toPlainText(), "")
+                        self.assertEqual(kreator._komentarze_wzorca, {})
+                        self.assertEqual(kreator.tabela_ai.item(0, 4).text(), "—")
+                        self.assertEqual(kreator.notatki_wzorca.toPlainText(), "")
                     finally:
                         win.close()
             finally:

@@ -32,10 +32,12 @@ class TestInterfejsAI(unittest.TestCase):
             rejestr = RejestrRachunkow(root / "dane")
             try:
                 okno = OknoGlowne(rejestr)
+                kreator = okno.kreator
+                formularz = kreator.formularz
                 okno.show()
                 self.app.processEvents()
                 okno.otworz_pdf(pdf_path)
-                dokument_id = okno.aktualny_dokument_id
+                dokument_id = kreator.aktualny_dokument_id
                 self.assertIsNotNone(dokument_id)
                 self.assertIsNone(rejestr.rachunek(dokument_id))
 
@@ -45,13 +47,13 @@ class TestInterfejsAI(unittest.TestCase):
                     "Usługa: gaz\n"
                     "Termin płatności: 2026-12-01\n"
                 )
-                okno.pole_odczytu.setPlainText(tekst)
-                okno._aktualizuj_odczyt()
-                self.assertTrue(okno.btn_analizuj.isEnabled())
-                with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
-                    okno._start_analizy()
+                kreator.pole_odczytu.setPlainText(tekst)
+                kreator._aktualizuj_odczyt()
+                self.assertTrue(kreator.btn_analizuj.isEnabled())
+                with patch("gui.kreator_faktury.QThreadPool.globalInstance") as pool:
+                    kreator._start_analizy()
                     pool.return_value.start.assert_called_once()
-                self.assertFalse(okno.btn_przenies.isEnabled())
+                self.assertFalse(kreator.btn_przenies.isEnabled())
                 self.assertIsNone(rejestr.rachunek(dokument_id))
 
                 dane = {p: {"wartosc": None, "dowod": None} for p in POLA}
@@ -73,24 +75,24 @@ class TestInterfejsAI(unittest.TestCase):
                 kategorie = [k["nazwa"] for k in rejestr.kategorie()]
                 oceny = ocena_json(dane, tekst, kategorie)
                 wynik = AnalizaModelu("gemma3:4b", oceny)
-                okno._analiza_gotowa(dokument_id, wynik)
-                self.assertTrue(okno.btn_przenies.isEnabled())
+                kreator._analiza_gotowa(dokument_id, wynik)
+                self.assertTrue(kreator.btn_przenies.isEnabled())
                 self.assertIsNone(rejestr.rachunek(dokument_id))
 
                 with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No):
-                    okno._przenies_sugestie()
-                self.assertFalse(okno.ed_dostawca.text())
+                    kreator._przenies_sugestie()
+                self.assertFalse(formularz.ed_dostawca.text())
                 self.assertIsNone(rejestr.rachunek(dokument_id))
                 with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
-                    okno._przenies_sugestie()
-                self.assertEqual(okno.karty.currentIndex(), okno.ETAP_EDYCJA)
-                self.assertEqual(okno.ed_dostawca.text(), "Zakład DEMO")
-                self.assertEqual(okno.ed_kwota.text(), "189,50")
-                self.assertEqual(okno.ed_termin.text(), "2026-12-01")
-                self.assertEqual(okno.wybor_kategoria.currentData(), next(int(row["id"]) for row in rejestr.kategorie() if row["nazwa"] == "Gaz"))
+                    kreator._przenies_sugestie()
+                self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
+                self.assertEqual(formularz.ed_dostawca.text(), "Zakład DEMO")
+                self.assertEqual(formularz.ed_kwota.text(), "189,50")
+                self.assertEqual(formularz.ed_termin.text(), "2026-12-01")
+                self.assertEqual(formularz.wybor_kategoria.currentData(), next(int(row["id"]) for row in rejestr.kategorie() if row["nazwa"] == "Gaz"))
                 self.assertIsNone(rejestr.rachunek(dokument_id))
-                okno.ed_wystawiono.setText("2026-11-02")
-                okno._zapisz_rachunek()  # odrębny, świadomy zapis
+                formularz.ed_wystawiono.setText("2026-11-02")
+                kreator._zapisz_rachunek()  # odrębny, świadomy zapis
                 self.assertEqual(rejestr.rachunek(dokument_id)["kwota_grosze"], 18950)
                 okno.close()
             finally:

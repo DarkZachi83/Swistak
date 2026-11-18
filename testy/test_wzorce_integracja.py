@@ -120,40 +120,42 @@ class TestInterfejsWzorcow(unittest.TestCase):
                                   return_value=root / "ustawienia.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "model-test:1"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
+                    formularz = kreator.formularz
                     win.show()
                     self.app.processEvents()
                     win.otworz_pdf(pdf)
-                    doc_id = win.aktualny_dokument_id
-                    win.pole_odczytu.setPlainText(TEKST)
-                    win._wykryj_wzorzec(TEKST)
-                    self.assertIsNone(win._aktywny_wzorzec)
-                    win.ed_dostawca.setText("Operator Sieci DEMO")
-                    win.ed_kwota.setText("42,00")
-                    win.ed_wystawiono.setText("2026-11-02")
-                    win.wybor_kategoria.setCurrentIndex(
-                        win.wybor_kategoria.findData(kat_id)
+                    doc_id = kreator.aktualny_dokument_id
+                    kreator.pole_odczytu.setPlainText(TEKST)
+                    kreator._wykryj_wzorzec(TEKST)
+                    self.assertIsNone(kreator._aktywny_wzorzec)
+                    formularz.ed_dostawca.setText("Operator Sieci DEMO")
+                    formularz.ed_kwota.setText("42,00")
+                    formularz.ed_wystawiono.setText("2026-11-02")
+                    formularz.wybor_kategoria.setCurrentIndex(
+                        formularz.wybor_kategoria.findData(kat_id)
                     )
-                    win._komentarze_wzorca["termin_platnosci"] = (
+                    kreator._komentarze_wzorca["termin_platnosci"] = (
                         "Termin znajduje się w górnej części."
                     )
-                    win.notatki_wzorca.setPlainText(
+                    kreator.notatki_wzorca.setPlainText(
                         "Nie myl numeru klienta z numerem faktury."
                     )
-                    win.karty.setCurrentIndex(win.ETAP_FAKTURA)
-                    win.zapisz_przycisk.click()
+                    kreator.karty.setCurrentIndex(kreator.ETAP_FAKTURA)
+                    formularz.zapisz_przycisk.click()
                     self.assertEqual(db.rachunek(doc_id)["kwota_grosze"], 4200)
-                    self.assertFalse(win.btn_proponuj_wzorzec.isHidden())
+                    self.assertFalse(formularz.btn_proponuj_wzorzec.isHidden())
                     store = MagazynWzorcow(db.katalog)
                     self.assertEqual(store.lista(), [])  # zapis faktury ≠ zapis wzorca
 
-                    with patch("gui.okno_glowne.zaakceptuj_wzorzec",
+                    with patch("gui.kreator_faktury.zaakceptuj_wzorzec",
                                return_value=None):
-                        win._zaproponuj_zapis_wzorca()
+                        kreator._zaproponuj_zapis_wzorca()
                     self.assertEqual(store.lista(), [])  # anulowanie dialogu
 
-                    with patch("gui.okno_glowne.zaakceptuj_wzorzec",
+                    with patch("gui.kreator_faktury.zaakceptuj_wzorzec",
                                side_effect=lambda parent, candidate, **kw: candidate):
-                        win._zaproponuj_zapis_wzorca()
+                        kreator._zaproponuj_zapis_wzorca()
                     templates = store.lista()
                     self.assertEqual(len(templates), 1)
                     item = templates[0]
@@ -166,12 +168,12 @@ class TestInterfejsWzorcow(unittest.TestCase):
                     self.assertNotIn("42,00", json.dumps(item))
                     self.assertNotIn("Nabywca WYŁĄCZNIE TESTOWY", json.dumps(item))
 
-                    win.notatki_wzorca.setPlainText(
+                    kreator.notatki_wzorca.setPlainText(
                         "Zachowaj daty w formacie RRRR-MM-DD."
                     )
-                    with patch("gui.okno_glowne.zaakceptuj_wzorzec",
+                    with patch("gui.kreator_faktury.zaakceptuj_wzorzec",
                                side_effect=lambda parent, candidate, **kw: candidate):
-                        win._zaproponuj_zapis_wzorca()
+                        kreator._zaproponuj_zapis_wzorca()
                     updated = store.pobierz(item["template_id"])
                     self.assertEqual(updated["revision"], 2)
                     self.assertEqual(len(updated["agent_notes"]), 2)
@@ -179,11 +181,11 @@ class TestInterfejsWzorcow(unittest.TestCase):
                         f"{item['template_id']}.rev-000001.json").is_file())
                     self.assertEqual(db.rachunek(doc_id)["kwota_grosze"], 4200)
                     # Po kolejnym OCR dopasuje zatwierdzony wzorzec.
-                    win._wykryj_wzorzec(TEKST)
-                    self.assertEqual(win._dopasowanie_wzorca.poziom, "automatic")
-                    self.assertEqual(win._aktywny_wzorzec["revision"], 2)
-                    with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
-                        win._start_analizy()
+                    kreator._wykryj_wzorzec(TEKST)
+                    self.assertEqual(kreator._dopasowanie_wzorca.poziom, "automatic")
+                    self.assertEqual(kreator._aktywny_wzorzec["revision"], 2)
+                    with patch("gui.kreator_faktury.QThreadPool.globalInstance") as pool:
+                        kreator._start_analizy()
                         pool.return_value.start.assert_called_once()
                         job = pool.return_value.start.call_args.args[0]
                         self.assertEqual(job.wzorzec["template_id"],

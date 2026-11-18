@@ -72,7 +72,7 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                         return original_show(window)
 
                     with (
-                        patch("gui.okno_glowne.QFileDialog.getOpenFileName",
+                        patch("gui.operacje_danych.QFileDialog.getOpenFileName",
                               return_value=(str(archive), "ZIP")),
                         patch.object(QMessageBox, "question",
                                      return_value=QMessageBox.StandardButton.Yes),

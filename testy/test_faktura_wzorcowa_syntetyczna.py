@@ -144,43 +144,45 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
                                   return_value=folder / "ustawienia.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
+                    formularz = kreator.formularz
                     win.show()
                     self.app.processEvents()
                     win.otworz_pdf(pdf)
-                    document_id = win.aktualny_dokument_id
+                    document_id = kreator.aktualny_dokument_id
                     self.assertIsNotNone(document_id)
-                    win.pole_odczytu.setPlainText(DEMO_TEKST)
-                    win._aktualizuj_odczyt()
+                    kreator.pole_odczytu.setPlainText(DEMO_TEKST)
+                    kreator._aktualizuj_odczyt()
 
                     wynik = AnalizaModelu(
                         "mock-llm",
                         ocena_json(dane_demo(), DEMO_TEKST,
                                    [r["nazwa"] for r in db.kategorie()]),
                     )
-                    win._analiza_gotowa(document_id, wynik)
+                    kreator._analiza_gotowa(document_id, wynik)
                     row_date = POLA.index("data_wystawienia")
                     row_category = POLA.index("kategoria_sugerowana")
-                    self.assertTrue(win.tabela_ai.item(row_date, 1).flags()
+                    self.assertTrue(kreator.tabela_ai.item(row_date, 1).flags()
                                     & Qt.ItemFlag.ItemIsEditable)
-                    self.assertFalse(win.tabela_ai.item(row_date, 2).flags()
+                    self.assertFalse(kreator.tabela_ai.item(row_date, 2).flags()
                                      & Qt.ItemFlag.ItemIsEditable)
-                    self.assertEqual(win.tabela_ai.item(row_date, 1).text(),
+                    self.assertEqual(kreator.tabela_ai.item(row_date, 1).text(),
                                      "2026-11-03")
-                    self.assertFalse(win._analiza.oceny["kategoria_sugerowana"].poprawne)
+                    self.assertFalse(kreator._analiza.oceny["kategoria_sugerowana"].poprawne)
                     self.assertIsNone(db.rachunek(document_id))
 
                     # Po zmianie AI nie może uznać nowej daty bez dowodu.
-                    win.tabela_ai.item(row_date, 1).setText("04.11.2026")
-                    self.assertFalse(win._analiza.oceny["data_wystawienia"].poprawne)
-                    win.tabela_ai.setCurrentCell(row_date, 1)
+                    kreator.tabela_ai.item(row_date, 1).setText("04.11.2026")
+                    self.assertFalse(kreator._analiza.oceny["data_wystawienia"].poprawne)
+                    kreator.tabela_ai.setCurrentCell(row_date, 1)
                     with patch.object(QMessageBox, "question",
                                       return_value=QMessageBox.StandardButton.Yes):
-                        win._potwierdz_pole_ai()
-                    self.assertTrue(win._analiza.oceny["data_wystawienia"].poprawne)
-                    self.assertEqual(win.tabela_ai.item(row_date, 1).text(), "2026-11-04")
+                        kreator._potwierdz_pole_ai()
+                    self.assertTrue(kreator._analiza.oceny["data_wystawienia"].poprawne)
+                    self.assertEqual(kreator.tabela_ai.item(row_date, 1).text(), "2026-11-04")
 
                     # Nowa kategoria zdefiniowana przez użytkownika na ekranie AI.
-                    win.karty.setCurrentIndex(win.ETAP_ANALIZA)
+                    kreator.karty.setCurrentIndex(kreator.ETAP_ANALIZA)
                     def utworz_fikcyjna_kategorie(dialog):
                         dialog.nowa.setText("Internet")
                         dialog._dodaj()  # świadomy wybór formularza, bez modalu Qt
@@ -188,10 +190,10 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
 
                     with patch.object(DialogKategorie, "exec",
                                       utworz_fikcyjna_kategorie):
-                        win._dodaj_kategorie()
-                    self.assertEqual(win.tabela_ai.item(row_category, 1).text(),
+                        kreator._dodaj_kategorie()
+                    self.assertEqual(kreator.tabela_ai.item(row_category, 1).text(),
                                      "Internet")
-                    self.assertTrue(win._analiza.oceny["kategoria_sugerowana"].poprawne)
+                    self.assertTrue(kreator._analiza.oceny["kategoria_sugerowana"].poprawne)
                     self.assertIn("Internet",
                                   [x["nazwa"] for x in db.kategorie()])
                     self.assertIsNone(db.rachunek(document_id))
@@ -199,17 +201,17 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
                     # Przeniesienie do edycji ≠ zapis faktury.
                     with patch.object(QMessageBox, "question",
                                       return_value=QMessageBox.StandardButton.Yes):
-                        win._przenies_sugestie()
-                    self.assertEqual(win.karty.currentIndex(), win.ETAP_EDYCJA)
-                    self.assertEqual(win.ed_wystawiono.text(), "2026-11-04")
-                    self.assertEqual(win.ed_dostawca.text(),
+                        kreator._przenies_sugestie()
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
+                    self.assertEqual(formularz.ed_wystawiono.text(), "2026-11-04")
+                    self.assertEqual(formularz.ed_dostawca.text(),
                                      "Firma Testowa Sieć DEMO")
-                    self.assertEqual(win.ed_kwota.text(), "77,50")
-                    self.assertEqual(win.wybor_kategoria.currentText(), "Internet")
+                    self.assertEqual(formularz.ed_kwota.text(), "77,50")
+                    self.assertEqual(formularz.wybor_kategoria.currentText(), "Internet")
                     self.assertIsNone(db.rachunek(document_id))
-                    win.btn_przejdz_faktura.click()
+                    formularz.btn_przejdz_faktura.click()
                     self.assertIsNone(db.rachunek(document_id))
-                    win.zapisz_przycisk.click()
+                    formularz.zapisz_przycisk.click()
                     self.assertEqual(db.rachunek(document_id)["kwota_grosze"], 7750)
                     win.close()
             finally:

@@ -49,7 +49,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         self.assertIn("Wyczyść", win.akcja_wyczysc.text())
                         with patch.object(QMessageBox, "warning",
                                           return_value=QMessageBox.StandardButton.No):
-                            with patch("gui.okno_glowne.QFileDialog.getSaveFileName") as choose:
+                            with patch("gui.operacje_danych.QFileDialog.getSaveFileName") as choose:
                                 win.operacje_danych.wyczysc_baze()
                                 choose.assert_not_called()
                         self.assertEqual(reg.rachunek(doc)["kwota_grosze"], 9922)
@@ -57,7 +57,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                         with (
                             patch.object(QMessageBox, "warning",
                                          return_value=QMessageBox.StandardButton.Yes),
-                            patch("gui.okno_glowne.QFileDialog.getSaveFileName",
+                            patch("gui.operacje_danych.QFileDialog.getSaveFileName",
                                   return_value=(str(zip_path), "ZIP")),
                             patch.object(QInputDialog, "getText",
                                          return_value=("NIE USUWAJ", True)),
@@ -102,7 +102,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                     with (
                         patch.object(QMessageBox, "warning",
                                      return_value=QMessageBox.StandardButton.Yes),
-                        patch("gui.okno_glowne.QFileDialog.getSaveFileName",
+                        patch("gui.operacje_danych.QFileDialog.getSaveFileName",
                               return_value=(str(zip_path), "ZIP")),
                         patch.object(QInputDialog, "getText",
                                      return_value=("USUŃ WSZYSTKO", True)),

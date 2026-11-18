@@ -174,29 +174,30 @@ class TestDuplikatWInterfejsie(unittest.TestCase):
                                   return_value=root / "ustawienia.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "test:1"})
                     win = OknoGlowne(db)
+                    formularz = win.kreator.formularz
                     win.show()
                     self.app.processEvents()
                     win.otworz_pdf(pdf)
-                    doc = win.aktualny_dokument_id
-                    win.ed_dostawca.setText("Operator DEMO")
-                    win.ed_numer.setText("FV/01/2026")
-                    win.ed_kwota.setText("42,00")
-                    win.ed_wystawiono.setText("2026-11-02")
-                    win.wybor_kategoria.setCurrentIndex(1)
-                    win.zapisz_przycisk.click()
+                    doc = win.kreator.aktualny_dokument_id
+                    formularz.ed_dostawca.setText("Operator DEMO")
+                    formularz.ed_numer.setText("FV/01/2026")
+                    formularz.ed_kwota.setText("42,00")
+                    formularz.ed_wystawiono.setText("2026-11-02")
+                    formularz.wybor_kategoria.setCurrentIndex(1)
+                    formularz.zapisz_przycisk.click()
                     original = db.rachunek(doc)
                     self.assertEqual(original["kwota_grosze"], 4200)
                     pk = original["id"]
 
                     # Wczytanie tego samego PDF-a nie tworzy nowego dokumentu.
                     win.otworz_pdf(pdf)
-                    self.assertEqual(win.aktualny_dokument_id, doc)
-                    win.ed_kwota.setText("85,00")
+                    self.assertEqual(win.kreator.aktualny_dokument_id, doc)
+                    formularz.ed_kwota.setText("85,00")
                     with patch.object(
                         QMessageBox, "question",
                         return_value=QMessageBox.StandardButton.No,
                     ) as question:
-                        win.zapisz_przycisk.click()
+                        formularz.zapisz_przycisk.click()
                         question.assert_called_once()
                         args = question.call_args.args
                         self.assertIn("już w bazie", args[1])
@@ -207,13 +208,13 @@ class TestDuplikatWInterfejsie(unittest.TestCase):
                     self.assertEqual(db.db.execute(
                         "SELECT COUNT(*) FROM rachunki"
                     ).fetchone()[0], 1)
-                    self.assertEqual(win.ed_kwota.text(), "85,00")
+                    self.assertEqual(formularz.ed_kwota.text(), "85,00")
 
                     with patch.object(
                         QMessageBox, "question",
                         return_value=QMessageBox.StandardButton.Yes,
                     ) as question:
-                        win.zapisz_przycisk.click()
+                        formularz.zapisz_przycisk.click()
                         question.assert_called_once()
                     self.assertEqual(db.rachunek(doc)["id"], pk)
                     self.assertEqual(db.rachunek(doc)["kwota_grosze"], 8500)

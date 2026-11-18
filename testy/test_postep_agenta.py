@@ -36,55 +36,56 @@ class TestPostepAgenta(unittest.TestCase):
                                   return_value=root / "prefs.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
                     win.show()
                     self.app.processEvents()
                     # Pasek należy do karty DANE wewnątrz kreatora faktury.
                     win.nawigacja_glowna["new_invoice"].click()
-                    win.karty.setCurrentIndex(win.ETAP_ANALIZA)
-                    win.zakladki_ai.setCurrentIndex(0)
+                    kreator.karty.setCurrentIndex(kreator.ETAP_ANALIZA)
+                    kreator.zakladki_ai.setCurrentIndex(0)
                     self.app.processEvents()
                     try:
-                        self.assertFalse(win.postep_ai.isVisible())
-                        self.assertEqual(win.postep_ai.objectName(), "postepPracyAgenta")
-                        self.assertTrue(win.karta_ai_dane.isAncestorOf(win.postep_ai))
-                        win._start_postep_ai()
-                        self.assertTrue(win.postep_ai.isVisible())
-                        self.assertEqual(win.postep_ai.minimum(), 0)
-                        self.assertEqual(win.postep_ai.maximum(), 0)
+                        self.assertFalse(kreator.postep_ai.isVisible())
+                        self.assertEqual(kreator.postep_ai.objectName(), "postepPracyAgenta")
+                        self.assertTrue(kreator.karta_ai_dane.isAncestorOf(kreator.postep_ai))
+                        kreator._start_postep_ai()
+                        self.assertTrue(kreator.postep_ai.isVisible())
+                        self.assertEqual(kreator.postep_ai.minimum(), 0)
+                        self.assertEqual(kreator.postep_ai.maximum(), 0)
 
                         # Etap raportowany z wątku dla odpowiedniego dokumentu.
                         job = ZadanieAnalizy(10, "Fikcyjny tekst", ["Inne"], "gemma3:4b")
-                        win.aktualny_dokument_id = 10
-                        win._zadanie_ai = job
-                        win._etap_postepu_ai(9, "ollama")
-                        self.assertNotIn("Ollama (", win.info_ai.text())
-                        win._etap_postepu_ai(10, "ollama")
-                        self.assertIn("gemma3:4b", win.info_ai.text())
-                        win._etap_postepu_ai(10, "validate")
-                        self.assertIn("Sprawdzanie odpowiedzi", win.info_ai.text())
+                        kreator.aktualny_dokument_id = 10
+                        kreator._zadanie_ai = job
+                        kreator._etap_postepu_ai(9, "ollama")
+                        self.assertNotIn("Ollama (", kreator.info_ai.text())
+                        kreator._etap_postepu_ai(10, "ollama")
+                        self.assertIn("gemma3:4b", kreator.info_ai.text())
+                        kreator._etap_postepu_ai(10, "validate")
+                        self.assertIn("Sprawdzanie odpowiedzi", kreator.info_ai.text())
 
                         # Anulowanie nie pozwala na pozorne przejście do kolejnego etapu.
                         job.przerwij.set()
-                        state = win.info_ai.text()
-                        win._etap_postepu_ai(10, "ollama")
-                        self.assertEqual(win.info_ai.text(), state)
+                        state = kreator.info_ai.text()
+                        kreator._etap_postepu_ai(10, "ollama")
+                        self.assertEqual(kreator.info_ai.text(), state)
 
-                        win._analiza_anulowana(10)
-                        self.assertFalse(win.postep_ai.isVisible())
-                        self.assertEqual(win.postep_ai.maximum(), 100)
-                        self.assertEqual(win.postep_ai.value(), 0)
+                        kreator._analiza_anulowana(10)
+                        self.assertFalse(kreator.postep_ai.isVisible())
+                        self.assertEqual(kreator.postep_ai.maximum(), 100)
+                        self.assertEqual(kreator.postep_ai.value(), 0)
 
-                        win._start_postep_ai()
-                        win._koniec_postepu_ai(True)
-                        self.assertTrue(win.postep_ai.isVisible())
-                        self.assertEqual(win.postep_ai.value(), 100)
-                        self.assertEqual(win.postep_ai.maximum(), 100)
+                        kreator._start_postep_ai()
+                        kreator._koniec_postepu_ai(True)
+                        self.assertTrue(kreator.postep_ai.isVisible())
+                        self.assertEqual(kreator.postep_ai.value(), 100)
+                        self.assertEqual(kreator.postep_ai.maximum(), 100)
 
-                        win._wyczysc_analize()
-                        self.assertFalse(win.postep_ai.isVisible())
-                        self.assertEqual(win.postep_ai.value(), 0)
+                        kreator._wyczysc_analize()
+                        self.assertFalse(kreator.postep_ai.isVisible())
+                        self.assertEqual(kreator.postep_ai.value(), 0)
                         win.change_language("en")
-                        self.assertEqual(win.postep_ai.accessibleName(),
+                        self.assertEqual(kreator.postep_ai.accessibleName(),
                                          "AI agent progress")
                     finally:
                         win.close()

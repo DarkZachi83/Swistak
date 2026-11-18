@@ -52,7 +52,7 @@ class TestZamykanieAplikacji(unittest.TestCase):
 
             def zamknij_okno(okno, event):
                 zamknij(okno, event)
-                strony_po_zamknieciu.append(okno.podglad.liczba_stron)
+                strony_po_zamknieciu.append(okno.kreator.podglad.liczba_stron)
                 zamknieto.set()
 
             def pokaz_okno(okno, event):
@@ -69,7 +69,7 @@ class TestZamykanieAplikacji(unittest.TestCase):
                     painter.end()
                     del pdf
                     okno.otworz_pdf(plik)
-                    okno._start_odczytu(False)
+                    okno.kreator._start_odczytu(False)
                     okno._pokaz_statystyki()
                     if gotowe.wait(4):
                         okno.close()

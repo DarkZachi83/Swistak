@@ -40,56 +40,58 @@ class TestProcesFaktury(unittest.TestCase):
                                   return_value=root / "settings.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
+                    formularz = kreator.formularz
                     win.show()
                     self.app.processEvents()
-                    self.assertEqual(win.nawigacja.count(), 5)
-                    self.assertEqual(win.karty.count(), 5)
+                    self.assertEqual(kreator.nawigacja.count(), 5)
+                    self.assertEqual(kreator.karty.count(), 5)
                     self.assertEqual(
-                        [win.nawigacja.item(i).text() for i in range(5)],
+                        [kreator.nawigacja.item(i).text() for i in range(5)],
                         ["Odczyt PDF / skanu", "Analiza AI", "Edycja danych",
                          "Faktura", "Dokumenty"]
                     )
-                    self.assertEqual(win.karty.currentIndex(), win.ETAP_ODCZYT)
-                    self.assertEqual(win.tabela_ai.horizontalHeader().sectionResizeMode(2),
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_ODCZYT)
+                    self.assertEqual(kreator.tabela_ai.horizontalHeader().sectionResizeMode(2),
                                      QHeaderView.ResizeMode.Stretch)
 
                     win.otworz_pdf(pdf)
-                    document_id = win.aktualny_dokument_id
+                    document_id = kreator.aktualny_dokument_id
                     self.assertIsNotNone(document_id)
                     self.assertIsNone(db.rachunek(document_id))
 
-                    win.nawigacja.setCurrentRow(win.ETAP_EDYCJA)
-                    self.assertEqual(win.karty.currentIndex(), win.ETAP_EDYCJA)
-                    win.ed_dostawca.setText("DEMO Sp. z o.o.")
-                    win.ed_numer.setText("FAKTURA-SZTUCZNA-2026")
-                    win.ed_kwota.setText("98,76")
-                    win.ed_wystawiono.setText("2026-11-02")
-                    win.ed_uwagi.setPlainText("Test korekty — bez danych klienta")
-                    win.wybor_kategoria.setCurrentIndex(1)
+                    kreator.nawigacja.setCurrentRow(kreator.ETAP_EDYCJA)
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
+                    formularz.ed_dostawca.setText("DEMO Sp. z o.o.")
+                    formularz.ed_numer.setText("FAKTURA-SZTUCZNA-2026")
+                    formularz.ed_kwota.setText("98,76")
+                    formularz.ed_wystawiono.setText("2026-11-02")
+                    formularz.ed_uwagi.setPlainText("Test korekty — bez danych klienta")
+                    formularz.wybor_kategoria.setCurrentIndex(1)
 
-                    win.btn_przejdz_faktura.click()
-                    self.assertEqual(win.karty.currentIndex(), win.ETAP_FAKTURA)
-                    self.assertEqual(win.nawigacja.currentRow(), win.ETAP_FAKTURA)
-                    self.assertEqual(win.podsumowanie_wartosci["kwota"].text(), "98,76")
-                    self.assertEqual(win.podsumowanie_wartosci["numer"].text(),
+                    formularz.btn_przejdz_faktura.click()
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_FAKTURA)
+                    self.assertEqual(kreator.nawigacja.currentRow(), kreator.ETAP_FAKTURA)
+                    self.assertEqual(formularz.podsumowanie_wartosci["kwota"].text(), "98,76")
+                    self.assertEqual(formularz.podsumowanie_wartosci["numer"].text(),
                                      "FAKTURA-SZTUCZNA-2026")
                     self.assertIsNone(db.rachunek(document_id))  # podgląd nie zapisuje
 
-                    win.btn_powrot_edycja.click()
-                    self.assertEqual(win.karty.currentIndex(), win.ETAP_EDYCJA)
-                    self.assertEqual(win.ed_kwota.text(), "98,76")
-                    win.ed_kwota.setText("89,67")
-                    win.karty.setCurrentIndex(win.ETAP_FAKTURA)
-                    self.assertEqual(win.podsumowanie_wartosci["kwota"].text(), "89,67")
+                    formularz.btn_powrot_edycja.click()
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
+                    self.assertEqual(formularz.ed_kwota.text(), "98,76")
+                    formularz.ed_kwota.setText("89,67")
+                    kreator.karty.setCurrentIndex(kreator.ETAP_FAKTURA)
+                    self.assertEqual(formularz.podsumowanie_wartosci["kwota"].text(), "89,67")
                     self.assertIsNone(db.rachunek(document_id))
 
-                    win.zapisz_przycisk.click()
+                    formularz.zapisz_przycisk.click()
                     self.assertEqual(db.rachunek(document_id)["kwota_grosze"], 8967)
-                    self.assertIn("zapisana", win.info_faktury.text())
+                    self.assertIn("zapisana", formularz.info_faktury.text())
                     win.change_language("en")
-                    self.assertIn("has been saved", win.info_faktury.text())
+                    self.assertIn("has been saved", formularz.info_faktury.text())
                     win.change_language("pl")
-                    self.assertIn("zapisana", win.info_faktury.text())
+                    self.assertIn("zapisana", formularz.info_faktury.text())
                     win.close()
             finally:
                 db.zamknij()
@@ -103,14 +105,16 @@ class TestProcesFaktury(unittest.TestCase):
                                   return_value=root / "ustawienia.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
-                    win.nawigacja.setCurrentRow(win.ETAP_EDYCJA)
-                    win.ed_dostawca.setText("WYŁĄCZNIE SYNTETYCZNE")
-                    win.ed_kwota.setText("12,34")
+                    kreator = win.kreator
+                    formularz = kreator.formularz
+                    kreator.nawigacja.setCurrentRow(kreator.ETAP_EDYCJA)
+                    formularz.ed_dostawca.setText("WYŁĄCZNIE SYNTETYCZNE")
+                    formularz.ed_kwota.setText("12,34")
                     win.change_language("en")
-                    self.assertEqual(win.nawigacja.item(3).text(), "Invoice")
-                    self.assertEqual(win.nawigacja.currentRow(), win.ETAP_EDYCJA)
-                    self.assertEqual(win.ed_dostawca.text(), "WYŁĄCZNIE SYNTETYCZNE")
-                    self.assertEqual(win.ed_kwota.text(), "12,34")
+                    self.assertEqual(kreator.nawigacja.item(3).text(), "Invoice")
+                    self.assertEqual(kreator.nawigacja.currentRow(), kreator.ETAP_EDYCJA)
+                    self.assertEqual(formularz.ed_dostawca.text(), "WYŁĄCZNIE SYNTETYCZNE")
+                    self.assertEqual(formularz.ed_kwota.text(), "12,34")
                     win.close()
             finally:
                 db.zamknij()

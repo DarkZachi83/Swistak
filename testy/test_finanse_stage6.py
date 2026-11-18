@@ -307,7 +307,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         with patch.object(ustawienia,"path_settings",return_value=root/"settings.json"):
             ustawienia.save({"language":"pl","ollama_model":"demo"})
             window=OknoGlowne(self.registry)
-            self.assertEqual(window.nawigacja.count(),5)
+            self.assertEqual(window.kreator.nawigacja.count(),5)
             self.assertEqual(window.btn_plan_historia.objectName(),"otworzPlanHistoria")
             self.assertEqual(window.akcja_plan_historia.text(),"Plan rachunków i Historia")
             window.akcja_plan_historia.trigger()

@@ -334,21 +334,21 @@ class TestAgentPanel(unittest.TestCase):
                                   return_value=root / "prefs.json"):
                     ustawienia.save({"language":"pl","ollama_model":"demo"})
                     win = OknoGlowne(rejestr)
-                    self.assertEqual(win.nawigacja.count(), 5)
-                    self.assertEqual(win.zakladki_ai.count(), 2)
-                    self.assertEqual(win.btn_panel_agenta.objectName(),
+                    self.assertEqual(win.kreator.nawigacja.count(), 5)
+                    self.assertEqual(win.kreator.zakladki_ai.count(), 2)
+                    self.assertEqual(win.kreator.btn_panel_agenta.objectName(),
                                      "panelAgentaWAnalizie")
-                    self.assertEqual(win._agent_status_key, "agent.state.waiting")
+                    self.assertEqual(win.monitor.status_key, "agent.state.waiting")
                     win._agent_show_panel()
-                    self.assertIs(win.moduly.currentWidget(), win._agent_panel)
-                    self.assertFalse(win._agent_panel.isWindow())
-                    self.assertIsNone(win._agent_report)
-                    with patch("gui.okno_glowne.QThreadPool.globalInstance") as pool:
-                        win._agent_submit("manual")
-                        self.assertEqual(win._agent_current_job,
+                    self.assertIs(win.moduly.currentWidget(), win.monitor.panel)
+                    self.assertFalse(win.monitor.panel.isWindow())
+                    self.assertIsNone(win.monitor.report)
+                    with patch("gui.monitor_agenta.QThreadPool.globalInstance") as pool:
+                        win.monitor.zlec("manual")
+                        self.assertEqual(win.monitor._current_job,
                                          MonitorJob("manual"))
                         pool.return_value.start.assert_called_once()
-                        win._agent_cancel()
+                        win.monitor.anuluj()
                     win.close()
             finally:
                 rejestr.zamknij()

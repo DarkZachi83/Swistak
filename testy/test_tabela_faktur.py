@@ -43,26 +43,28 @@ class TestTabelaFaktur(unittest.TestCase):
                                   return_value=root / "config.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "demo:1"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
+                    formularz = kreator.formularz
                     win.show()
                     self.app.processEvents()
                     table = win.tabela_faktur
                     self.assertEqual(table.tabela.rowCount(), 0)
 
                     win.otworz_pdf(pdf)
-                    document = win.aktualny_dokument_id
+                    document = kreator.aktualny_dokument_id
                     self.assertEqual(table.tabela.rowCount(), 0)  # import nie jest zapisem
-                    win.ed_dostawca.setText("Operator Fikcyjny")
-                    win.ed_numer.setText("FV/TEST/2026")
-                    win.ed_kwota.setText("140,05")
-                    win.wybor_kategoria.setCurrentIndex(1)
-                    win.ed_wystawiono.setText("2026-11-02")
-                    win.zapisz_przycisk.click()
+                    formularz.ed_dostawca.setText("Operator Fikcyjny")
+                    formularz.ed_numer.setText("FV/TEST/2026")
+                    formularz.ed_kwota.setText("140,05")
+                    formularz.wybor_kategoria.setCurrentIndex(1)
+                    formularz.ed_wystawiono.setText("2026-11-02")
+                    formularz.zapisz_przycisk.click()
                     self.assertEqual(table.tabela.rowCount(), 1)
                     self.assertEqual(table.tabela.item(0, 4).text(), "140,05 zł")
                     self.assertIn("140,05", table.podsumowanie.text())
 
                     win.nawigacja_glowna["invoices"].click()
-                    self.assertFalse(win.podglad.isVisible())
+                    self.assertFalse(kreator.podglad.isVisible())
                     table.szukaj.setText("nie ma takiej faktury")
                     self.assertTrue(table.tabela.isRowHidden(0))
                     self.assertIn("0/1", table.podsumowanie.text())
@@ -71,8 +73,8 @@ class TestTabelaFaktur(unittest.TestCase):
                     table.tabela.selectRow(0)
                     self.assertEqual(table.wybrane_dokument_id(), document)
                     table.btn_otworz.click()
-                    self.assertEqual(win.aktualny_dokument_id, document)
-                    self.assertEqual(win.karty.currentIndex(), win.ETAP_FAKTURA)
+                    self.assertEqual(kreator.aktualny_dokument_id, document)
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_FAKTURA)
                     self.assertEqual(db.db.execute(
                         "SELECT COUNT(*) FROM rachunki"
                     ).fetchone()[0], 1)
@@ -137,20 +139,21 @@ class TestTabelaFaktur(unittest.TestCase):
                                   return_value=root / "config.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "demo:1"})
                     win = OknoGlowne(db)
+                    formularz = win.kreator.formularz
                     win.otworz_pdf(pdf)
-                    win.ed_dostawca.setText("Operator Fikcyjny")
-                    win.ed_numer.setText("FV/TEST/2026")
-                    win.ed_kwota.setText("10,00")
-                    win.wybor_kategoria.setCurrentIndex(1)
-                    win.ed_wystawiono.setText("2026-11-02")
-                    win.zapisz_przycisk.click()
+                    formularz.ed_dostawca.setText("Operator Fikcyjny")
+                    formularz.ed_numer.setText("FV/TEST/2026")
+                    formularz.ed_kwota.setText("10,00")
+                    formularz.wybor_kategoria.setCurrentIndex(1)
+                    formularz.ed_wystawiono.setText("2026-11-02")
+                    formularz.zapisz_przycisk.click()
                     ident = db.faktury()[0]["id"]
-                    win.ed_kwota.setText("25,00")
+                    formularz.ed_kwota.setText("25,00")
                     with patch.object(
                         QMessageBox, "question",
                         return_value=QMessageBox.StandardButton.Yes,
                     ):
-                        win.zapisz_przycisk.click()
+                        formularz.zapisz_przycisk.click()
                     self.assertEqual(win.tabela_faktur.tabela.rowCount(), 1)
                     self.assertEqual(db.faktury()[0]["id"], ident)
                     self.assertEqual(win.tabela_faktur.tabela.item(0, 4).text(),

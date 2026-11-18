@@ -66,23 +66,24 @@ class TestDialogLokalnychModeli(unittest.TestCase):
                                   return_value=root / "settings.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
+                    kreator = win.kreator
                     try:
                         with patch("gui.okno_glowne.DialogModeleLokalne") as dialog:
                             dialog.return_value.exec.return_value = QDialog.DialogCode.Accepted
                             dialog.return_value.wybrany_model = "qwen3:8b"
-                            win.btn_szukaj_modeli.click()
-                        self.assertEqual(win.ed_model.text(), "qwen3:8b")
+                            kreator.btn_szukaj_modeli.click()
+                        self.assertEqual(kreator.ed_model.text(), "qwen3:8b")
                         self.assertEqual(ustawienia.load()["ollama_model"], "qwen3:8b")
                         self.assertEqual(db.db.execute(
                             "SELECT COUNT(*) FROM rachunki"
                         ).fetchone()[0], 0)
                         win.change_language("en")
-                        self.assertIn("Find local models", win.btn_szukaj_modeli.text())
-                        self.assertEqual(win.ed_model.text(), "qwen3:8b")
+                        self.assertIn("Find local models", kreator.btn_szukaj_modeli.text())
+                        self.assertEqual(kreator.ed_model.text(), "qwen3:8b")
                         with patch("gui.okno_glowne.DialogModeleLokalne") as dialog:
                             dialog.return_value.exec.return_value = QDialog.DialogCode.Rejected
-                            win.btn_szukaj_modeli.click()
-                        self.assertEqual(win.ed_model.text(), "qwen3:8b")
+                            kreator.btn_szukaj_modeli.click()
+                        self.assertEqual(kreator.ed_model.text(), "qwen3:8b")
                     finally:
                         win.close()
             finally:

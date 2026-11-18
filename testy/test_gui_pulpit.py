@@ -51,7 +51,7 @@ class TestPulpit(unittest.TestCase):
         window = OknoGlowne(self.rejestr)
         self.addCleanup(window.close)
         window.show()
-        window._agent_timer.stop()
+        window.monitor._timer.stop()
         self.app.processEvents()
         return window
 
@@ -68,7 +68,7 @@ class TestPulpit(unittest.TestCase):
         ))
 
     def test_pusta_baza_startuje_na_pulpicie_bez_ollamy(self):
-        with patch("gui.okno_glowne.ZadanieMonitora") as worker:
+        with patch("gui.monitor_agenta.ZadanieMonitora") as worker:
             window = self.okno()
             self.assertIs(window.moduly.currentWidget(), window.pulpit)
             self.assertTrue(window.nawigacja_glowna["dashboard"].isChecked())
@@ -80,6 +80,7 @@ class TestPulpit(unittest.TestCase):
 
     def test_male_okno_zachowuje_nawigacje_i_pelne_przyciski(self):
         window = self.okno()
+        kreator = window.kreator
         window.resize(600, 400)
         self.app.processEvents()
         nav = window.nawigacja_glowna
@@ -94,20 +95,20 @@ class TestPulpit(unittest.TestCase):
             self.assertGreaterEqual(button.width(), button.minimumSizeHint().width())
             self.assertGreaterEqual(button.height(), button.minimumSizeHint().height())
         nav["new_invoice"].click()
-        window.karty.setCurrentIndex(window.ETAP_EDYCJA)
-        window.ed_kwota.setText("123,45")
+        kreator.karty.setCurrentIndex(kreator.ETAP_EDYCJA)
+        kreator.formularz.ed_kwota.setText("123,45")
         self.app.processEvents()
-        self.assertEqual(window.dzielnik.orientation(), Qt.Orientation.Vertical)
-        self.assertEqual(window.kreator.horizontalScrollBar().maximum(), 0)
+        self.assertEqual(kreator.dzielnik.orientation(), Qt.Orientation.Vertical)
+        self.assertEqual(kreator.horizontalScrollBar().maximum(), 0)
 
         window.resize(1280, 800)
         window.change_language("en")
         self.app.processEvents()
         self.assertEqual(nav["history"].toolButtonStyle(), Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.assertEqual(nav["history"].accessibleName(), "History")
-        self.assertEqual(window.dzielnik.orientation(), Qt.Orientation.Horizontal)
-        self.assertEqual(window.ed_kwota.text(), "123,45")
-        self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
+        self.assertEqual(kreator.dzielnik.orientation(), Qt.Orientation.Horizontal)
+        self.assertEqual(kreator.formularz.ed_kwota.text(), "123,45")
+        self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
 
     def test_ikony_menu_sa_jasne_niezaleznie_od_motywu_systemowego(self):
         with patch.object(QIcon, "fromTheme", return_value=QIcon()) as systemowe:
@@ -164,7 +165,7 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(pola["unpaid"].text(), "15,15 zł")
 
         ident = self.faktura("odswiezenie", "0,10", termin="2026-11-16")
-        with patch.object(window, "_agent_submit"):
+        with patch.object(window.monitor, "zlec"):
             window._plan_financial_change(ident)
         self.assertEqual(pola["due_soon"].text(), "5,15 zł")
         self.assertEqual(window.pulpit.miesiac.currentText(), "2026-10")
@@ -211,13 +212,13 @@ class TestPulpit(unittest.TestCase):
         summary = dict.fromkeys((
             "invoices", "unpaid_grosze", "overdue", "due_soon", "paid_without_date", "missing_expected",
         ), 0)
-        window._agent_completed(MonitorReport(
+        window.monitor._completed(MonitorReport(
             mode="startup", invoice_id=None, reference_date="2026-11-16",
             data_revision="syntetyczna", summary=summary, model_status="local_only",
         ))
         self.assertIn("bez LLM", window.pulpit.stan_agenta.text())
         self.assertIn("Analiza przy starcie · 2026-11-16", window.pulpit.raport_agenta.text())
-        window._agent_completed(MonitorReport(
+        window.monitor._completed(MonitorReport(
             mode="startup", invoice_id=None, reference_date="2026-11-16",
             data_revision="syntetyczna", summary=summary, model_status="model_idle",
             model_id="model-demo",
@@ -227,6 +228,7 @@ class TestPulpit(unittest.TestCase):
 
     def test_nawigacja_i_tlumaczenie_zachowuja_pdf_i_edycje(self):
         window = self.okno()
+        kreator = window.kreator
         nav = window.nawigacja_glowna
         pdf = self.root / "roboczy.pdf"
         writer = QPdfWriter(str(pdf))
@@ -236,16 +238,16 @@ class TestPulpit(unittest.TestCase):
         painter.drawText(100, 100, "Druga strona")
         self.assertTrue(painter.end())
 
-        with patch("gui.okno_glowne.QFileDialog.getOpenFileName", return_value=(str(pdf), "")):
+        with patch("gui.kreator_faktury.QFileDialog.getOpenFileName", return_value=(str(pdf), "")):
             window.akcja_import.trigger()
-        ident = window.aktualny_dokument_id
+        ident = kreator.aktualny_dokument_id
         self.assertIsNotNone(ident)
         self.assertIs(window.moduly.currentWidget(), window.kreator)
         QTest.mouseClick(nav["new_invoice"], Qt.MouseButton.LeftButton)
-        window.karty.setCurrentIndex(window.ETAP_EDYCJA)
-        window.podglad.pokaz_strone(1)
-        window.ed_kwota.setText("123,45")
-        window.pole_odczytu.setPlainText("Tekst z OCR")
+        kreator.karty.setCurrentIndex(kreator.ETAP_EDYCJA)
+        kreator.podglad.pokaz_strone(1)
+        kreator.formularz.ed_kwota.setText("123,45")
+        kreator.pole_odczytu.setPlainText("Tekst z OCR")
 
         QTest.mouseClick(nav["dashboard"], Qt.MouseButton.LeftButton)
         window.change_language("en")
@@ -256,13 +258,13 @@ class TestPulpit(unittest.TestCase):
         self.assertIs(window.moduly.currentWidget(), window.tabela_faktur)
         self.assertTrue(nav["invoices"].isChecked())
         QTest.mouseClick(nav["new_invoice"], Qt.MouseButton.LeftButton)
-        self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
-        self.assertEqual(window.aktualny_dokument_id, ident)
-        self.assertEqual(window.podglad.strona, 1)
-        self.assertEqual(window.podglad.liczba_stron, 2)
-        self.assertEqual(window.ed_kwota.text(), "123,45")
-        self.assertEqual(window.pole_odczytu.toPlainText(), "Tekst z OCR")
-        self.assertEqual(window.nawigacja.count(), 5)
+        self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
+        self.assertEqual(kreator.aktualny_dokument_id, ident)
+        self.assertEqual(kreator.podglad.strona, 1)
+        self.assertEqual(kreator.podglad.liczba_stron, 2)
+        self.assertEqual(kreator.formularz.ed_kwota.text(), "123,45")
+        self.assertEqual(kreator.pole_odczytu.toPlainText(), "Tekst z OCR")
+        self.assertEqual(kreator.nawigacja.count(), 5)
 
     def test_plan_i_historia_otwieraja_wlasciwe_ekrany(self):
         self.faktura("historyczna", "1,00", okres_do="2026-10-31")
@@ -319,87 +321,90 @@ class TestPulpit(unittest.TestCase):
 
     def test_formularz_wymaga_dat_i_zachowuje_recznie_wpisana_date_platnosci(self):
         window = self.okno()
+        kreator = window.kreator
+        formularz = kreator.formularz
         pdf = self.root / "Syntetyczna platnosc.pdf"
         writer = QPdfWriter(str(pdf))
         painter = QPainter(writer)
         painter.drawText(100, 100, "Syntetyczna platnosc")
         self.assertTrue(painter.end())
         window.otworz_pdf(pdf)
-        dokument_id = window.aktualny_dokument_id
-        window.ed_dostawca.setText("Dostawca DEMO")
-        window.ed_kwota.setText("12,34")
-        window.wybor_kategoria.setCurrentIndex(1)
-        self.assertFalse(window.ed_oplacono.isEnabled())
-        window.wybor_status.setCurrentIndex(1)
-        self.assertTrue(window.ed_oplacono.isEnabled())
-        self.assertEqual(window.ed_oplacono.text(), "")
+        dokument_id = kreator.aktualny_dokument_id
+        formularz.ed_dostawca.setText("Dostawca DEMO")
+        formularz.ed_kwota.setText("12,34")
+        formularz.wybor_kategoria.setCurrentIndex(1)
+        self.assertFalse(formularz.ed_oplacono.isEnabled())
+        formularz.wybor_status.setCurrentIndex(1)
+        self.assertTrue(formularz.ed_oplacono.isEnabled())
+        self.assertEqual(formularz.ed_oplacono.text(), "")
         with patch.object(QMessageBox, "warning") as ostrzezenie:
-            window.ed_oplacono.setText("2026-11-12")
-            window._zapisz_rachunek()
+            formularz.ed_oplacono.setText("2026-11-12")
+            kreator._zapisz_rachunek()
             self.assertIn("Wpisz datę wystawienia", ostrzezenie.call_args.args[2])
-            self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
+            self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
             self.assertIsNone(self.rejestr.rachunek(dokument_id))
-            window.ed_wystawiono.setText("2026-11-13")
-            window.ed_oplacono.clear()
-            window._zapisz_rachunek()
+            formularz.ed_wystawiono.setText("2026-11-13")
+            formularz.ed_oplacono.clear()
+            kreator._zapisz_rachunek()
             self.assertIn("Wpisz datę opłacenia", ostrzezenie.call_args.args[2])
             self.assertIsNone(self.rejestr.rachunek(dokument_id))
-            window.ed_oplacono.setText("2099-01-01")
-            window._zapisz_rachunek()
+            formularz.ed_oplacono.setText("2099-01-01")
+            kreator._zapisz_rachunek()
             self.assertIn("nie może być w przyszłości", ostrzezenie.call_args.args[2])
             self.assertIsNone(self.rejestr.rachunek(dokument_id))
 
-        window.ed_oplacono.setText("2026-11-12")
+        formularz.ed_oplacono.setText("2026-11-12")
         with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No) as confirm:
-            window._zapisz_rachunek()
+            kreator._zapisz_rachunek()
         self.assertIn("wcześniejsza niż data wystawienia 2026-11-13", confirm.call_args.args[2])
         self.assertIsNone(self.rejestr.rachunek(dokument_id))
         window.nawigacja_glowna["dashboard"].click()
         window.nawigacja_glowna["new_invoice"].click()
         window.change_language("en")
-        self.assertEqual(window.ed_oplacono.text(), "2026-11-12")
-        window.karty.setCurrentIndex(window.ETAP_FAKTURA)
-        self.assertEqual(window.podsumowanie_wartosci["oplacono"].text(), "2026-11-12")
-        with (patch.object(window, "_agent_submit"),
+        self.assertEqual(formularz.ed_oplacono.text(), "2026-11-12")
+        kreator.karty.setCurrentIndex(kreator.ETAP_FAKTURA)
+        self.assertEqual(formularz.podsumowanie_wartosci["oplacono"].text(), "2026-11-12")
+        with (patch.object(window.monitor, "zlec"),
               patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes)):
-            window.zapisz_przycisk.click()
+            formularz.zapisz_przycisk.click()
         faktura = self.rejestr.rachunek(dokument_id)
         self.assertEqual((faktura["status"], faktura["data_oplacenia"]), ("oplacony", "2026-11-12"))
-        window.ed_uwagi.setPlainText("Syntetyczna notatka")
-        with (patch.object(window, "_agent_submit"),
+        formularz.ed_uwagi.setPlainText("Syntetyczna notatka")
+        with (patch.object(window.monitor, "zlec"),
               patch.object(QMessageBox, "question",
                            return_value=QMessageBox.StandardButton.Yes) as confirm):
-            window.zapisz_przycisk.click()
+            formularz.zapisz_przycisk.click()
         confirm.assert_called_once()
         self.assertEqual(self.rejestr.rachunek(dokument_id)["uwagi"], "Syntetyczna notatka")
 
-        for pole, data in ((window.ed_wystawiono, "2026-11-14"),
-                           (window.ed_oplacono, "2026-11-11")):
+        for pole, data in ((formularz.ed_wystawiono, "2026-11-14"),
+                           (formularz.ed_oplacono, "2026-11-11")):
             with self.subTest(data=data):
                 pole.setText(data)
                 with patch.object(QMessageBox, "question",
                                   return_value=QMessageBox.StandardButton.No) as confirm:
-                    window.zapisz_przycisk.click()
+                    formularz.zapisz_przycisk.click()
                 confirm.assert_called_once()
                 self.assertIn("earlier than the issue date", confirm.call_args.args[2])
                 self.assertIn(data, confirm.call_args.args[2])
-                window._wyswietl_dokument(dokument_id)
+                kreator._wyswietl_dokument(dokument_id)
 
         self.rejestr.db.execute(
             "UPDATE rachunki SET data_oplacenia='2099-01-01' WHERE id=?", (faktura["id"],),
         )
-        window._wyswietl_dokument(dokument_id)
+        kreator._wyswietl_dokument(dokument_id)
         with patch.object(QMessageBox, "warning") as ostrzezenie:
-            window._zapisz_rachunek()
+            kreator._zapisz_rachunek()
         self.assertIn("cannot be in the future", ostrzezenie.call_args.args[2])
         self.rejestr.db.execute("UPDATE rachunki SET data_oplacenia=NULL WHERE id=?", (faktura["id"],))
-        window._wyswietl_dokument(dokument_id)
-        self.assertTrue(window.ed_oplacono.isEnabled())
-        self.assertEqual(window.ed_oplacono.text(), "")
-        self.assertEqual(window._stan_formularza(), window._zapisany_formularz)
+        kreator._wyswietl_dokument(dokument_id)
+        self.assertTrue(formularz.ed_oplacono.isEnabled())
+        self.assertEqual(formularz.ed_oplacono.text(), "")
+        self.assertEqual(formularz.stan(), kreator._zapisany_formularz)
 
     def test_platnosc_z_historii_zachowuje_niezapisana_notatke(self):
         window = self.okno()
+        formularz = window.kreator.formularz
         pdf = self.root / "Syntetyczna historia platnosci.pdf"
         writer = QPdfWriter(str(pdf))
         painter = QPainter(writer)
@@ -410,21 +415,21 @@ class TestPulpit(unittest.TestCase):
             dokument_id=dokument_id, dostawca="DEMO", numer="HIST-1", kwota="12,34",
             kategoria_id=self.kategoria, data_wystawienia="2026-11-13",
         ))
-        window._wyswietl_dokument(dokument_id)
-        window.ed_uwagi.setPlainText("Niezapisana notatka")
+        window.kreator._wyswietl_dokument(dokument_id)
+        formularz.ed_uwagi.setPlainText("Niezapisana notatka")
 
         self.finanse.ustaw_oplacona(ident, "2026-11-12")
-        with patch.object(window, "_agent_submit"):
+        with patch.object(window.monitor, "zlec"):
             window._plan_financial_change(ident)
-        self.assertEqual(window.wybor_status.currentData(), "oplacony")
-        self.assertEqual(window.ed_oplacono.text(), "2026-11-12")
-        self.assertEqual(window.ed_uwagi.toPlainText(), "Niezapisana notatka")
-        self.assertNotEqual(window._stan_formularza(), window._zapisany_formularz)
+        self.assertEqual(formularz.wybor_status.currentData(), "oplacony")
+        self.assertEqual(formularz.ed_oplacono.text(), "2026-11-12")
+        self.assertEqual(formularz.ed_uwagi.toPlainText(), "Niezapisana notatka")
+        self.assertNotEqual(formularz.stan(), window.kreator._zapisany_formularz)
 
-        with (patch.object(window, "_agent_submit"),
+        with (patch.object(window.monitor, "zlec"),
               patch.object(QMessageBox, "question",
                            return_value=QMessageBox.StandardButton.Yes) as confirm):
-            window._zapisz_rachunek()
+            window.kreator._zapisz_rachunek()
         confirm.assert_called_once()
         zapis = self.rejestr.rachunek(dokument_id)
         self.assertEqual(zapis["data_oplacenia"], "2026-11-12")
@@ -443,11 +448,11 @@ class TestPulpit(unittest.TestCase):
             kwota="67,89", kategoria_id=self.kategoria, data_wystawienia="2026-11-03",
             status="oplacony", data_oplacenia="2026-11-04",
         ))
-        window._wyswietl_dokument(doc)
-        window.ed_kwota.setText("55,22")
+        window.kreator._wyswietl_dokument(doc)
+        window.kreator.formularz.ed_kwota.setText("55,22")
         yes, no = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
         with patch.object(QMessageBox, "question", side_effect=(yes, no)) as pytanie:
-            window._zapisz_rachunek()
+            window.kreator._zapisz_rachunek()
         komunikat = pytanie.call_args.args[2]
         self.assertEqual(pytanie.call_count, 2)
         self.assertIn("67,89 zł", komunikat)
@@ -456,8 +461,8 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(len(self.finanse.dziennik("invoice", ident)), 2)
 
         with (patch.object(QMessageBox, "question", side_effect=(yes, yes)),
-              patch.object(window, "_agent_submit")):
-            window._zapisz_rachunek()
+              patch.object(window.monitor, "zlec")):
+            window.kreator._zapisz_rachunek()
         faktura = self.rejestr.rachunek(doc)
         self.assertEqual(faktura["kwota_grosze"], 5522)
         self.assertEqual(faktura["status"], "oplacony")
@@ -484,17 +489,19 @@ class TestPulpit(unittest.TestCase):
 
     def test_blad_kontekstu_kieruje_do_odczytu_zachowujac_tekst(self):
         window = self.okno()
-        window.aktualny_dokument_id = 25
-        window.pole_odczytu.setPlainText("Pełny tekst DEMO")
-        window.karty.setCurrentIndex(window.ETAP_ANALIZA)
+        kreator = window.kreator
+        kreator.aktualny_dokument_id = 25
+        kreator.pole_odczytu.setPlainText("Pełny tekst DEMO")
+        kreator.karty.setCurrentIndex(kreator.ETAP_ANALIZA)
         with patch.object(QMessageBox, "warning") as ostrzezenie:
-            window._analiza_blad(25, ExtractionContextExceeded.code)
+            kreator._analiza_blad(25, ExtractionContextExceeded.code)
         self.assertIn("Odczytaj zaznaczenie", ostrzezenie.call_args.args[2])
-        self.assertEqual(window.karty.currentIndex(), window.ETAP_ODCZYT)
-        self.assertEqual(window.pole_odczytu.toPlainText(), "Pełny tekst DEMO")
+        self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_ODCZYT)
+        self.assertEqual(kreator.pole_odczytu.toPlainText(), "Pełny tekst DEMO")
 
     def test_otwarcie_faktury_agenta_nie_porzuca_formularza_bez_zgody(self):
         window = self.okno()
+        kreator = window.kreator
         dokumenty = {}
         for numer in ("Syntetyczna A", "Syntetyczna B"):
             pdf = self.root / (numer + ".pdf")
@@ -504,13 +511,13 @@ class TestPulpit(unittest.TestCase):
             self.assertTrue(painter.end())
             dokumenty[numer], _ = self.rejestr.importuj_pdf(pdf)
         window.otworz_pdf(self.root / "Syntetyczna A.pdf")
-        window.ed_kwota.setText("12,34")
+        kreator.formularz.ed_kwota.setText("12,34")
         ident = self.rejestr.zapisz_rachunek(DaneRachunku(
             dokument_id=dokumenty["Syntetyczna B"], dostawca="Test B", numer="B",
             kwota="99,00", kategoria_id=self.kategoria, data_wystawienia="2026-11-16",
         ))
         revision = ToolGateway(self.rejestr.katalog / "swistak.sqlite3").revision()
-        window._agent_completed(MonitorReport(
+        window.monitor._completed(MonitorReport(
             mode="change", invoice_id=ident, reference_date="2026-11-16",
             data_revision=revision, summary=dict.fromkeys((
                 "invoices", "unpaid_grosze", "overdue", "due_soon",
@@ -521,23 +528,23 @@ class TestPulpit(unittest.TestCase):
         with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No):
             window.pulpit.btn_sprawdzana.click()
         self.assertIs(window.moduly.currentWidget(), window.pulpit)
-        self.assertEqual(window.ed_kwota.text(), "12,34")
+        self.assertEqual(kreator.formularz.ed_kwota.text(), "12,34")
         window.nawigacja_glowna["agent"].click()
-        QTest.keyClick(window._agent_panel, Qt.Key.Key_Escape)
-        self.assertTrue(window._agent_panel.isVisible())
+        QTest.keyClick(window.monitor.panel, Qt.Key.Key_Escape)
+        self.assertTrue(window.monitor.panel.isVisible())
         with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
-            window._agent_panel.faktura.click()
+            window.monitor.panel.faktura.click()
         self.assertIs(window.moduly.currentWidget(), window.kreator)
-        self.assertEqual(window.aktualny_dokument_id, dokumenty["Syntetyczna B"])
-        self.assertEqual(window.ed_kwota.text(), "99,00")
+        self.assertEqual(kreator.aktualny_dokument_id, dokumenty["Syntetyczna B"])
+        self.assertEqual(kreator.formularz.ed_kwota.text(), "99,00")
         self.finanse.ustaw_oplacona(ident, "2026-11-16")
         window.nawigacja_glowna["agent"].click()
-        window._agent_panel.faktura.click()
-        self.assertIs(window.moduly.currentWidget(), window._agent_panel)
+        window.monitor.panel.faktura.click()
+        self.assertIs(window.moduly.currentWidget(), window.monitor.panel)
         self.assertIn("Dane zmieniły się", window.statusBar().currentMessage())
         window._open_plan_historia(historia=True, cykl="2026-11")
         historia = window.plan_historia
         historia.history_invoices.selectRow(0)
         historia.findChild(QPushButton, "historyOpenInvoice").click()
         self.assertIs(window.moduly.currentWidget(), window.kreator)
-        self.assertEqual(window.aktualny_dokument_id, dokumenty["Syntetyczna B"])
+        self.assertEqual(kreator.aktualny_dokument_id, dokumenty["Syntetyczna B"])

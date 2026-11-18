@@ -36,7 +36,7 @@ class TestBackupMenu(unittest.TestCase):
                         self.assertIn("kopię", win.akcja_kopia.text())
                         self.assertIn("Przywróć", win.akcja_przywroc.text())
                         archive = root / "backup.zip"
-                        with patch("gui.okno_glowne.QFileDialog.getSaveFileName",
+                        with patch("gui.operacje_danych.QFileDialog.getSaveFileName",
                                    return_value=(str(archive), "ZIP")):
                             with patch.object(QMessageBox, "question",
                                               return_value=QMessageBox.StandardButton.No):

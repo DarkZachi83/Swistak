@@ -28,21 +28,23 @@ class TestGUI(unittest.TestCase):
             rejestr = RejestrRachunkow(root / "dane")
             try:
                 okno = OknoGlowne(rejestr)
+                kreator = okno.kreator
+                formularz = kreator.formularz
                 okno.show()
                 self.app.processEvents()
                 okno.otworz_pdf(pdf)
-                self.assertIsNotNone(okno.aktualny_dokument_id)
-                dokument = okno.aktualny_dokument_id
+                self.assertIsNotNone(kreator.aktualny_dokument_id)
+                dokument = kreator.aktualny_dokument_id
                 self.assertEqual(len(rejestr.dokumenty()), 1)
-                okno.ed_dostawca.setText("Dostawca testowy")
-                okno.ed_kwota.setText("19,99")
-                okno.ed_wystawiono.setText("2026-11-02")
-                okno.wybor_kategoria.setCurrentIndex(1)
-                okno._zapisz_rachunek()
+                formularz.ed_dostawca.setText("Dostawca testowy")
+                formularz.ed_kwota.setText("19,99")
+                formularz.ed_wystawiono.setText("2026-11-02")
+                formularz.wybor_kategoria.setCurrentIndex(1)
+                kreator._zapisz_rachunek()
                 self.assertEqual(rejestr.rachunek(dokument)["kwota_grosze"], 1999)
-                okno._wyswietl_dokument(dokument)
-                self.assertEqual(okno.ed_dostawca.text(), "Dostawca testowy")
-                self.assertEqual(okno.ed_kwota.text(), "19,99")
+                kreator._wyswietl_dokument(dokument)
+                self.assertEqual(formularz.ed_dostawca.text(), "Dostawca testowy")
+                self.assertEqual(formularz.ed_kwota.text(), "19,99")
                 okno.close()
             finally:
                 rejestr.zamknij()

@@ -152,7 +152,7 @@ class TestWidokStatystyk(BazaStatystyk):
         ustawienia.save({"language": "pl"})
         okno = OknoGlowne(self.rejestr)
         okno.show()
-        okno._agent_timer.stop()
+        okno.monitor._timer.stop()
         self.addCleanup(okno.close)
         okno.nawigacja_glowna["statistics"].click()
         self.app.processEvents()
