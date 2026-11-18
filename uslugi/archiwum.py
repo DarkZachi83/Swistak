@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-"""Nienaruszalny magazyn PDF: SHA-256, atomowe przeniesienie i bez deduplikatów."""
+"""Nienaruszalny magazyn PDF: SHA-256, publikacja bez nadpisywania i deduplikacja."""
 from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,27 @@ def suma_pliku(sciezka: Path) -> str:
         for blok in iter(lambda: plik.read(1024 * 1024), b""):
             hasz.update(blok)
     return hasz.hexdigest()
+
+
+def _opublikuj_pdf(temp: Path, cel: Path) -> None:
+    try:
+        os.link(temp, cel)
+        return
+    except FileExistsError:
+        raise
+    except OSError:
+        # FAT/exFAT i niektóre udziały nie obsługują dowiązań twardych.
+        # O_EXCL zachowuje niezmienność już zarchiwizowanego PDF.
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0)
+        fd = os.open(cel, flags, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as wynik, temp.open("rb") as zrodlo:
+            shutil.copyfileobj(zrodlo, wynik, 1024 * 1024)
+            wynik.flush()
+            os.fsync(wynik.fileno())
+    except BaseException:
+        cel.unlink(missing_ok=True)
+        raise
 
 
 class MagazynDokumentow:
@@ -67,9 +89,7 @@ class MagazynDokumentow:
             cel = self.katalog_danych / wzgledna
             cel.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             try:
-                # Hard link: pliku o tej nazwie nie nadpisujemy nawet przy
-                # równoczesnych importach; wymagana wspólna partycja (ten sam folder).
-                os.link(temp, cel)
+                _opublikuj_pdf(temp, cel)
             except FileExistsError:
                 if not cel.is_file() or suma_pliku(cel) != skrot:
                     raise BladArchiwum("Archiwalny PDF nie zgadza się z sumą SHA-256")

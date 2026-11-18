@@ -16,7 +16,7 @@ from pathlib import Path
 
 from uslugi.geometria import Zaznaczenie
 from uslugi.odczyt_pdf import odczytaj_pdf
-from uslugi.rasteryzacja import rasteryzuj_strone
+from uslugi.rasteryzacja import MAKS_BOK_STRONY, MAKS_PIKSELI_STRONY, rasteryzuj_strone
 from tools.porownaj_ocr import KONTO_TESTOWE, WZORCE, generuj_skan, normalizuj_tekst
 
 
@@ -57,6 +57,28 @@ class TestRasteryzacja(unittest.TestCase):
             self.assertGreater(obraz.width, 1000)
             self.assertGreater(obraz.height, 1200)
             self.assertEqual(obraz.mode, "RGB")
+
+    def test_duza_strona_jest_zmniejszana_przed_renderowaniem(self):
+        import pypdfium2 as pdfium
+
+        plik = Path(self.temp.name) / "duze-formaty.pdf"
+        with pdfium.PdfDocument.new() as pdf:
+            pdf.new_page(12000, 10000).close()
+            obrocona = pdf.new_page(8000, 600)
+            obrocona.set_rotation(90)
+            obrocona.close()
+            pdf.save(plik)
+        silniki = ["pdfium"]
+        if shutil.which("pdftoppm") and importlib.util.find_spec("pdf2image"):
+            silniki.append("poppler")
+        for silnik in silniki:
+            for numer, proporcja in enumerate((1.2, 0.075)):
+                with self.subTest(silnik=silnik, numer=numer):
+                    with rasteryzuj_strone(plik, numer, 400, silnik) as bitmapa:
+                        self.assertLessEqual(bitmapa.width * bitmapa.height, MAKS_PIKSELI_STRONY)
+                        self.assertLessEqual(max(bitmapa.size), MAKS_BOK_STRONY)
+                        self.assertGreater(max(bitmapa.size), 2000)
+                        self.assertAlmostEqual(bitmapa.width / bitmapa.height, proporcja, delta=0.002)
 
     def test_walidacja_silnika_i_numeru_strony(self):
         for blad in ((-1, 220, "pdfium"), (0, 20, "pdfium"),
@@ -112,6 +134,9 @@ class TestRasteryzacja(unittest.TestCase):
                 pass
 
         class FalszywaStrona:
+            def get_size(self):
+                return 12, 12
+
             def render(self, **kwargs):
                 time.sleep(0.025)
                 return FalszywaBitmapa()

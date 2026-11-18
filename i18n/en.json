@@ -308,6 +308,8 @@
   "invoice.duplicate_title": "Invoice already exists",
   "invoice.duplicate_confirm": "The invoice from “{supplier}” (number: {number}) is already in the database.\nSaved document: {filename}\n\nOverwrite the existing invoice?\n\nThis will replace its data and, if needed, link to the PDF document. Choose “No” to preserve the current entry.",
   "invoice.payment_date_change": "The payment date will change from {old} to {new}.",
+  "invoice.paid_amount_title": "Correct paid invoice",
+  "invoice.paid_amount_confirm": "Change the amount of the paid invoice from {old} PLN to {new} PLN?",
   "invoice.missing_number": "no invoice number",
   "invoice.overwrite_cancelled": "Invoice was not overwritten. Existing data is unchanged.",
   "tab.invoices": "Invoices",

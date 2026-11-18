@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
 from gui.okno_glowne import OknoGlowne
+from uslugi.finanse import Finanse
 from uslugi.rachunki import (
     DaneRachunku, FakturaJuzIstnieje, RejestrRachunkow,
 )
@@ -86,6 +87,26 @@ class TestDuplikatyWBazie(unittest.TestCase):
         self.assertEqual(self.db.db.execute(
             "SELECT COUNT(*) FROM rachunki"
         ).fetchone()[0], 1)
+
+    def test_wycofana_nie_blokuje_innego_pdf_z_tym_samym_numerem(self):
+        finance = Finanse(self.db.db)
+        old_doc = self.pdf("stary.pdf", "old")
+        new_doc = self.pdf("poprawiony.pdf", "new")
+        old = self.db.zapisz_rachunek(self.data(old_doc))
+        finance.wycofaj(old, powod="Syntetyczny błędny PDF")
+        corrected = self.data(new_doc, supplier=" operator   demo ", number="fv/abc/2026")
+        self.assertIsNone(self.db.znajdz_duplikat(corrected))
+        new = self.db.zapisz_rachunek(corrected)
+        self.assertNotEqual(new, old)
+        self.assertEqual([faktura["id"] for faktura in self.db.faktury()], [new])
+        self.assertEqual(self.db.rachunek(old_doc)["id"], old)
+        self.assertTrue(self.db.rachunek(old_doc)["wycofano_utc"])
+        with self.assertRaisesRegex(ValueError, "wycofana"):
+            self.db.znajdz_duplikat(self.data(old_doc))
+        with self.assertRaisesRegex(ValueError, "tego samego dostawcę i numer"):
+            finance.przywroc(old, powod="Syntetyczny konflikt")
+        with self.assertRaises(FakturaJuzIstnieje):
+            self.db.zapisz_rachunek(corrected)
 
     def test_different_invoice_number_or_supplier_is_not_duplicate(self):
         first = self.pdf("a.pdf", "a")

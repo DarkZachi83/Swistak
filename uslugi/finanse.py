@@ -246,6 +246,21 @@ class Finanse:
                     "Przywrócenie faktury zmieniło realizację oczekiwania " + str(ident)
                 )
 
+    def podsumowanie_oczekiwan(self, dzisiaj: str, *, cykl: str | None = None) -> dict[str, int]:
+        """Rozlicz zapisane oczekiwania także po wstrzymaniu ich profilu."""
+        row = self.db.execute(
+            "SELECT COUNT(*) AS unresolved_expected, "
+            "COUNT(*) FILTER (WHERE o.oczekiwany_od<=?) AS missing_expected "
+            "FROM oczekiwane_dokumenty o "
+            "WHERE (? IS NULL OR o.cykl=?) "
+            "AND (o.wyjatek IS NULL OR o.wyjatek='niepewne') "
+            "AND NOT EXISTS (SELECT 1 FROM powiazania_oczekiwanych l "
+            "JOIN rachunki r ON r.id=l.rachunek_id "
+            "WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL)",
+            (dzisiaj, cykl, cykl),
+        ).fetchone()
+        return dict(row)
+
     def ocena_cyklu(self, cykl: str, *, dzisiaj: str | None = None) -> dict:
         cykl_miesiaca(cykl)
         dzis = date.fromisoformat(_data(dzisiaj)) if dzisiaj else date.today()
@@ -261,30 +276,15 @@ class Finanse:
         ).fetchone()
         confirmed = bool(monthly and monthly["potwierdzono_kompletnosc"])
         unpaid = [r for r in rows if r["status"] != "oplacony"]
-        unresolved = self.db.execute(
-            "SELECT COUNT(*) FROM oczekiwane_dokumenty o "
-            "WHERE o.cykl=? AND (o.wyjatek IS NULL OR o.wyjatek='niepewne') "
-            "AND NOT EXISTS (SELECT 1 FROM powiazania_oczekiwanych l "
-            "JOIN rachunki r ON r.id=l.rachunek_id "
-            "WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL)",
-            (cykl,),
-        ).fetchone()[0]
-        missing = self.db.execute(
-            "SELECT COUNT(*) FROM oczekiwane_dokumenty o "
-            "JOIN profile_rachunkow p ON p.id=o.profil_id "
-            "WHERE o.cykl=? AND (o.wyjatek IS NULL OR o.wyjatek='niepewne') "
-            "AND o.oczekiwany_od<=? AND NOT EXISTS("
-            "SELECT 1 FROM powiazania_oczekiwanych l JOIN rachunki r ON r.id=l.rachunek_id "
-            "WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL)",
-            (cykl,dzis.isoformat()),
-        ).fetchone()[0]
+        oczekiwania = self.podsumowanie_oczekiwan(dzis.isoformat(), cykl=cykl)
         month_ended = cykl < dzis.strftime("%Y-%m")
         return {
             "cycle": cykl, "finished": month_ended, "documents_confirmed": confirmed,
             "invoice_count": len(rows), "unpaid_count": len(unpaid),
             "unpaid_grosze": sum(int(r["kwota_grosze"]) for r in unpaid),
-            "missing_expected": missing, "unresolved_expected": unresolved,
-            "closed": bool(month_ended and confirmed and not unpaid and not unresolved),
+            **oczekiwania,
+            "closed": bool(month_ended and confirmed and not unpaid
+                           and not oczekiwania["unresolved_expected"]),
         }
 
     def potwierdz_kompletnosc(

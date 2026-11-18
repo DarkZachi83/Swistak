@@ -161,8 +161,10 @@ class RejestrRachunkow:
 
     def importuj_pdf(self, sciezka: str | Path) -> tuple[int, bool]:
         """Zwraca (id_dokumentu, czy_nowy); duplikaty rozpoznaje SHA-256."""
-        plik = self.magazyn.kopiuj(sciezka)
         with transakcja(self.db):
+            # Na dyskach bez hardlinków zapis odbywa się bezpośrednio do
+            # pliku docelowego. Inny import zaczeka na zakończenie kopiowania.
+            plik = self.magazyn.kopiuj(sciezka)
             wiersz = self.db.execute(
                 "SELECT id FROM dokumenty WHERE sha256 = ?", (plik.sha256,)
             ).fetchone()
@@ -331,9 +333,15 @@ class RejestrRachunkow:
         numer = _klucz_faktury(dane.numer)
         rows = self.db.execute(
             "SELECT r.id, r.dokument_id, r.dostawca, r.numer, r.status, r.data_oplacenia, "
-            "r.wersja_rekordu, d.nazwa_zrodlowa FROM rachunki r "
-            "JOIN dokumenty d ON d.id = r.dokument_id ORDER BY r.id"
+            "r.kwota_grosze, r.wycofano_utc, r.wersja_rekordu, d.nazwa_zrodlowa "
+            "FROM rachunki r JOIN dokumenty d ON d.id = r.dokument_id "
+            "WHERE r.wycofano_utc IS NULL OR r.dokument_id=? ORDER BY r.id",
+            (dane.dokument_id,),
         ).fetchall()
+        # Wycofana faktura zachowuje swój PDF. Zastąpić ją można innym
+        # dokumentem, a ten sam PDF wymaga świadomego przywrócenia.
+        if any(row["wycofano_utc"] is not None for row in rows):
+            raise ValueError("Faktura dla tego PDF jest wycofana — najpierw ją przywróć")
         return [
             row for row in rows
             if row["dokument_id"] == dane.dokument_id
@@ -409,8 +417,6 @@ class RejestrRachunkow:
                     "SELECT * FROM rachunki WHERE id=?", (rachunek_id,)
                 ).fetchone()
                 Finanse._wersja(poprzedni, expected_version)
-                if poprzedni["wycofano_utc"]:
-                    raise ValueError("Faktura jest wycofana — najpierw ją przywróć")
                 if poprzedni["status"] == "oplacony":
                     # Stary formularz potrafi wczytać domyślny status 'do zapłaty'.
                     # Nigdy nie cofaj istniejącej płatności przez nadpisanie OCR.

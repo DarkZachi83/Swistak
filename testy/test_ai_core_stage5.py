@@ -18,6 +18,8 @@ from ai_core.hybrid_queue import MonitorJob, MonitorQueue
 from ai_core.ollama import OllamaProvider
 from gui.okno_glowne import OknoGlowne
 from gui.panel_agenta import PanelAgenta, report_text
+from uslugi.finanse import Finanse
+from uslugi.plan_rachunkow import PlanRachunkow
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow
 
 
@@ -116,6 +118,35 @@ class TestHybridAgent(unittest.TestCase):
         self.assertEqual(report.summary["due_soon"], 0)
         self.assertFalse(report.findings)
         self.assertEqual(self.register.rachunek(1)["status"], "do_zaplaty")
+
+    def test_wstrzymanie_profilu_zachowuje_zapisane_oczekiwanie_w_agencie_i_rozliczeniu(self):
+        plan = PlanRachunkow(self.register.db)
+        finance = Finanse(self.register.db)
+        profil = plan.utworz_profil("DEMO cykliczny", cykl_od="2026-10")
+        finance.ustaw_oplacona(self.invoice_id, "2026-11-04")
+        [oczekiwanie] = plan.generuj_oczekiwania("2026-10")
+        plan.ustaw_aktywnosc(profil, False, powod="Syntetyczne wstrzymanie")
+        self.assertEqual(plan.generuj_oczekiwania("2026-11"), [])
+        ocena = finance.ocena_cyklu("2026-10", dzisiaj="2026-11-13")
+        self.assertEqual((ocena["missing_expected"], ocena["unresolved_expected"]), (1, 1))
+        agent = self._agent(UnavailableProvider())
+        self.assertEqual(agent.run("startup").summary["missing_expected"], 1)
+        with self.assertRaisesRegex(ValueError, "oczekiwane dokumenty"):
+            finance.potwierdz_kompletnosc("2026-10", dzisiaj="2026-11-13")
+
+        gateway = ToolGateway(self.path)
+        task = agent._task("manual", None, gateway.revision(), tools=True)
+        with gateway.session(task) as session:
+            expected = session.execute({
+                "contract_version": "1.0", "task_id": task["task_id"],
+                "call_id": "expected", "tool_name": "plan.expected", "tool_version": "1.0",
+                "arguments": {"cycle": "2026-10"}, "data_revision": task["data_revision"],
+            })
+        self.assertEqual(expected["data"]["expected"][0]["id"], oczekiwanie)
+        plan.powiaz(oczekiwanie, self.invoice_id)
+        self.assertEqual(agent.run("startup").summary["missing_expected"], 0)
+        finance.potwierdz_kompletnosc("2026-10", dzisiaj="2026-11-13")
+        self.assertTrue(finance.ocena_cyklu("2026-10", dzisiaj="2026-11-13")["closed"])
 
     def test_start_sprawdza_ollame_nawet_przy_pustej_bazie(self):
         self.register.db.execute("DELETE FROM rachunki")

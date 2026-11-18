@@ -27,9 +27,10 @@ można ustawić w formularzu. Domyślnie dla dokumentu za październik
 oczekiwanie zaczyna się **1 listopada**, ale to nie jest termin zapłaty.
 
 Użytkownik może stworzyć profil, dodać **nową wersję** harmonogramu,
-wstrzymać albo wznowić profil. Starsze wersje, istniejące oczekiwania
-i faktury **nie są usuwane**. Po zmianie danych aplikacja odświeża
-podglądy i zleca kontrolę hybrydową z Etapu 5.
+wstrzymać albo wznowić profil. Wstrzymanie zatrzymuje generowanie kolejnych
+oczekiwań. Starsze wersje, istniejące oczekiwania i faktury pozostają w bazie.
+Już zapisane oczekiwania nadal uwzględniają Plan, Agent i zamykanie miesiąca.
+Po zmianie danych aplikacja odświeża podglądy i zleca kontrolę hybrydową z Etapu 5.
 
 Po wybraniu miesiąca przycisk **Utwórz oczekiwania** materializuje
 brakujące wiersze w bazie. Jest to jawna, idempotentna operacja

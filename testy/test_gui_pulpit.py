@@ -361,6 +361,40 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(window.ed_oplacono.text(), "")
         self.assertEqual(window._stan_formularza(), window._zapisany_formularz)
 
+    def test_korekta_kwoty_oplaconej_faktury_wymaga_drugiego_potwierdzenia(self):
+        window = self.okno()
+        pdf = self.root / "Syntetyczna korekta.pdf"
+        writer = QPdfWriter(str(pdf))
+        painter = QPainter(writer)
+        painter.drawText(100, 100, "Syntetyczna korekta")
+        self.assertTrue(painter.end())
+        doc, _ = self.rejestr.importuj_pdf(pdf)
+        ident = self.rejestr.zapisz_rachunek(DaneRachunku(
+            dokument_id=doc, dostawca="DEMO", numer="A",
+            kwota="67,89", kategoria_id=self.kategoria, data_wystawienia="2026-11-03",
+            status="oplacony", data_oplacenia="2026-11-04",
+        ))
+        window._wyswietl_dokument(doc)
+        window.ed_kwota.setText("55,22")
+        yes, no = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
+        with patch.object(QMessageBox, "question", side_effect=(yes, no)) as pytanie:
+            window._zapisz_rachunek()
+        komunikat = pytanie.call_args.args[2]
+        self.assertEqual(pytanie.call_count, 2)
+        self.assertIn("67,89 zł", komunikat)
+        self.assertIn("55,22 zł", komunikat)
+        self.assertEqual(self.rejestr.rachunek(doc)["kwota_grosze"], 6789)
+        self.assertEqual(len(self.finanse.dziennik("invoice", ident)), 2)
+
+        with (patch.object(QMessageBox, "question", side_effect=(yes, yes)),
+              patch.object(window, "_agent_submit")):
+            window._zapisz_rachunek()
+        faktura = self.rejestr.rachunek(doc)
+        self.assertEqual(faktura["kwota_grosze"], 5522)
+        self.assertEqual(faktura["status"], "oplacony")
+        self.assertEqual(faktura["data_oplacenia"], "2026-11-04")
+        self.assertEqual(self.finanse.dziennik("invoice", ident)[0]["operacja"], "edycja")
+
     def test_moje_faktury_pokazuja_legacy_z_brakujacymi_datami(self):
         self.faktura("kompl", "10,00", status="oplacony")
         bez_daty = self.faktura("bez-daty", "1,00")

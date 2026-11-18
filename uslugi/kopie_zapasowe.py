@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
+from ustawienia import waliduj
 from uslugi.rachunki import RejestrRachunkow
 
 FORMAT = "swistak-backup"
@@ -350,13 +351,9 @@ def przygotuj_przywracanie(
         if opis.ustawienia:
             try:
                 data = json.loads((work / _PREFS).read_text(encoding="utf-8"))
-                if (not isinstance(data, dict) or
-                        data.get("language") not in ("", "pl", "en")
-                        or not isinstance(data.get("ollama_model"), str)
-                        or not 0 < len(data["ollama_model"].strip()) <= 120):
-                    raise ValueError("Nieprawidłowe ustawienia")
-                prefs = {"language": data["language"],
-                         "ollama_model": data["ollama_model"]}
+                prefs = waliduj(data)
+                if not {"language", "ollama_model"} <= prefs.keys():
+                    raise ValueError("Brakuje podstawowych ustawień")
             except (OSError, UnicodeError, ValueError) as exc:
                 raise BladKopii("Ustawienia z kopii są uszkodzone") from exc
         return PrzygotowanePrzywracanie(work, prepared, prefs, opis)

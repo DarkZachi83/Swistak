@@ -355,7 +355,7 @@ class ToolSession:
             " JOIN rachunki r ON r.id=l.rachunek_id "
             " WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL) AS otrzymano "
             "FROM oczekiwane_dokumenty o JOIN profile_rachunkow p ON p.id=o.profil_id "
-            "WHERE o.cykl=? AND p.aktywny=1 ORDER BY o.id LIMIT ?",
+            "WHERE o.cykl=? ORDER BY o.id LIMIT ?",
             (cycle,min(100,self.task["limits"]["max_records"])),
         ).fetchall()
         results=[]
@@ -388,7 +388,7 @@ class ToolSession:
             "CASE WHEN EXISTS(SELECT 1 FROM powiazania_oczekiwanych l "
             "WHERE l.oczekiwany_id=o.id AND l.rachunek_id=?) THEN 1 ELSE 0 END AS linked "
             "FROM oczekiwane_dokumenty o JOIN profile_rachunkow p ON p.id=o.profil_id "
-            "WHERE o.cykl=? AND p.aktywny=1 ORDER BY linked DESC,o.id LIMIT ?",
+            "WHERE o.cykl=? ORDER BY linked DESC,o.id LIMIT ?",
             (invoice["id"],month,min(100,self.task["limits"]["max_records"])),
         ).fetchall()
         return {"invoice_id":invoice["id"],"cycle":month,

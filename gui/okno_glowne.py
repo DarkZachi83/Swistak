@@ -48,7 +48,7 @@ from gui.ikony import ikona_nawigacji
 from gui.uklad import Siatka
 from uslugi.rachunki import (
     BrakDatyOplacenia, BrakDatyWystawienia, DaneRachunku, RejestrRachunkow,
-    grosze_na_kwote,
+    grosze_na_kwote, kwota_na_grosze,
 )
 from uslugi.kopie_zapasowe import (
     BladKopii, utworz_kopie, przygotuj_przywracanie, podmien_dane,
@@ -806,7 +806,7 @@ class OknoGlowne(QMainWindow):
                 previous = podmien_dane(kopia, folder)
                 self.rejestr.__init__(folder)
                 if kopia.ustawienia is not None:
-                    ustawienia.save(kopia.ustawienia)
+                    ustawienia.save({**original_prefs, **kopia.ustawienia})
                 new_window = OknoGlowne(self.rejestr)
             except Exception as exc:
                 if new_window is not None:
@@ -2342,7 +2342,10 @@ class OknoGlowne(QMainWindow):
             istniejaca = self.rejestr.znajdz_duplikat(dane)
             nadpisz_id = None
             wersja = None
+            potwierdz_korekte = False
             if istniejaca is not None:
+                nowa_kwota = kwota_na_grosze(dane.kwota)
+                stara_kwota = int(istniejaca["kwota_grosze"])
                 potwierdzenie = t(
                     "invoice.duplicate_confirm",
                     supplier=istniejaca["dostawca"],
@@ -2363,10 +2366,22 @@ class OknoGlowne(QMainWindow):
                 if odpowiedz != QMessageBox.StandardButton.Yes:
                     self._status("invoice.overwrite_cancelled")
                     return
+                if istniejaca["status"] == "oplacony" and nowa_kwota != stara_kwota:
+                    potwierdz_korekte = QMessageBox.question(
+                        self, t("invoice.paid_amount_title"),
+                        t("invoice.paid_amount_confirm",
+                          old=grosze_na_kwote(stara_kwota), new=grosze_na_kwote(nowa_kwota)),
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    ) == QMessageBox.StandardButton.Yes
+                    if not potwierdz_korekte:
+                        self._status("invoice.overwrite_cancelled")
+                        return
                 nadpisz_id = int(istniejaca["id"])
                 wersja = int(istniejaca["wersja_rekordu"])
             zapisany_id = self.rejestr.zapisz_rachunek(
                 dane, nadpisz_id=nadpisz_id, expected_version=wersja,
+                potwierdz_korekte_oplaconej=potwierdz_korekte,
             )
             self._wczytaj_stan_platnosci(self.rejestr.rachunek(self.aktualny_dokument_id))
             self._zapisany_formularz = self._stan_formularza()

@@ -2,11 +2,15 @@
 """Testy archiwum i bazy: wyłącznie syntetyczne dane."""
 from __future__ import annotations
 
+import errno
 import hashlib
+import os
 import sqlite3
+import stat
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from baza.migracje import BladMigracji, zastosuj_migracje
 from uslugi.archiwum import BladArchiwum
@@ -57,6 +61,62 @@ class TestRejestr(unittest.TestCase):
         self.assertEqual(self.rejestr.dokument(identyfikator)["sha256"],
                          hashlib.sha256(bajty).hexdigest())
         self.assertNotEqual(self.zrodlo.resolve(), self.rejestr.sciezka_pdf(identyfikator))
+
+    def test_import_bez_hardlinkow_zachowuje_bajty_i_duplikaty(self):
+        blad = OSError(errno.EOPNOTSUPP, "syntetyczny brak hardlinków")
+        with patch("uslugi.archiwum.os.link", side_effect=blad):
+            ident, nowy = self.rejestr.importuj_pdf(self.zrodlo)
+            self.assertTrue(nowy)
+            archiwum = self.rejestr.sciezka_pdf(ident)
+            self.assertEqual(archiwum.read_bytes(), self.zrodlo.read_bytes())
+            self.assertEqual(self.rejestr.importuj_pdf(self.zrodlo), (ident, False))
+            archiwum.write_bytes(b"syntetyczne uszkodzenie")
+            with self.assertRaises(BladArchiwum):
+                self.rejestr.importuj_pdf(self.zrodlo)
+            self.assertEqual(archiwum.read_bytes(), b"syntetyczne uszkodzenie")
+
+    def test_przerwany_zapis_bez_hardlinkow_da_sie_ponowic(self):
+        def przerwane_kopiowanie(source, target, _length):
+            target.write(source.read(8))
+            raise OSError("syntetyczny błąd zapisu")
+
+        blad = OSError(errno.EOPNOTSUPP, "syntetyczny brak hardlinków")
+        with patch("uslugi.archiwum.os.link", side_effect=blad):
+            with patch("uslugi.archiwum.shutil.copyfileobj", side_effect=przerwane_kopiowanie):
+                with self.assertRaisesRegex(OSError, "syntetyczny błąd zapisu"):
+                    self.rejestr.importuj_pdf(self.zrodlo)
+            self.assertEqual(self.rejestr.dokumenty(), [])
+            self.assertEqual(list(self.rejestr.magazyn.katalog.rglob("*.pdf")), [])
+            ident, nowy = self.rejestr.importuj_pdf(self.zrodlo)
+            self.assertTrue(nowy)
+            self.assertEqual(self.rejestr.sciezka_pdf(ident).read_bytes(), self.zrodlo.read_bytes())
+
+    @unittest.skipUnless(os.name == "posix", "Uprawnienia POSIX")
+    def test_start_ogranicza_uprawnienia_nowej_i_istniejacej_bazy(self):
+        katalog = self.rejestr.katalog
+        baza = katalog / "swistak.sqlite3"
+        self.assertEqual(stat.S_IMODE(katalog.stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(baza.stat().st_mode), 0o600)
+        self.rejestr.zamknij()
+        katalog.chmod(0o755)
+        baza.chmod(0o644)
+        self.rejestr = RejestrRachunkow(katalog)
+        self.assertEqual(stat.S_IMODE(katalog.stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(baza.stat().st_mode), 0o600)
+
+    @unittest.skipUnless(os.name == "posix", "Uprawnienia POSIX")
+    def test_staly_tryb_montowania_daje_ostrzezenie_i_pozwala_otworzyc_baze(self):
+        katalog = self.rejestr.katalog
+        baza = katalog / "swistak.sqlite3"
+        self.rejestr.zamknij()
+        katalog.chmod(0o755)
+        baza.chmod(0o644)
+        with patch.object(Path, "chmod", side_effect=PermissionError(errno.EPERM, "chmod")):
+            with self.assertLogs("baza.polaczenie", level="WARNING") as log:
+                self.rejestr = RejestrRachunkow(katalog)
+        self.assertEqual(len(log.output), 2)
+        self.assertIn("opcje montowania", log.output[0])
+        self.assertEqual(len(self.rejestr.kategorie()), 6)
 
     def test_duplikat_pod_inna_nazwa(self):
         pierwszy, nowy = self.rejestr.importuj_pdf(self.zrodlo)

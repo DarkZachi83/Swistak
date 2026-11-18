@@ -75,7 +75,7 @@ class TestKopieZapasowe(unittest.TestCase):
                       [v["nazwa"] for v in self.db.kategorie()])
         prepared = przygotuj_przywracanie(archive, self.root)
         self.assertEqual(prepared.opis.dokumenty_pdf, 1)
-        self.assertEqual(prepared.ustawienia["ollama_model"], "gemma3:4b")
+        self.assertEqual(prepared.ustawienia, {"language": "pl", "ollama_model": "gemma3:4b"})
         try:
             self.db.zamknij()
             previous = podmien_dane(prepared, self.root)
@@ -100,6 +100,24 @@ class TestKopieZapasowe(unittest.TestCase):
             self.assertEqual(self.db.db.execute("PRAGMA foreign_key_check").fetchall(), [])
         finally:
             prepared.sprzataj()
+
+    def test_uszkodzone_ustawienia_modele_wstrzymuja_przywracanie(self):
+        cfg = self.folder / "preferences.json"
+        for index, wadliwe in enumerate((
+            {"model_scan_dir": "katalog\nniepoprawny"},
+            {"model_extractor": 7},
+            {"model_verifier": "x" * 121},
+        )):
+            with self.subTest(wadliwe=wadliwe):
+                cfg.write_text(json.dumps({
+                    "language": "pl", "ollama_model": "demo:1", **wadliwe,
+                }))
+                archive = self.folder / f"kopia-{index}.zip"
+                utworz_kopie(self.db, archive, ustawienia=cfg)
+                with self.assertRaisesRegex(BladKopii, "Ustawienia z kopii są uszkodzone"):
+                    przygotuj_przywracanie(archive, self.root)
+                self.assertFalse(list(self.folder.glob(".swistak-przywroc-*")))
+                self.assertEqual(len(self.db.kategorie()), 6)
 
     def test_kopia_nie_nadpisuje_i_nie_moze_byc_wewnatrz_danych(self):
         archive = self.folder / "kopia.zip"

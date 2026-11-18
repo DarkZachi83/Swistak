@@ -34,7 +34,15 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
             restored_window = None
             try:
                 with patch.object(ustawienia, "path_settings", return_value=settings):
-                    ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
+                    backup_prefs = {
+                        "language": "pl", "ollama_model": "gemma3:4b",
+                        "model_scan_dir": str(base / "testowe-modele"),
+                        "model_extractor": "demo-ekstrakcja:1",
+                        "model_verifier": "demo-weryfikacja:2",
+                        "model_financial_analyst": "",
+                        "model_cycle_analyst": "demo-cykl:4",
+                    }
+                    ustawienia.save(backup_prefs)
                     pdf = base / "wylacznie-syntetyczna.pdf"
                     pdf_bytes = b"%PDF-1.4\n% FAKE invoice - not a real customer\n%%EOF\n"
                     pdf.write_bytes(pdf_bytes)
@@ -49,7 +57,10 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                     utworz_kopie(reg, archive, ustawienia=settings)
                     # Zmieniamy bieżące dane po backupie.
                     reg.dodaj_kategorie("Streaming demo")
-                    ustawienia.save({"language": "en", "ollama_model": "qwen3:8b"})
+                    ustawienia.save({
+                        "language": "en", "ollama_model": "qwen3:8b",
+                        "model_financial_analyst": "po-kopii:1",
+                    })
                     previous_window = OknoGlowne(reg)
                     previous_window.show()
                     self.app.processEvents()
@@ -74,7 +85,8 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                     self.assertEqual(old_visible_on_new_show, [False])
                     self.assertFalse(previous_window.isVisible())
                     self.assertTrue(restored_window.isVisible())
-                    self.assertEqual(ustawienia.load()["ollama_model"], "gemma3:4b")
+                    self.assertEqual(ustawienia.load(), backup_prefs)
+                    self.assertEqual(restored_window.prefs, backup_prefs)
                     self.assertEqual(reg.rachunek(doc)["kwota_grosze"], 1337)
                     self.assertEqual(reg.sciezka_pdf(doc).read_bytes(), pdf_bytes)
                     names = [row["nazwa"] for row in reg.kategorie()]

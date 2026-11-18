@@ -20,6 +20,7 @@ from ai_core.gateway import ToolGateway
 from ai_core.ollama import OllamaProvider
 from ai_core.orchestrator import AgentOrchestrator
 from ai_core.router import ModelBinding, ModelRouter
+from uslugi.finanse import Finanse
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 MODES = frozenset({"startup", "change", "manual"})
@@ -215,16 +216,9 @@ class HybridAgent:
                 # Nie mieszamy globalnych oczekiwań z analizą jednego rekordu.
                 missing = 0
             else:
-                missing = session.db.execute(
-                    "SELECT COUNT(*) FROM oczekiwane_dokumenty o "
-                    "JOIN profile_rachunkow p ON p.id=o.profil_id "
-                    "WHERE p.aktywny=1 AND o.oczekiwany_od<=? "
-                    "AND (o.wyjatek IS NULL OR o.wyjatek='niepewne') "
-                    "AND NOT EXISTS (SELECT 1 FROM powiazania_oczekiwanych l "
-                    "JOIN rachunki r ON r.id=l.rachunek_id "
-                    "WHERE l.oczekiwany_id=o.id AND r.wycofano_utc IS NULL)",
-                    (self.reference_date,),
-                ).fetchone()[0]
+                missing = Finanse(session.db).podsumowanie_oczekiwan(
+                    self.reference_date,
+                )["missing_expected"]
             return {
                 "invoices": int(row["invoices"]),
                 "unpaid_grosze": int(row["unpaid_grosze"]),
