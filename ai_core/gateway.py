@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterator
-from urllib.parse import quote
 
 from jsonschema import Draft202012Validator, FormatChecker
+
+from baza.polaczenie import polacz_tylko_odczyt
 
 from .contracts import validate
 from .errors import InvalidResponse
 
 CATALOG = Path(__file__).resolve().parents[1] / "docs" / "ai_core" / "tools_v1.json"
 MAX_TOOL_OUTPUT_BYTES = 48 * 1024
+SQLITE_HEADER_BYTES = 100
 
 
 class ToolGateway:
@@ -30,6 +33,7 @@ class ToolGateway:
     def __init__(self, database_path: str | Path):
         self.database_path = Path(database_path).expanduser().resolve()
         self.data_root = self.database_path.parent
+        self._revision_cache: tuple[tuple, str] | None = None
         catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
         if catalog.get("catalog_version") != "1.0" or catalog.get("read_only") is not True:
             raise ValueError("Nieobsługiwana wersja katalogu narzędzi")
@@ -37,19 +41,36 @@ class ToolGateway:
         if len(self.catalog) != len(catalog["tools"]):
             raise ValueError("Powtarzające się nazwy narzędzi")
 
-    def revision(self) -> str:
-        """Token bazujący na bajtach pliku SQLite (obecna baza używa DELETE journal).
+    @staticmethod
+    def _file_stamp(info: os.stat_result) -> tuple[int, ...]:
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
-        Nadaje się do odrzucania wyników po zmianie bazy; nie służy do
-        przenoszenia ani synchronizacji bazy między komputerami.
-        """
+    def revision(self) -> str:
+        """SHA-256 pliku SQLite, z pamięcią podręczną dla dziennika DELETE."""
         if not self.database_path.is_file():
             raise FileNotFoundError("Nie znaleziono istniejącej bazy Świstaka")
-        digest = hashlib.sha256()
-        with self.database_path.open("rb") as fh:
-            for piece in iter(lambda: fh.read(1024 * 1024), b""):
-                digest.update(piece)
-        return "db:" + digest.hexdigest()
+        for _ in range(3):
+            with self.database_path.open("rb", buffering=0) as fh:
+                stamp = self._file_stamp(os.fstat(fh.fileno()))
+                # Nagłówek zawiera licznik zmian SQLite. Wykrywa zapis również
+                # na nośnikach o małej rozdzielczości znaczników czasu.
+                header = fh.read(SQLITE_HEADER_BYTES)
+                key = (stamp, header)
+                cached = self._revision_cache
+                if cached is not None and cached[0] == key:
+                    revision = cached[1]
+                else:
+                    digest = hashlib.sha256(header)
+                    for piece in iter(lambda: fh.read(1024 * 1024), b""):
+                        digest.update(piece)
+                    revision = "db:" + digest.hexdigest()
+                fh.seek(0)
+                if (fh.read(SQLITE_HEADER_BYTES) == header
+                        and self._file_stamp(os.fstat(fh.fileno())) == stamp
+                        and self._file_stamp(self.database_path.stat()) == stamp):
+                    self._revision_cache = (key, revision)
+                    return revision
+        raise InvalidResponse("Baza zmieniła się podczas ustalania wersji danych")
 
     def descriptors(self, allowed: list[str]) -> list[dict[str, Any]]:
         result = []
@@ -68,16 +89,11 @@ class ToolGateway:
         validate("TaskRequest", task)
         if task["data_revision"] != self.revision():
             raise InvalidResponse("Zadanie dotyczy nieaktualnej wersji bazy")
-        uri = "file:" + quote(str(self.database_path), safe="/") + "?mode=ro"
-        db = sqlite3.connect(uri, uri=True, isolation_level=None, timeout=5)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA query_only=ON")
-        db.execute("PRAGMA foreign_keys=ON")
-        # NIE utrzymuj BEGIN na czas generowania LLM: długi read-lock
-        # w SQLite DELETE journal zablokowałby GUI przy zapisie faktury.
-        # Każdy SELECT wykonuje krótką transakcję tylko do czasu fetch.
-        current = ToolSession(self, task, db)
+        db = polacz_tylko_odczyt(self.database_path)
         try:
+            # Nie utrzymuj BEGIN podczas generowania LLM. W trybie DELETE
+            # długi odczyt zablokowałby zapis faktury w GUI.
+            current = ToolSession(self, task, db)
             yield current
             if task["data_revision"] != self.revision():
                 raise InvalidResponse("Baza zmieniła się podczas analizy; wynik jest nieaktualny")

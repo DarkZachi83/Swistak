@@ -2,11 +2,13 @@
 """Backup danych finansowych — wyłącznie fikcyjne PDF-y i wzorce."""
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import tempfile
 import unittest
 import zipfile
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -79,7 +81,7 @@ class TestKopieZapasowe(unittest.TestCase):
         try:
             self.db.zamknij()
             previous = podmien_dane(prepared, self.root)
-            self.db.__init__(self.root)
+            self.db.otworz_ponownie()
             self.assertTrue(previous.is_dir())
             previous_db = sqlite3.connect(previous / "swistak.sqlite3")
             try:
@@ -156,6 +158,35 @@ class TestKopieZapasowe(unittest.TestCase):
             przygotuj_przywracanie(corrupted, self.root)
         self.assertEqual(self.db.sciezka_pdf(doc).read_bytes(), data)
 
+    def test_przywracanie_odrzuca_obcy_widok_i_trigger_mimo_poprawnego_manifestu(self):
+        archive = self.folder / "oryginal.zip"
+        utworz_kopie(self.db, archive)
+        sqlite_name = "swistak.sqlite3"
+        self.assertEqual(self.db.db.execute("PRAGMA trusted_schema").fetchone()[0], 0)
+        for sql in (
+            "CREATE VIEW testowy_widok AS SELECT 1",
+            "CREATE TRIGGER testowy_trigger AFTER INSERT ON kategorie BEGIN SELECT 1; END",
+        ):
+            with self.subTest(sql=sql), zipfile.ZipFile(archive) as source:
+                bazatest = self.folder / "schemat-testowy.sqlite3"
+                bazatest.write_bytes(source.read(sqlite_name))
+                with closing(sqlite3.connect(bazatest)) as zmodyfikowana:
+                    zmodyfikowana.execute(sql)
+                    zmodyfikowana.commit()
+                bajty = bazatest.read_bytes()
+                manifest = json.loads(source.read("manifest.json"))
+                wpis = next(x for x in manifest["files"] if x["path"] == sqlite_name)
+                wpis.update(size=len(bajty), sha256=hashlib.sha256(bajty).hexdigest())
+                podejrzana = self.folder / "schemat-testowy.zip"
+                with zipfile.ZipFile(podejrzana, "w") as dest:
+                    dest.writestr("manifest.json", json.dumps(manifest))
+                    dest.writestr(sqlite_name, bajty)
+
+                with self.assertRaisesRegex(BladKopii, "triggery lub widoki"):
+                    przygotuj_przywracanie(podejrzana, self.root)
+                self.assertFalse(list(self.folder.glob(".swistak-przywroc-*")))
+                self.assertEqual(len(self.db.kategorie()), 6)
+
     def test_niebezpieczne_sciezki_z_archiwum_sa_odrzucane(self):
         archive = self.folder / "zly.zip"
         with zipfile.ZipFile(archive, "w") as z:
@@ -179,7 +210,7 @@ class TestKopieZapasowe(unittest.TestCase):
             self.db.zamknij()
             previous = podmien_dane(prepared, self.root)
             cofnij_podmiane(self.root, previous)
-            self.db.__init__(self.root)
+            self.db.otworz_ponownie()
             self.assertEqual(self.db.rachunek(doc)["kwota_grosze"], 6899)
             self.assertEqual(self.db.sciezka_pdf(doc).read_bytes(), data)
         finally:
@@ -204,7 +235,7 @@ class TestKopieZapasowe(unittest.TestCase):
                        side_effect=przerwij_drugi_krok):
                 with self.assertRaises(OSError):
                     podmien_dane(prepared, self.root)
-            self.db.__init__(self.root)
+            self.db.otworz_ponownie()
             self.assertEqual(self.db.rachunek(doc)["kwota_grosze"], 6899)
             self.assertEqual(self.db.sciezka_pdf(doc).read_bytes(), data)
         finally:

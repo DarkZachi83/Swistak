@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog
 
 import ustawienia
 from gui.dialog_plan_historia import DialogPlanHistoria, FormularzProfilu, chosen_id

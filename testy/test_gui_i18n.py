@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from PySide6.QtGui import QPainter, QPdfWriter
-from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
+from PySide6.QtWidgets import QApplication
 
 import i18n
 import ustawienia
@@ -68,6 +68,11 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(okno.nawigacja.item(0).text(), "PDF / scan text")
                     self.assertEqual(okno.nawigacja.item(3).text(), "Invoice")
                     self.assertEqual(okno.btn_odczytaj.text(), "Read entire PDF")
+                    self.assertEqual(okno.nazwa_dokumentu.text(), "Original: demo.pdf")
+                    self.assertEqual(okno.wybor_status.itemText(1), i18n.t("form.status_paid"))
+                    self.assertEqual(okno.zapisz_przycisk.text(), i18n.t("button.save"))
+                    self.assertEqual([label.text() for label in okno._form_labels],
+                                     [i18n.t(key) for key in okno._FORM_KEYS])
                     self.assertEqual(okno.ed_kwota.text(), "123,45")
                     self.assertEqual(okno.ed_dostawca.text(), "Dostawca DEMO")
                     self.assertEqual(okno.ed_uwagi.toPlainText(), "Nie zapisano")
@@ -86,6 +91,9 @@ class TestQtJezyki(unittest.TestCase):
                     self.assertEqual(okno.nawigacja.item(0).text(), "Odczyt PDF / skanu")
                     self.assertEqual(okno.nawigacja.item(3).text(), "Faktura")
                     self.assertEqual(okno.menuBar().actions()[2].text(), "Języki")
+                    self.assertEqual(okno.nazwa_dokumentu.text(), "Oryginał: demo.pdf")
+                    self.assertEqual(okno.wybor_status.itemText(1), "Opłacony")
+                    self.assertEqual(okno.zapisz_przycisk.text(), i18n.t("button.save"))
                     self.assertEqual(okno.ed_kwota.text(), "123,45")
                     self.assertEqual(okno.wybor_kategoria.currentText(), "Gaz")
                     self.assertEqual(ustawienia.load()["language"], "pl")

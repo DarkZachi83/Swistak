@@ -17,10 +17,12 @@ import stat
 import tempfile
 import uuid
 import zipfile
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
+from baza.polaczenie import polacz_tylko_odczyt
 from ustawienia import waliduj
 from uslugi.rachunki import RejestrRachunkow
 
@@ -286,21 +288,23 @@ def _wczytaj_manifest(zipf: zipfile.ZipFile) -> tuple[list[dict], OpisKopii]:
 
 def _sprawdz_powiazania(baza: Path, files: list[dict]) -> None:
     """Integralność SQLite i dowód zgodności każdego PDF z bazą."""
-    db = sqlite3.connect(baza)
     try:
-        if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
-            raise BladKopii("Uszkodzona baza SQLite w kopii")
-        if db.execute("PRAGMA foreign_key_check").fetchall():
-            raise BladKopii("Baza w kopii ma błędne klucze obce")
-        by_name = {x["path"]: x["sha256"] for x in files}
-        for name, sha in db.execute("SELECT sciezka_wzgledna, sha256 FROM dokumenty"):
-            if (not isinstance(name, str) or not _bezpieczna_nazwa(name)
-                    or not name.startswith("dokumenty/") or by_name.get(name) != sha):
-                raise BladKopii("Baza wskazuje brakujący lub zmieniony PDF")
+        with closing(polacz_tylko_odczyt(baza)) as db:
+            if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type IN ('trigger', 'view') LIMIT 1"
+            ).fetchone() is not None:
+                raise BladKopii("Baza w kopii zawiera niedozwolone triggery lub widoki")
+            if db.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise BladKopii("Uszkodzona baza SQLite w kopii")
+            if db.execute("PRAGMA foreign_key_check").fetchall():
+                raise BladKopii("Baza w kopii ma błędne klucze obce")
+            by_name = {x["path"]: x["sha256"] for x in files}
+            for name, sha in db.execute("SELECT sciezka_wzgledna, sha256 FROM dokumenty"):
+                if (not isinstance(name, str) or not _bezpieczna_nazwa(name)
+                        or not name.startswith("dokumenty/") or by_name.get(name) != sha):
+                    raise BladKopii("Baza wskazuje brakujący lub zmieniony PDF")
     except sqlite3.DatabaseError as exc:
         raise BladKopii(f"Nie można sprawdzić bazy kopii: {exc}") from exc
-    finally:
-        db.close()
 
 
 def _sprawdz_dane(folder: Path, files: list[dict]) -> None:

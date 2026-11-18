@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPainter, QPdfWriter
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 import ustawienia
 from gui.dialog_kategorie import DialogKategorie

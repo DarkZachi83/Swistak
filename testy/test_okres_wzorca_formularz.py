@@ -90,10 +90,10 @@ class TestOkresRozliczeniowy(unittest.TestCase):
     def test_end_to_end_gemma_zla_data_nie_przechodzi_bez_poprawki(self):
         fake_answer = {"message": {"content": json.dumps(surowa_odpowiedz())}}
         opener = MagicMock()
-        opener.open.return_value.__enter__.return_value = io.BytesIO(
+        opener.open.return_value = io.BytesIO(
             json.dumps(fake_answer).encode("utf-8")
         )
-        with patch("uslugi.analiza_llm.build_opener", return_value=opener):
+        with patch("ai_core.ollama.build_opener", return_value=opener):
             result = analizuj_lokalnie(FIKCYJNY_OCR, ["Internet"], "demo-llm:1")
         self.assertEqual(result.oceny["okres_od"].wartosc, "2026-11-01")
         self.assertEqual(result.oceny["okres_do"].wartosc, "2026-11-30")

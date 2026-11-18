@@ -9,7 +9,7 @@ from __future__ import annotations
 import threading
 import uuid
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -371,12 +371,12 @@ class HybridAgent:
                                 if self.gateway.revision() != revision:
                                     raise
                                 entry["status"] = "error"
-                            except Exception:
+                            except Exception as blad:
                                 self._check()
                                 if self.gateway.revision() != revision:
                                     raise InvalidResponse(
                                         "Dane zmieniły się podczas pracy specjalisty"
-                                    )
+                                    ) from blad
                                 entry["status"] = "error"
                             advisory.append(entry)
                 finally:

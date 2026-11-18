@@ -149,7 +149,7 @@ class OknoGlowne(QMainWindow):
         grupy_pdf = Siatka(3, szerokosc=240)
         pasek_uklad.addWidget(grupy_pdf)
 
-        self.otworz_przycisk = QPushButton("Importuj PDF")
+        self.otworz_przycisk = QPushButton()
         self.otworz_przycisk.clicked.connect(self.wybierz_plik)
         grupy_pdf.dodaj(self.otworz_przycisk)
 
@@ -162,7 +162,7 @@ class OknoGlowne(QMainWindow):
         self.poprzednia.clicked.connect(lambda: self._zmien_strone(-1))
         przyciski.addWidget(self.poprzednia)
 
-        self.strony = QLabel("Brak dokumentu")
+        self.strony = QLabel()
         self.strony.setMinimumWidth(100)
         self.strony.setAlignment(Qt.AlignmentFlag.AlignCenter)
         przyciski.addWidget(self.strony)
@@ -241,7 +241,7 @@ class OknoGlowne(QMainWindow):
         obszar_pracy.addWidget(dzielnik, 1)
         pion.addLayout(obszar_pracy, 1)
 
-        self.opis_zaznaczenia = QLabel("Zaznacz fragment PDF lewym przyciskiem myszy.")
+        self.opis_zaznaczenia = QLabel()
         self.opis_zaznaczenia.setObjectName("podpowiedz")
         self.opis_zaznaczenia.setWordWrap(True)
         pion.addWidget(self.opis_zaznaczenia)
@@ -804,7 +804,7 @@ class OknoGlowne(QMainWindow):
                 self.podglad.zamknij_dokument()
                 self.rejestr.zamknij()
                 previous = podmien_dane(kopia, folder)
-                self.rejestr.__init__(folder)
+                self.rejestr.otworz_ponownie()
                 if kopia.ustawienia is not None:
                     ustawienia.save({**original_prefs, **kopia.ustawienia})
                 new_window = OknoGlowne(self.rejestr)
@@ -818,7 +818,7 @@ class OknoGlowne(QMainWindow):
                 try:
                     if previous is not None:
                         cofnij_podmiane(folder, previous)
-                    self.rejestr.__init__(folder)
+                    self.rejestr.otworz_ponownie()
                     ustawienia.save(original_prefs)
                     self._odswiez_liste()
                 except Exception as rollback:
@@ -923,7 +923,7 @@ class OknoGlowne(QMainWindow):
             self.rejestr.zamknij()
             previous = podmien_na_pusta(root, stage)
             stage = None  # nowy folder jest już głównym katalogiem danych
-            self.rejestr.__init__(root)
+            self.rejestr.otworz_ponownie()
             new_window = OknoGlowne(self.rejestr)
         except Exception as exc:
             if new_window is not None:
@@ -936,7 +936,7 @@ class OknoGlowne(QMainWindow):
             try:
                 if previous is not None:
                     cofnij_podmiane(root, previous)
-                self.rejestr.__init__(root)
+                self.rejestr.otworz_ponownie()
             except Exception as rollback:
                 QMessageBox.critical(
                     self, t("clear.title"),
@@ -1075,7 +1075,6 @@ class OknoGlowne(QMainWindow):
         self.nastepna.setText(t("button.next"))
         self.btn_dopasuj.setText(t("button.fit"))
         self.btn_szerokosc.setText(t("button.fit_width"))
-        self.btn_dodaj_kategorie.setToolTip(t("button.add_category_tip"))
         self.zapisz_przycisk.setText(t("button.save"))
         self.tekst_ostrzezenia_form.setText(t("form.hint"))
         for label, key in zip(self._form_labels, self._FORM_KEYS):
@@ -1101,7 +1100,7 @@ class OknoGlowne(QMainWindow):
         self._aktualizuj_tekst_propozycji()
         for key, label in self.podsumowanie_etykiety.items():
             label.setText(t(key))
-        self._aktualizuj_podsumowanie()
+        self._aktualizuj_podsumowanie(zachowaj_komunikat=True)
 
         self.hint_listy.setText(t("list.hint"))
         self.btn_odswiez.setText(t("button.refresh"))
@@ -1166,7 +1165,7 @@ class OknoGlowne(QMainWindow):
         uklad = QVBoxLayout(panel)
         uklad.setContentsMargins(10, 14, 10, 12)
         uklad.setSpacing(10)
-        self.nazwa_dokumentu = QLabel("Najpierw zaimportuj dokument PDF.")
+        self.nazwa_dokumentu = QLabel()
         self.nazwa_dokumentu.setWordWrap(True)
         uklad.addWidget(self.nazwa_dokumentu)
         forma = QFormLayout()
@@ -1175,9 +1174,7 @@ class OknoGlowne(QMainWindow):
         self.ed_dostawca = QLineEdit()
         self.ed_numer = QLineEdit()
         self.ed_konto = QLineEdit()
-        self.ed_konto.setPlaceholderText("NRB (26 cyfr) lub IBAN — opcjonalnie")
         self.ed_kwota = QLineEdit()
-        self.ed_kwota.setPlaceholderText("np. 245,80")
         self.ed_wystawiono = QLineEdit()
         self.ed_termin = QLineEdit()
         self.ed_od = QLineEdit()
@@ -1189,44 +1186,43 @@ class OknoGlowne(QMainWindow):
         kategoria_uklad.addWidget(self.wybor_kategoria, 1)
         dodaj = QPushButton("+")
         self.btn_dodaj_kategorie = dodaj
-        dodaj.setToolTip("Dodaj nową kategorię")
         dodaj.clicked.connect(self._dodaj_kategorie)
         kategoria_uklad.addWidget(dodaj)
 
         self.wybor_status = QComboBox()
-        self.wybor_status.addItem("Do zapłaty", "do_zaplaty")
-        self.wybor_status.addItem("Opłacony", "oplacony")
+        self.wybor_status.addItem("", "do_zaplaty")
+        self.wybor_status.addItem("", "oplacony")
         self.ed_oplacono = QLineEdit()
         self.ed_oplacono.setEnabled(False)
         self.wybor_status.currentIndexChanged.connect(self._zmiana_statusu_platnosci)
         self.ed_uwagi = QTextEdit()
-        self.ed_uwagi.setPlaceholderText("Opcjonalna notatka")
         self.ed_uwagi.setMaximumHeight(86)
 
         self._form_labels = []
-        for etykieta, element in (
-            ("Dostawca *", self.ed_dostawca),
-            ("Numer faktury", self.ed_numer),
-            ("Konto bankowe", self.ed_konto),
-            ("Kwota [zł] *", self.ed_kwota),
-            ("Kategoria *", wybor_i_dodaj),
-            ("Wystawiono *", self.ed_wystawiono),
-            ("Termin płatności", self.ed_termin),
-            ("Okres od", self.ed_od),
-            ("Okres do", self.ed_do),
-            ("Status", self.wybor_status),
-            ("Data opłacenia", self.ed_oplacono),
-            ("Uwagi", self.ed_uwagi),
+        for element in (
+            self.ed_dostawca,
+            self.ed_numer,
+            self.ed_konto,
+            self.ed_kwota,
+            wybor_i_dodaj,
+            self.ed_wystawiono,
+            self.ed_termin,
+            self.ed_od,
+            self.ed_do,
+            self.wybor_status,
+            self.ed_oplacono,
+            self.ed_uwagi,
         ):
+            etykieta = QLabel()
             forma.addRow(etykieta, element)
-            self._form_labels.append(forma.labelForField(element))
+            self._form_labels.append(etykieta)
         uklad.addLayout(forma)
         self.btn_przejdz_faktura = QPushButton()
         self.btn_przejdz_faktura.clicked.connect(
             lambda: self.karty.setCurrentIndex(self.ETAP_FAKTURA)
         )
         uklad.addWidget(self.btn_przejdz_faktura)
-        komunikat = QLabel("Dane od AI są wyłącznie propozycjami. Sprawdź PDF, popraw pola i dopiero kliknij Zapisz rachunek.")
+        komunikat = QLabel()
         self.tekst_ostrzezenia_form = komunikat
         komunikat.setWordWrap(True)
         komunikat.setObjectName("podpowiedz")
@@ -1280,7 +1276,7 @@ class OknoGlowne(QMainWindow):
         )
         uklad.addWidget(self.btn_powrot_edycja)
 
-        self.zapisz_przycisk = QPushButton("Zapisz fakturę")
+        self.zapisz_przycisk = QPushButton()
         self.zapisz_przycisk.setObjectName("zapiszFakture")
         self.zapisz_przycisk.clicked.connect(self._zapisz_rachunek)
         uklad.addWidget(self.zapisz_przycisk)
@@ -1301,7 +1297,7 @@ class OknoGlowne(QMainWindow):
         if indeks == self.ETAP_FAKTURA:
             self._aktualizuj_podsumowanie()
 
-    def _aktualizuj_podsumowanie(self) -> None:
+    def _aktualizuj_podsumowanie(self, *, zachowaj_komunikat: bool = False) -> None:
         """Wartości po korekcie, bez odczytu/zapisu bazy przy zmianie widoku."""
         wartosci = {
             "dostawca": self.ed_dostawca.text(),
@@ -1320,10 +1316,12 @@ class OknoGlowne(QMainWindow):
         }
         for pole, wartosc in wartosci.items():
             self.podsumowanie_wartosci[pole].setText(wartosc.strip() or "—")
-        self.info_faktury.setText(t(
-            "invoice.review" if self.aktualny_dokument_id is not None
-            else "invoice.no_document"
-        ))
+        if not zachowaj_komunikat or self.info_faktury not in self._messages:
+            self._message(
+                self.info_faktury,
+                "invoice.review" if self.aktualny_dokument_id is not None
+                else "invoice.no_document",
+            )
 
     def _zbuduj_odczyt(self) -> QWidget:
         """Podgląd surowego tekstu, zanim trafi do Ollamy."""
@@ -1331,19 +1329,16 @@ class OknoGlowne(QMainWindow):
         uklad = QVBoxLayout(panel)
         uklad.setContentsMargins(10, 12, 10, 12)
         uklad.setSpacing(10)
-        instrukcja = QLabel(
-            "Tekst pozyskany z PDF lub OCR jest tylko materiałem wejściowym. "
-            "Po odczycie możesz uruchomić lokalny model w zakładce Analiza AI."
-        )
+        instrukcja = QLabel()
         self.hint_odczytu = instrukcja
         instrukcja.setWordWrap(True)
         instrukcja.setObjectName("podpowiedz")
         uklad.addWidget(instrukcja)
         przyciski = Siatka(3)
-        self.btn_odczytaj = QPushButton("Odczytaj cały PDF")
+        self.btn_odczytaj = QPushButton()
         self.btn_odczytaj.clicked.connect(lambda: self._start_odczytu(False))
         przyciski.dodaj(self.btn_odczytaj)
-        self.btn_odczytaj_obszar = QPushButton("Odczytaj zaznaczenie")
+        self.btn_odczytaj_obszar = QPushButton()
         self.btn_odczytaj_obszar.clicked.connect(lambda: self._start_odczytu(True))
         przyciski.dodaj(self.btn_odczytaj_obszar)
         self.btn_odczytaj_qr = QPushButton()
@@ -1351,25 +1346,22 @@ class OknoGlowne(QMainWindow):
         self.btn_odczytaj_qr.clicked.connect(self._otworz_qr)
         przyciski.dodaj(self.btn_odczytaj_qr)
         uklad.addWidget(przyciski)
-        self.btn_anuluj = QPushButton("Anuluj")
+        self.btn_anuluj = QPushButton()
         self.btn_anuluj.clicked.connect(self._anuluj_odczyt)
         uklad.addWidget(self.btn_anuluj)
-        self.info_odczytu = QLabel("Wybierz dokument PDF, aby odczytać jego tekst.")
+        self.info_odczytu = QLabel()
         self.info_odczytu.setWordWrap(True)
         uklad.addWidget(self.info_odczytu)
         self.pole_odczytu = QTextEdit()
         self.pole_odczytu.setReadOnly(True)
-        self.pole_odczytu.setPlaceholderText(
-            "Tutaj pojawi się tekst dokumentu. Odczyt nie zmienia oryginalnego PDF."
-        )
         uklad.addWidget(self.pole_odczytu, 1)
-        kopiuj = QPushButton("Kopiuj tekst")
+        kopiuj = QPushButton()
         self.btn_kopiuj = kopiuj
         kopiuj.clicked.connect(
             lambda: QApplication.clipboard().setText(self.pole_odczytu.toPlainText())
         )
         uklad.addWidget(kopiuj)
-        self.btn_analizuj_z_odczytu = QPushButton("Analizuj tekst przez AI (Ollama)")
+        self.btn_analizuj_z_odczytu = QPushButton()
         self.btn_analizuj_z_odczytu.clicked.connect(self._start_analizy)
         uklad.addWidget(self.btn_analizuj_z_odczytu)
         return panel
@@ -1979,7 +1971,7 @@ class OknoGlowne(QMainWindow):
                 if (self._dopasowanie_wzorca is not None
                         and self._dopasowanie_wzorca.poziom == "automatic"):
                     self._aktywny_wzorzec = self._dopasowanie_wzorca.wzorzec
-            except (OSError, ValueError) as error:
+            except (OSError, ValueError):
                 self.info_wzorca.setText(t("patterns.load_error"))
                 self._status("patterns.load_error")
                 return
@@ -2092,14 +2084,14 @@ class OknoGlowne(QMainWindow):
         panel = QWidget()
         uklad = QVBoxLayout(panel)
         uklad.setContentsMargins(8, 10, 8, 10)
-        opis = QLabel("Wybierz zaimportowany dokument, aby go otworzyć lub uzupełnić.")
+        opis = QLabel()
         self.hint_listy = opis
         opis.setWordWrap(True)
         uklad.addWidget(opis)
         self.lista_dokumentow = QListWidget()
         self.lista_dokumentow.itemClicked.connect(self._wybierz_z_listy)
         uklad.addWidget(self.lista_dokumentow)
-        przycisk = QPushButton("Odśwież listę")
+        przycisk = QPushButton()
         self.btn_odswiez = przycisk
         przycisk.clicked.connect(self._odswiez_liste)
         uklad.addWidget(przycisk)
@@ -2225,10 +2217,9 @@ class OknoGlowne(QMainWindow):
         self.podglad.otworz(sciezka)
         dokument = self.rejestr.dokument(dokument_id)
         self.aktualny_dokument_id = dokument_id
-        self._message(self.nazwa_dokumentu, "doc.original", name=dokument["nazwa_zrodlowa"])
         zapis = self.rejestr.rachunek(dokument_id)
         self._wyczysc_formularz()
-        self.nazwa_dokumentu.setText("Oryginał: " + dokument["nazwa_zrodlowa"])
+        self._message(self.nazwa_dokumentu, "doc.original", name=dokument["nazwa_zrodlowa"])
         if zapis is not None:
             self.ed_dostawca.setText(zapis["dostawca"])
             self.ed_numer.setText(zapis["numer"])
@@ -2391,7 +2382,7 @@ class OknoGlowne(QMainWindow):
             self.btn_proponuj_wzorzec.show()
             self.info_propozycji_wzorca.show()
             self._aktualizuj_tekst_propozycji()
-            self.info_faktury.setText(t("invoice.saved"))
+            self._message(self.info_faktury, "invoice.saved")
             self._status("msg.saved")
         except (BrakDatyWystawienia, BrakDatyOplacenia) as blad:
             wystawienia = isinstance(blad, BrakDatyWystawienia)

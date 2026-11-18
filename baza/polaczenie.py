@@ -48,12 +48,27 @@ def polacz(sciezka: Path) -> sqlite3.Connection:
 
     db = sqlite3.connect(sciezka, timeout=10, isolation_level=None)
     try:
+        db.execute("PRAGMA trusted_schema = OFF")
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
         db.execute("PRAGMA busy_timeout = 10000")
         db.execute("PRAGMA synchronous = FULL")
         # Prosty plik bazy ułatwia późniejsze spójne kopie przy użyciu backup API.
         db.execute("PRAGMA journal_mode = DELETE")
+        return db
+    except BaseException:
+        db.close()
+        raise
+
+
+def polacz_tylko_odczyt(sciezka: Path) -> sqlite3.Connection:
+    uri = Path(sciezka).resolve().as_uri() + "?mode=ro"
+    db = sqlite3.connect(uri, uri=True, isolation_level=None, timeout=5)
+    try:
+        db.execute("PRAGMA trusted_schema = OFF")
+        db.execute("PRAGMA query_only = ON")
+        db.execute("PRAGMA foreign_keys = ON")
+        db.row_factory = sqlite3.Row
         return db
     except BaseException:
         db.close()

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 from baza.migracje import zastosuj_migracje
 from baza.polaczenie import polacz
-from uslugi.analiza_llm import POLA, AnalizaModelu, OcenaPola, analizuj_lokalnie, ocena_json, schemat_json
+from uslugi.analiza_llm import POLA, AnalizaModelu, analizuj_lokalnie, ocena_json, schemat_json
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow
 from uslugi.walidacja import poprawny_iban, zweryfikuj_numer_konta
 
@@ -115,10 +115,10 @@ class TestTransport(unittest.TestCase):
     def test_lokalne_api_bez_proxy_i_bez_zapisu(self):
         zwrot = {"message": {"content": json.dumps(odpowiedz_demo(), ensure_ascii=False)}}
         handler = MagicMock()
-        handler.open.return_value.__enter__.return_value = io.BytesIO(
+        handler.open.return_value = io.BytesIO(
             json.dumps(zwrot, ensure_ascii=False).encode("utf-8")
         )
-        with patch("uslugi.analiza_llm.build_opener", return_value=handler) as opener:
+        with patch("ai_core.ollama.build_opener", return_value=handler) as opener:
             analiza = analizuj_lokalnie(DANE, KATEGORIE)
         self.assertIsInstance(analiza, AnalizaModelu)
         self.assertEqual(analiza.model, "gemma3:4b")

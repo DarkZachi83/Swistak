@@ -95,11 +95,11 @@ class TestPostepAgenta(unittest.TestCase):
         fake_fields = {name: {"wartosc": None, "dowod": None} for name in POLA}
         response = {"message": {"content": json.dumps(fake_fields)}}
         handler = MagicMock()
-        handler.open.return_value.__enter__.return_value = io.BytesIO(
+        handler.open.return_value = io.BytesIO(
             json.dumps(response).encode("utf-8")
         )
         stages = []
-        with patch("uslugi.analiza_llm.build_opener", return_value=handler):
+        with patch("ai_core.ollama.build_opener", return_value=handler):
             result = analizuj_lokalnie(
                 "FAKTURA FIKCYJNA. Kwota nieznana.",
                 ["Inne"], postep=stages.append,

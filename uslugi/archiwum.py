@@ -90,9 +90,9 @@ class MagazynDokumentow:
             cel.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             try:
                 _opublikuj_pdf(temp, cel)
-            except FileExistsError:
+            except FileExistsError as blad:
                 if not cel.is_file() or suma_pliku(cel) != skrot:
-                    raise BladArchiwum("Archiwalny PDF nie zgadza się z sumą SHA-256")
+                    raise BladArchiwum("Archiwalny PDF nie zgadza się z sumą SHA-256") from blad
             return PlikArchiwalny(skrot, wzgledna.as_posix(), rozmiar, zrodlo.name)
         finally:
             temp.unlink(missing_ok=True)

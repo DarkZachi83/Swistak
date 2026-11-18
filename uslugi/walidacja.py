@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-"""Deterministyczna kontrola IBAN/NRB, niezależna od lokalnego LLM."""
+"""Deterministyczna kontrola IBAN/NRB i NIP, niezależna od lokalnego LLM."""
 from __future__ import annotations
 
 import re
@@ -41,3 +41,13 @@ def zweryfikuj_numer_konta(wartosc: str) -> str:
             "Sprawdź go z oryginalnym rachunkiem."
         )
     return numer
+
+
+def normalizuj_nip(value: str) -> str | None:
+    """Zwróć 10 cyfr tylko dla NIP-u z poprawną sumą kontrolną."""
+    digits = re.sub(r"[\s-]", "", value)
+    if not re.fullmatch(r"[0-9]{10}", digits) or digits == "0000000000":
+        return None
+    factors = (6, 5, 7, 2, 3, 4, 5, 6, 7)
+    check = sum(int(a) * w for a, w in zip(digits, factors)) % 11
+    return digits if check == int(digits[-1]) else None

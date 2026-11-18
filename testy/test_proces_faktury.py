@@ -86,6 +86,10 @@ class TestProcesFaktury(unittest.TestCase):
                     win.zapisz_przycisk.click()
                     self.assertEqual(db.rachunek(document_id)["kwota_grosze"], 8967)
                     self.assertIn("zapisana", win.info_faktury.text())
+                    win.change_language("en")
+                    self.assertIn("has been saved", win.info_faktury.text())
+                    win.change_language("pl")
+                    self.assertIn("zapisana", win.info_faktury.text())
                     win.close()
             finally:
                 db.zamknij()

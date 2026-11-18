@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QThreadPool
 from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QLabel, QMessageBox, QPlainTextEdit,
-    QPushButton, QVBoxLayout,
+    QVBoxLayout,
 )
 
 from gui.qr_worker import ZadanieQR

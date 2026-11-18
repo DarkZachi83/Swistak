@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView,
 )
 
+from i18n import t
 from uslugi.geometria import Zaznaczenie, ogranicz, zaznaczenie_z_pikseli
 
 
@@ -60,14 +61,14 @@ class PodgladPDF(QGraphicsView):
     def otworz(self, sciezka: str | Path) -> None:
         sciezka = Path(sciezka).expanduser()
         if not sciezka.is_file():
-            raise FileNotFoundError(f"Nie znaleziono dokumentu: {sciezka}")
+            raise FileNotFoundError(t("doc.error_missing", path=sciezka))
         self._pdf.close()
         self._obraz.setPixmap(QPixmap())
         self._prostokat.hide()
         self.zaznaczono.emit(None)
         self._pdf.load(str(sciezka))
         if self._pdf.status() != QPdfDocument.Status.Ready or self._pdf.pageCount() < 1:
-            raise ValueError("Nie można wczytać PDF (uszkodzony lub zabezpieczony hasłem).")
+            raise ValueError(t("doc.error_open"))
         self.pokaz_strone(0)
 
     def pokaz_strone(self, numer: int) -> None:
@@ -81,7 +82,7 @@ class PodgladPDF(QGraphicsView):
         wys = max(1, round(rozmiar.height() * skala))
         obraz = self._pdf.render(numer, QSize(szer, wys))
         if obraz.isNull():
-            raise ValueError(f"Nie udało się wyrenderować strony {numer + 1}")
+            raise ValueError(t("doc.error_render", page=numer + 1))
 
         # Qt PDF może zwrócić obraz z przezroczystym tłem. Na ciemnym motywie
         # czarny tekst staje się wtedy niemal niewidoczny. Renderujemy więc

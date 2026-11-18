@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.build_linux_beta import ARCHIVE_NAME, ARCHIVE_ROOT, ROOT, build, manifest
+from tools.build_linux_beta import ARCHIVE_NAME, ARCHIVE_ROOT, build, manifest
 from wersja import __version__, DISPLAY_VERSION
 
 

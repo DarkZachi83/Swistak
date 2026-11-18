@@ -11,12 +11,12 @@ import json
 
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox,
-    QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPlainTextEdit,
+    QLabel, QLineEdit, QMessageBox, QPlainTextEdit,
     QScrollArea, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from i18n import t
-from uslugi.wzorce import POLA_WZORCA, zatwierdz_strukture
+from uslugi.wzorce import zatwierdz_strukture
 
 # W tej samej kolejności co pola prezentowane przez analizę Gemmy.
 POLA_FORMULARZA = (
@@ -49,7 +49,7 @@ def _tekst_wieloliniowy(value: list[str], height: int = 74) -> QPlainTextEdit:
 class DialogWzorca(QDialog):
     def __init__(self, parent, proposed: dict, *, aktualizacja: bool = False):
         super().__init__(parent)
-        self.wejscie = zatwierdz_strukture(proposed)
+        self.wejscie = zatwierdz_strukture(proposed, starszy_nip=aktualizacja)
         self.zatwierdzone: dict | None = None
         self.setWindowTitle(t(
             "patterns.dialog.update" if aktualizacja else "patterns.dialog.new"

@@ -6,6 +6,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
+from uslugi.walidacja import normalizuj_nip
 from uslugi.wzorce import nowy_wzorzec
 
 # Wyłącznie stałe publiczne etykiety, bez fragmentów nabywcy ani numerów kont.
@@ -31,15 +32,6 @@ def uprosc(value: str) -> str:
     norm = unicodedata.normalize("NFKD", value.casefold())
     norm = "".join(ch for ch in norm if not unicodedata.combining(ch))
     return " ".join(re.sub(r"[^\w]+", " ", norm).split())
-
-
-def normalizuj_nip(value: str) -> str | None:
-    digits = re.sub(r"[\s-]", "", value)
-    if not re.fullmatch(r"\d{10}", digits) or digits == "0000000000":
-        return None
-    factors = (6, 5, 7, 2, 3, 4, 5, 6, 7)
-    check = sum(int(a) * w for a, w in zip(digits, factors)) % 11
-    return digits if check != 10 and check == int(digits[-1]) else None
 
 
 def sprzedawca_fragment(tekst: str) -> str:
@@ -88,7 +80,8 @@ def dopasuj(tekst: str, wzorce: list[dict]) -> Dopasowanie | None:
         if template["status"] != "approved":
             continue
         ident = template["identification"]
-        nip_wzorca, nip_tekst = ident["seller_nip"], cechy["seller_nip"]
+        nip_wzorca = normalizuj_nip(ident["seller_nip"] or "")
+        nip_tekst = cechy["seller_nip"]
         if nip_wzorca and nip_tekst and nip_wzorca != nip_tekst:
             continue  # sprzeczny NIP blokuje dopasowanie
         nip_ok = bool(nip_wzorca and nip_tekst and nip_wzorca == nip_tekst)

@@ -84,7 +84,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
                 with patch.object(ustawienia, "path_settings",
                                   return_value=home / "settings.json"):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
-                    doc = self._use_fake_invoice(home, reg)
+                    self._use_fake_invoice(home, reg)
                     reg.dodaj_kategorie("Wlasna testowa")
                     (data / "wzorce").mkdir()
                     (data / "wzorce" / "fikcyjny.json").write_text('{"demo":true}')

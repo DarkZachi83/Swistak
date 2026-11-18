@@ -52,7 +52,7 @@ class AgentOrchestrator:
                     raise TaskCancelled("Zadanie zostało anulowane")
                 try:
                     result = self._invoke(provider, binding.model_id, task, progress, session)
-                except ModelUnavailable:
+                except ModelUnavailable as blad:
                     backup = self.router.fallback_main(task["role"])
                     if backup is None:
                         raise
@@ -60,7 +60,7 @@ class AgentOrchestrator:
                     with self._lock:
                         self._active[task_id] = provider
                     if self._is_cancelled(task_id):
-                        raise TaskCancelled("Zadanie zostało anulowane")
+                        raise TaskCancelled("Zadanie zostało anulowane") from blad
                     result = self._invoke(provider, binding.model_id, task, progress, session)
                 if self._is_cancelled(task_id):
                     raise TaskCancelled("Wynik anulowanego zadania został odrzucony")

@@ -88,6 +88,14 @@ def _data(tekst: str) -> str | None:
 class RejestrRachunkow:
     def __init__(self, katalog: Path | None = None):
         self.katalog = Path(katalog if katalog is not None else katalog_danych()).resolve()
+        self._otworz()
+
+    def otworz_ponownie(self) -> None:
+        """Otwórz bazę z tego samego katalogu po podmianie lub jej cofnięciu."""
+        self.zamknij()
+        self._otworz()
+
+    def _otworz(self) -> None:
         # Awaria między zmianą nazw przy przywracaniu mogłaby sprawić, że
         # brakujący katalog zostałby pomylony z pierwszym uruchomieniem.
         # Nie twórz pustej bazy, gdy obok leży zachowany stary katalog.

@@ -7,7 +7,6 @@ import tempfile
 import tarfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 import tools.build_linux_binary as binary
 from wersja import __version__

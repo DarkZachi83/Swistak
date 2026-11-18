@@ -78,7 +78,7 @@ def analizuj_przez_ai_core(
                 messages=request["messages"], schema=request["format"],
                 timeout=timeout,
             )
-        except ModelUnavailable:
+        except ModelUnavailable as blad:
             fallback = router.fallback_main("extractor")
             if fallback is None:
                 raise
@@ -90,7 +90,7 @@ def analizuj_przez_ai_core(
                 podlacz_provider(active_provider, task_id)
             if przerwij is not None and przerwij.is_set():
                 active_provider.cancel(task_id)
-                raise TaskCancelled("Anulowano analizę")
+                raise TaskCancelled("Anulowano analizę") from blad
             values = active_provider.generate_structured(
                 task_id=task_id, model_id=binding.model_id,
                 messages=request["messages"], schema=request["format"],

@@ -2,15 +2,17 @@
 """Etap 2 AI Core — syntetyczne SQLite, Tool Gateway i symulowana Ollama."""
 from __future__ import annotations
 
-import copy
+import hashlib
 import json
+import os
 import sqlite3
 import tempfile
 import threading
 import unittest
-from datetime import date
+from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from ai_core import AgentOrchestrator, ModelBinding, ModelRouter, OllamaProvider, ToolGateway
 from ai_core.contracts import sanitize_result
@@ -89,6 +91,40 @@ class TestToolGateway(unittest.TestCase):
 
     def execute(self, session, name, args, call_id="x1"):
         return session.execute(tool_call(self.task, name, args, call_id))
+
+    def test_wersja_bazy_korzysta_z_cache_i_wykrywa_zapis_oraz_podmiane(self):
+        gateway = ToolGateway(self.gateway.database_path)
+        path = gateway.database_path
+        pierwsza = "db:" + hashlib.sha256(path.read_bytes()).hexdigest()
+        with patch("ai_core.gateway.hashlib.sha256", wraps=hashlib.sha256) as hasz:
+            self.assertEqual(gateway.revision(), pierwsza)
+            self.assertEqual(gateway.revision(), pierwsza)
+            self.assertEqual(hasz.call_count, 1)
+
+            # Zapis SQLite zmienia nagłówek także przy stałych metadanych nośnika.
+            with patch.object(gateway, "_file_stamp", return_value=(0,)):
+                zapis = gateway.revision()
+                self.register.dodaj_kategorie("Nowa kategoria DEMO")
+                po_zapisie = gateway.revision()
+            self.assertNotEqual(zapis, po_zapisie)
+
+            with tempfile.TemporaryDirectory(dir=path.parent) as temp:
+                nowy = Path(temp) / "swistak.sqlite3"
+                with closing(sqlite3.connect(nowy)) as kopia:
+                    self.register.db.backup(kopia)
+                    kopia.execute("UPDATE kategorie SET nazwa='Zastąpiona DEMO' WHERE id=1")
+                    kopia.commit()
+                self.register.zamknij()
+                try:
+                    os.replace(nowy, path)
+                finally:
+                    self.register.otworz_ponownie()
+            self.assertNotEqual(gateway.revision(), po_zapisie)
+
+    def test_sesja_sqlite_wylacza_zaufanie_do_schematu(self):
+        with self.gateway.session(self.task) as session:
+            self.assertEqual(session.db.execute("PRAGMA trusted_schema").fetchone()[0], 0)
+            self.assertEqual(session.db.execute("PRAGMA query_only").fetchone()[0], 1)
 
     def test_faktury_i_filtry_i_pozycje(self):
         self.task["allowed_tools"] = ["invoice.search", "invoice.details", "invoice.lines"]

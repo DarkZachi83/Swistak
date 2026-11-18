@@ -6,7 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from uslugi.modele_lokalne import (
     BladOllama, modele_na_dysku, modele_ollama, znane_lokalizacje,

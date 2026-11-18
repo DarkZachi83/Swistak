@@ -8,9 +8,10 @@ import unittest
 from pathlib import Path
 
 from uslugi.dopasowanie_wzorca import (
-    cechy_dokumentu, dopasuj, normalizuj_nip, zaproponuj_wzorzec,
+    cechy_dokumentu, dopasuj, zaproponuj_wzorzec,
 )
-from uslugi.wzorce import MagazynWzorcow, nowy_wzorzec, zatwierdz_strukture
+from uslugi.walidacja import normalizuj_nip
+from uslugi.wzorce import MagazynWzorcow, zatwierdz_strukture
 
 
 NIP_DEMO = "1234563218"  # testowo poprawna suma kontrolna, fikcyjny sprzedawca
@@ -71,6 +72,32 @@ class TestMagazynWzorcow(unittest.TestCase):
             self.assertEqual(inactive["status"], "inactive")
             self.assertEqual(store.lista(tylko_aktywne=True), [])
             self.assertEqual(len(store.lista()), 1)
+
+    def test_nip_ze_zla_suma_kontrolna_wymaga_poprawki_przy_zapisie(self):
+        data = kandydat()
+        data["identification"]["seller_nip"] = "1234563217"
+        with tempfile.TemporaryDirectory() as temp:
+            store = MagazynWzorcow(Path(temp))
+            with self.assertRaisesRegex(ValueError, "sumę kontrolną"):
+                store.utworz(data)
+
+            # Wzorzec utworzony przez starszego Świstaka pozostaje edytowalny.
+            data["identification"]["seller_nip"] = NIP_DEMO
+            store.utworz(data)
+            id_ = data["template_id"]
+            data["identification"]["seller_nip"] = "1234563217"
+            (store.katalog / (id_ + ".json")).write_text(json.dumps(data), encoding="utf-8")
+            stary = store.pobierz(id_)
+            self.assertEqual(stary["identification"]["seller_nip"], "1234563217")
+            dopasowanie = dopasuj(TEKST, [stary])
+            self.assertIsNotNone(dopasowanie)
+            self.assertEqual(dopasowanie.poziom, "suggest")
+            with self.assertRaisesRegex(ValueError, "sumę kontrolną"):
+                store.aktualizuj(id_, stary, expected_revision=1)
+            stary["identification"]["seller_nip"] = NIP_DEMO
+            zapisany = store.aktualizuj(id_, stary, expected_revision=1)
+            self.assertEqual(zapisany["revision"], 2)
+            self.assertEqual(dopasuj(TEKST, [zapisany]).poziom, "automatic")
 
     def test_nie_przyjmuje_surowych_danych_rachunku(self):
         data = kandydat()

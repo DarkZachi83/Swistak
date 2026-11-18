@@ -55,7 +55,7 @@ class TestCzyszczenieBazy(unittest.TestCase):
         self.assertEqual(self.reg.rachunek(doc_id)["kwota_grosze"], 1000)
         self.reg.zamknij()
         previous = podmien_na_pusta(self.root, stage)
-        self.reg.__init__(self.root)
+        self.reg.otworz_ponownie()
         self.assertEqual(self.reg.db.execute("SELECT COUNT(*) FROM dokumenty").fetchone()[0], 0)
         self.assertEqual(self.reg.db.execute("SELECT COUNT(*) FROM rachunki").fetchone()[0], 0)
         self.assertEqual(len(self.reg.kategorie()), 6)
@@ -95,7 +95,7 @@ class TestCzyszczenieBazy(unittest.TestCase):
         with patch("uslugi.czyszczenie_bazy.os.replace", side_effect=fail_second_move):
             with self.assertRaises(OSError):
                 podmien_na_pusta(self.root, stage)
-        self.reg.__init__(self.root)
+        self.reg.otworz_ponownie()
         self.assertEqual(self.reg.rachunek(doc_id)["kwota_grosze"], 1000)
         self.assertEqual(self.reg.db.execute("SELECT COUNT(*) FROM dokumenty").fetchone()[0], 1)
 
@@ -113,7 +113,7 @@ class TestCzyszczenieBazy(unittest.TestCase):
         self.reg.zamknij()
         previous = podmien_na_pusta(self.root, stage)
         cofnij_podmiane(self.root, previous)
-        self.reg.__init__(self.root)
+        self.reg.otworz_ponownie()
         self.assertEqual(self.reg.rachunek(doc_id)["kwota_grosze"], 1000)
 
 

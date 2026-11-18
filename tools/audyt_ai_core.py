@@ -105,7 +105,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Audyt AI Core 1.0 i pakowania")
     parser.add_argument("--check", action="store_true",
                         help="Zgłoś błąd, jeśli niezgodne są kontrakty lub paczki")
-    args = parser.parse_args()
+    parser.parse_args()
     try:
         report = run_audit()
     except (ValueError, OSError, KeyError, TypeError) as exc:

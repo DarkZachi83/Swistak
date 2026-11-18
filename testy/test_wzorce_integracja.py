@@ -50,10 +50,10 @@ class TestWzorzecGemma(unittest.TestCase):
             )}
         }
         handler = MagicMock()
-        handler.open.return_value.__enter__.return_value = io.BytesIO(
+        handler.open.return_value = io.BytesIO(
             json.dumps(mocked_result).encode("utf-8")
         )
-        with patch("uslugi.analiza_llm.build_opener", return_value=handler):
+        with patch("ai_core.ollama.build_opener", return_value=handler):
             analizuj_lokalnie(TEKST, ["Internet", "Inne"],
                             model="model-test:1", wzorzec=template)
         request = handler.open.call_args.args[0]

@@ -65,9 +65,13 @@ Oficjalne źródła:
 
 ## Budowanie lokalnie
 
+`requirements-linux-binary.lock` przypina zależności programu i narzędzia
+budowania wraz z ich zależnościami pośrednimi dla Linuksa x86-64,
+Pythona 3.11 i Ubuntu 22.04. Instrukcja odświeżenia listy jest w nagłówku pliku.
+
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt -r requirements-build.txt
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -r requirements-linux-binary.lock
 .venv/bin/python -m tools.build_linux_binary
 ```
 

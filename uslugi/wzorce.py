@@ -15,6 +15,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from uslugi.walidacja import normalizuj_nip
+
 SCHEMA_VERSION = 1
 ID_RE = re.compile(r"^wz-[0-9a-f]{32}$")
 POLA_WZORCA = frozenset((
@@ -49,7 +51,7 @@ def _lista(value: object, max_count: int, limit: int, label: str) -> list[str]:
     return list(dict.fromkeys(values))
 
 
-def zatwierdz_strukture(document: dict) -> dict:
+def zatwierdz_strukture(document: dict, *, starszy_nip: bool = False) -> dict:
     """Biała lista kluczy; nie wolno przemycać danych nabywcy lub rachunku."""
     if not isinstance(document, dict) or set(document) != KLUCZE:
         raise ValueError("Nieprawidłowy zestaw kluczy wzorca")
@@ -74,6 +76,8 @@ def zatwierdz_strukture(document: dict) -> dict:
     nip = ident["seller_nip"]
     if nip is not None and (not isinstance(nip, str) or not re.fullmatch(r"\d{10}", nip)):
         raise ValueError("NIP sprzedawcy musi mieć 10 cyfr")
+    if nip is not None and not starszy_nip and normalizuj_nip(nip) is None:
+        raise ValueError("NIP sprzedawcy ma nieprawidłową sumę kontrolną")
     ident["seller_aliases"] = _lista(ident["seller_aliases"], 12, 120, "Aliasy sprzedawcy")
     ident["layout_labels"] = _lista(ident["layout_labels"], 20, 80, "Etykiety układu")
     if nip is None and not ident["seller_aliases"]:
@@ -136,7 +140,9 @@ class MagazynWzorcow:
             raise FileNotFoundError("Nie znaleziono bezpiecznego pliku wzorca")
         if path.stat().st_size > MAX_JSON:
             raise ValueError("Zbyt duży plik wzorca")
-        return zatwierdz_strukture(json.loads(path.read_text(encoding="utf-8")))
+        return zatwierdz_strukture(
+            json.loads(path.read_text(encoding="utf-8")), starszy_nip=True,
+        )
 
     def pobierz(self, template_id: str) -> dict:
         data = self._read(self._path(template_id))
@@ -226,7 +232,7 @@ class MagazynWzorcow:
 
 def wskazowki_dla_modelu(approved: dict) -> str:
     """Przekazuj wyłącznie zatwierdzone reguły, nigdy dane z minionej faktury."""
-    data = zatwierdz_strukture(approved)
+    data = zatwierdz_strukture(approved, starszy_nip=True)
     if data["status"] != "approved":
         raise ValueError("Nie wolno używać nieaktywnego wzorca")
     rules = {
