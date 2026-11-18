@@ -122,24 +122,25 @@ class TestInterfejsWzorcow(unittest.TestCase):
                     ustawienia.save({"language": "pl", "ollama_model": "model-test:1"})
                     win = OknoGlowne(db)
                     kreator = win.kreator
+                    analiza = kreator.analiza
                     formularz = kreator.formularz
                     win.show()
                     self.app.processEvents()
                     win.otworz_pdf(pdf)
                     doc_id = kreator.aktualny_dokument_id
-                    kreator.pole_odczytu.setPlainText(TEKST)
-                    kreator._wykryj_wzorzec(TEKST)
-                    self.assertIsNone(kreator._aktywny_wzorzec)
+                    kreator.odczyt.pole_odczytu.setPlainText(TEKST)
+                    analiza.wykryj_wzorzec()
+                    self.assertIsNone(analiza._aktywny_wzorzec)
                     formularz.ed_dostawca.setText("Operator Sieci DEMO")
                     formularz.ed_kwota.setText("42,00")
                     formularz.ed_wystawiono.setText("2026-11-02")
                     formularz.wybor_kategoria.setCurrentIndex(
                         formularz.wybor_kategoria.findData(kat_id)
                     )
-                    kreator._komentarze_wzorca["termin_platnosci"] = (
+                    analiza._komentarze_wzorca["termin_platnosci"] = (
                         "Termin znajduje się w górnej części."
                     )
-                    kreator.notatki_wzorca.setPlainText(
+                    analiza.notatki_wzorca.setPlainText(
                         "Nie myl numeru klienta z numerem faktury."
                     )
                     kreator.karty.setCurrentIndex(kreator.ETAP_FAKTURA)
@@ -149,12 +150,12 @@ class TestInterfejsWzorcow(unittest.TestCase):
                     store = MagazynWzorcow(db.katalog)
                     self.assertEqual(store.lista(), [])  # zapis faktury ≠ zapis wzorca
 
-                    with patch("gui.kreator_faktury.zaakceptuj_wzorzec",
+                    with patch("gui.zakladka_analizy.zaakceptuj_wzorzec",
                                return_value=None):
                         kreator._zaproponuj_zapis_wzorca()
                     self.assertEqual(store.lista(), [])  # anulowanie dialogu
 
-                    with patch("gui.kreator_faktury.zaakceptuj_wzorzec",
+                    with patch("gui.zakladka_analizy.zaakceptuj_wzorzec",
                                side_effect=lambda parent, candidate, **kw: candidate):
                         kreator._zaproponuj_zapis_wzorca()
                     templates = store.lista()
@@ -169,10 +170,10 @@ class TestInterfejsWzorcow(unittest.TestCase):
                     self.assertNotIn("42,00", json.dumps(item))
                     self.assertNotIn("Nabywca WYŁĄCZNIE TESTOWY", json.dumps(item))
 
-                    kreator.notatki_wzorca.setPlainText(
+                    analiza.notatki_wzorca.setPlainText(
                         "Zachowaj daty w formacie RRRR-MM-DD."
                     )
-                    with patch("gui.kreator_faktury.zaakceptuj_wzorzec",
+                    with patch("gui.zakladka_analizy.zaakceptuj_wzorzec",
                                side_effect=lambda parent, candidate, **kw: candidate):
                         kreator._zaproponuj_zapis_wzorca()
                     updated = store.pobierz(item["template_id"])
@@ -182,11 +183,11 @@ class TestInterfejsWzorcow(unittest.TestCase):
                         f"{item['template_id']}.rev-000001.json").is_file())
                     self.assertEqual(db.rachunek(doc_id)["kwota_grosze"], 4200)
                     # Po kolejnym OCR dopasuje zatwierdzony wzorzec.
-                    kreator._wykryj_wzorzec(TEKST)
-                    self.assertEqual(kreator._dopasowanie_wzorca.poziom, "automatic")
-                    self.assertEqual(kreator._aktywny_wzorzec["revision"], 2)
-                    with patch("gui.kreator_faktury.QThreadPool.globalInstance") as pool:
-                        kreator._start_analizy()
+                    analiza.wykryj_wzorzec()
+                    self.assertEqual(analiza._dopasowanie_wzorca.poziom, "automatic")
+                    self.assertEqual(analiza._aktywny_wzorzec["revision"], 2)
+                    with patch("gui.zakladka_analizy.QThreadPool.globalInstance") as pool:
+                        analiza.uruchom()
                         pool.return_value.start.assert_called_once()
                         job = pool.return_value.start.call_args.args[0]
                         self.assertEqual(job.wzorzec["template_id"],

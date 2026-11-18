@@ -248,7 +248,7 @@ class TestPulpit(unittest.TestCase):
         kreator.karty.setCurrentIndex(kreator.ETAP_EDYCJA)
         kreator.podglad.pokaz_strone(1)
         kreator.formularz.ed_kwota.setText("123,45")
-        kreator.pole_odczytu.setPlainText("Tekst z OCR")
+        kreator.odczyt.pole_odczytu.setPlainText("Tekst z OCR")
 
         QTest.mouseClick(nav["dashboard"], Qt.MouseButton.LeftButton)
         window.change_language("en")
@@ -264,7 +264,7 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(kreator.podglad.strona, 1)
         self.assertEqual(kreator.podglad.liczba_stron, 2)
         self.assertEqual(kreator.formularz.ed_kwota.text(), "123,45")
-        self.assertEqual(kreator.pole_odczytu.toPlainText(), "Tekst z OCR")
+        self.assertEqual(kreator.odczyt.pole_odczytu.toPlainText(), "Tekst z OCR")
         self.assertEqual(kreator.nawigacja.count(), 5)
 
     def test_plan_i_historia_otwieraja_wlasciwe_ekrany(self):
@@ -492,13 +492,13 @@ class TestPulpit(unittest.TestCase):
         window = self.okno()
         kreator = window.kreator
         kreator.aktualny_dokument_id = 25
-        kreator.pole_odczytu.setPlainText("Pełny tekst DEMO")
+        kreator.odczyt.pole_odczytu.setPlainText("Pełny tekst DEMO")
         kreator.karty.setCurrentIndex(kreator.ETAP_ANALIZA)
         with patch.object(QMessageBox, "warning") as ostrzezenie:
-            kreator._analiza_blad(25, ExtractionContextExceeded.code)
+            kreator.analiza._analiza_blad(25, ExtractionContextExceeded.code)
         self.assertIn("Odczytaj zaznaczenie", ostrzezenie.call_args.args[2])
         self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_ODCZYT)
-        self.assertEqual(kreator.pole_odczytu.toPlainText(), "Pełny tekst DEMO")
+        self.assertEqual(kreator.odczyt.pole_odczytu.toPlainText(), "Pełny tekst DEMO")
 
     def test_otwarcie_faktury_agenta_nie_porzuca_formularza_bez_zgody(self):
         window = self.okno()

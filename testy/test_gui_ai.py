@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from testy.pomoc_qt import zamknij_widget
 from gui.okno_glowne import OknoGlowne
 from uslugi.analiza_llm import POLA, AnalizaModelu, ocena_json
+from uslugi.odczyt_pdf import TekstStrony, WynikOdczytu
 from uslugi.rachunki import RejestrRachunkow
 
 
@@ -35,6 +36,8 @@ class TestInterfejsAI(unittest.TestCase):
                 okno = OknoGlowne(rejestr)
                 kreator = okno.kreator
                 formularz = kreator.formularz
+                odczyt = kreator.odczyt
+                analiza = kreator.analiza
                 okno.show()
                 self.app.processEvents()
                 okno.otworz_pdf(pdf_path)
@@ -42,19 +45,37 @@ class TestInterfejsAI(unittest.TestCase):
                 self.assertIsNotNone(dokument_id)
                 self.assertIsNone(rejestr.rachunek(dokument_id))
 
-                tekst = (
+                tresc_strony = (
                     "Sprzedawca: Zakład DEMO\n"
                     "Kwota do zapłaty: 189,50 PLN\n"
                     "Usługa: gaz\n"
                     "Termin płatności: 2026-12-01\n"
                 )
-                kreator.pole_odczytu.setPlainText(tekst)
-                kreator._aktualizuj_odczyt()
-                self.assertTrue(kreator.btn_analizuj.isEnabled())
-                with patch("gui.kreator_faktury.QThreadPool.globalInstance") as pool:
-                    kreator._start_analizy()
-                    pool.return_value.start.assert_called_once()
-                self.assertFalse(kreator.btn_przenies.isEnabled())
+                wynik_odczytu = WynikOdczytu((TekstStrony(0, tresc_strony, "ocr"),))
+                tekst = wynik_odczytu.tekst_dla_llm
+                with patch("gui.zakladka_odczytu.QThreadPool.globalInstance") as pool:
+                    start = pool.return_value.start
+                    odczyt.btn_odczytaj.click()
+                    start.assert_called_once()
+                    zadanie_odczytu = start.call_args.args[0]
+                    self.assertTrue(odczyt.pracuje)
+                    self.assertFalse(analiza.btn_analizuj.isEnabled())
+                    odczyt.btn_anuluj.click()
+                    self.assertTrue(zadanie_odczytu.przerwij.is_set())
+                    zadanie_odczytu.sygnaly.anulowano.emit()
+                    self.assertTrue(odczyt.btn_odczytaj.isEnabled())
+
+                    odczyt.btn_odczytaj.click()
+                    start.call_args.args[0].sygnaly.gotowe.emit(wynik_odczytu)
+                    self.assertEqual(odczyt.tekst, tekst)
+                    self.assertTrue(analiza.btn_analizuj.isEnabled())
+                    odczyt.btn_analizuj_z_odczytu.click()
+                    self.assertEqual(start.call_count, 3)
+                    zadanie_analizy = start.call_args.args[0]
+                    self.assertEqual(zadanie_analizy.tekst, tekst)
+                    self.assertFalse(odczyt.btn_odczytaj.isEnabled())
+                    self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_ANALIZA)
+                self.assertFalse(analiza.btn_przenies.isEnabled())
                 self.assertIsNone(rejestr.rachunek(dokument_id))
 
                 dane = {p: {"wartosc": None, "dowod": None} for p in POLA}
@@ -76,16 +97,17 @@ class TestInterfejsAI(unittest.TestCase):
                 kategorie = [k["nazwa"] for k in rejestr.kategorie()]
                 oceny = ocena_json(dane, tekst, kategorie)
                 wynik = AnalizaModelu("gemma3:4b", oceny)
-                kreator._analiza_gotowa(dokument_id, wynik)
-                self.assertTrue(kreator.btn_przenies.isEnabled())
+                zadanie_analizy.sygnaly.gotowe.emit(dokument_id, wynik)
+                self.assertTrue(odczyt.btn_odczytaj.isEnabled())
+                self.assertTrue(analiza.btn_przenies.isEnabled())
                 self.assertIsNone(rejestr.rachunek(dokument_id))
 
                 with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No):
-                    kreator._przenies_sugestie()
+                    analiza.btn_przenies.click()
                 self.assertFalse(formularz.ed_dostawca.text())
                 self.assertIsNone(rejestr.rachunek(dokument_id))
                 with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
-                    kreator._przenies_sugestie()
+                    analiza.btn_przenies.click()
                 self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
                 self.assertEqual(formularz.ed_dostawca.text(), "Zakład DEMO")
                 self.assertEqual(formularz.ed_kwota.text(), "189,50")

@@ -67,8 +67,8 @@ class OknoGlowne(QMainWindow):
         self.moduly.addWidget(self.statystyki)
         self.kreator = KreatorFaktury(self.rejestr, self.prefs)
         self.kreator.pokaz_kreator.connect(self._pokaz_kreator)
-        self.kreator.pokaz_agenta.connect(self._agent_show_panel)
-        self.kreator.wybor_modelu.connect(self._wybierz_model_lokalny)
+        self.kreator.analiza.pokaz_agenta.connect(self._agent_show_panel)
+        self.kreator.analiza.wybor_modelu.connect(self._wybierz_model_lokalny)
         self.kreator.odswiez_dokumenty.connect(self._odswiez_liste)
         self.kreator.faktura_zapisana.connect(self._po_zapisie_faktury)
         self.kreator.status_zmieniony.connect(self._status_kreatora)
@@ -86,15 +86,15 @@ class OknoGlowne(QMainWindow):
         self.monitor = MonitorAgenta(
             self.rejestr.katalog / "swistak.sqlite3", self.prefs, self,
         )
-        self.kreator.ed_model.textChanged.connect(self.monitor.zmien_model)
+        self.kreator.analiza.model_zmieniony.connect(self.monitor.zmien_model)
         self.monitor.status_zmieniony.connect(self.pulpit.aktualizuj_agenta)
         self.monitor.panel.otworz_fakture.connect(self._otworz_fakture_agenta)
-        self.kreator.analiza_zadana.connect(self.monitor.przerwij_tlo)
+        self.kreator.analiza.analiza_zadana.connect(self.monitor.przerwij_tlo)
         self.moduly.addWidget(self.monitor.panel)
 
         self.ustawienia = Ustawienia(self.rejestr.katalog, self._zastosuj_ustawienia)
         self.ustawienia.btn_wzorce.clicked.connect(self.kreator.otworz_menedzer_wzorcow)
-        self.ustawienia.wczytaj(self.prefs, self.kreator.ed_model.text())
+        self.ustawienia.wczytaj(self.prefs, self.kreator.analiza.model)
         self.moduly.addWidget(self.ustawienia)
 
         self._build_menu()
@@ -371,7 +371,7 @@ class OknoGlowne(QMainWindow):
     def _wczytaj_ustawienia_modeli(self, prefs: dict[str, str]) -> None:
         self.prefs = prefs
         self.monitor.wczytaj_ustawienia(prefs)
-        self.kreator.wczytaj_ustawienia(prefs)
+        self.kreator.analiza.wczytaj_ustawienia(prefs)
 
     def _about(self) -> None:
         OknoOProgramie(self).exec()

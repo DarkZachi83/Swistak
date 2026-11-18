@@ -146,41 +146,42 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
                     ustawienia.save({"language": "pl", "ollama_model": "gemma3:4b"})
                     win = OknoGlowne(db)
                     kreator = win.kreator
+                    analiza = kreator.analiza
                     formularz = kreator.formularz
                     win.show()
                     self.app.processEvents()
                     win.otworz_pdf(pdf)
                     document_id = kreator.aktualny_dokument_id
                     self.assertIsNotNone(document_id)
-                    kreator.pole_odczytu.setPlainText(DEMO_TEKST)
-                    kreator._aktualizuj_odczyt()
+                    kreator.odczyt.pole_odczytu.setPlainText(DEMO_TEKST)
+                    kreator._aktualizuj_dostepnosc()
 
                     wynik = AnalizaModelu(
                         "mock-llm",
                         ocena_json(dane_demo(), DEMO_TEKST,
                                    [r["nazwa"] for r in db.kategorie()]),
                     )
-                    kreator._analiza_gotowa(document_id, wynik)
+                    analiza._analiza_gotowa(document_id, wynik)
                     row_date = POLA.index("data_wystawienia")
                     row_category = POLA.index("kategoria_sugerowana")
-                    self.assertTrue(kreator.tabela_ai.item(row_date, 1).flags()
+                    self.assertTrue(analiza.tabela_ai.item(row_date, 1).flags()
                                     & Qt.ItemFlag.ItemIsEditable)
-                    self.assertFalse(kreator.tabela_ai.item(row_date, 2).flags()
+                    self.assertFalse(analiza.tabela_ai.item(row_date, 2).flags()
                                      & Qt.ItemFlag.ItemIsEditable)
-                    self.assertEqual(kreator.tabela_ai.item(row_date, 1).text(),
+                    self.assertEqual(analiza.tabela_ai.item(row_date, 1).text(),
                                      "2026-11-03")
-                    self.assertFalse(kreator._analiza.oceny["kategoria_sugerowana"].poprawne)
+                    self.assertFalse(analiza._analiza.oceny["kategoria_sugerowana"].poprawne)
                     self.assertIsNone(db.rachunek(document_id))
 
                     # Po zmianie AI nie może uznać nowej daty bez dowodu.
-                    kreator.tabela_ai.item(row_date, 1).setText("04.11.2026")
-                    self.assertFalse(kreator._analiza.oceny["data_wystawienia"].poprawne)
-                    kreator.tabela_ai.setCurrentCell(row_date, 1)
+                    analiza.tabela_ai.item(row_date, 1).setText("04.11.2026")
+                    self.assertFalse(analiza._analiza.oceny["data_wystawienia"].poprawne)
+                    analiza.tabela_ai.setCurrentCell(row_date, 1)
                     with patch.object(QMessageBox, "question",
                                       return_value=QMessageBox.StandardButton.Yes):
-                        kreator._potwierdz_pole_ai()
-                    self.assertTrue(kreator._analiza.oceny["data_wystawienia"].poprawne)
-                    self.assertEqual(kreator.tabela_ai.item(row_date, 1).text(), "2026-11-04")
+                        analiza._potwierdz_pole_ai()
+                    self.assertTrue(analiza._analiza.oceny["data_wystawienia"].poprawne)
+                    self.assertEqual(analiza.tabela_ai.item(row_date, 1).text(), "2026-11-04")
 
                     # Nowa kategoria zdefiniowana przez użytkownika na ekranie AI.
                     kreator.karty.setCurrentIndex(kreator.ETAP_ANALIZA)
@@ -192,9 +193,9 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
                     with patch.object(DialogKategorie, "exec",
                                       utworz_fikcyjna_kategorie):
                         kreator._dodaj_kategorie()
-                    self.assertEqual(kreator.tabela_ai.item(row_category, 1).text(),
+                    self.assertEqual(analiza.tabela_ai.item(row_category, 1).text(),
                                      "Internet")
-                    self.assertTrue(kreator._analiza.oceny["kategoria_sugerowana"].poprawne)
+                    self.assertTrue(analiza._analiza.oceny["kategoria_sugerowana"].poprawne)
                     self.assertIn("Internet",
                                   [x["nazwa"] for x in db.kategorie()])
                     self.assertIsNone(db.rachunek(document_id))
@@ -202,7 +203,7 @@ class TestKorektaAIWInterfejsie(unittest.TestCase):
                     # Przeniesienie do edycji ≠ zapis faktury.
                     with patch.object(QMessageBox, "question",
                                       return_value=QMessageBox.StandardButton.Yes):
-                        kreator._przenies_sugestie()
+                        analiza._przenies_sugestie()
                     self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_EDYCJA)
                     self.assertEqual(formularz.ed_wystawiono.text(), "2026-11-04")
                     self.assertEqual(formularz.ed_dostawca.text(),

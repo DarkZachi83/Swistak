@@ -53,7 +53,7 @@ class TestProcesFaktury(unittest.TestCase):
                          "Faktura", "Dokumenty"]
                     )
                     self.assertEqual(kreator.karty.currentIndex(), kreator.ETAP_ODCZYT)
-                    self.assertEqual(kreator.tabela_ai.horizontalHeader().sectionResizeMode(2),
+                    self.assertEqual(kreator.analiza.tabela_ai.horizontalHeader().sectionResizeMode(2),
                                      QHeaderView.ResizeMode.Stretch)
 
                     win.otworz_pdf(pdf)

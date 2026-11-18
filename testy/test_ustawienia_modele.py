@@ -208,7 +208,7 @@ class TestModelSettingsGUI(unittest.TestCase):
                         box.buttons.button(QDialogButtonBox.StandardButton.Save).click()
                         self.assertEqual(ustawienia.load()["ollama_model"], "qwen3:8b")
                         self.assertEqual(ustawienia.load()["model_scan_dir"], scan_dir)
-                        self.assertEqual(win.kreator.ed_model.text(), "qwen3:8b")
+                        self.assertEqual(win.kreator.analiza.ed_model.text(), "qwen3:8b")
                         box.model.setEditText("another:1b")
                         box.buttons.button(QDialogButtonBox.StandardButton.Cancel).click()
                         self.assertEqual(box.model.currentText(), "qwen3:8b")
