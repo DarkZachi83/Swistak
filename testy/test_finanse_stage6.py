@@ -232,7 +232,6 @@ class TestGUIEtap6(FinanceStage6Fixture):
 
     def test_historia_ostrzega_przed_wczesna_platnoscia(self):
         dialog = DialogPlanHistoria(self.registry)
-        self.addCleanup(dialog.close)
         dialog.month.setCurrentText("2026-10")
         dialog.history_invoices.selectRow(0)
         ident = dialog._invoice()["id"]
@@ -251,6 +250,7 @@ class TestGUIEtap6(FinanceStage6Fixture):
         self.assertIsNone(self.db.execute(
             "SELECT data_oplacenia FROM rachunki WHERE id=?", (ident,),
         ).fetchone()[0])
+        dialog.close()
 
     def test_odmowa_potwierdzenia_miesiaca_nie_powoduje_zapisu(self):
         dialog=DialogPlanHistoria(self.registry)

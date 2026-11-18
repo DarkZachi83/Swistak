@@ -131,6 +131,20 @@ class TestFinanseEtap3(unittest.TestCase):
             self.finanse.ustaw_oplacona(ident, "2026-11-18")
         self.assertEqual(self.rejestr.rachunek(self.doc)["data_oplacenia"], "2026-11-18")
 
+    def test_zapis_starej_faktury_wymaga_skorygowania_przyszlej_platnosci(self):
+        ident = self.rejestr.zapisz_rachunek(self.invoice())
+        self.db.execute(
+            "UPDATE rachunki SET status='oplacony',data_oplacenia='2099-01-01' WHERE id=?",
+            (ident,),
+        )
+        with self.assertRaises(DataPlatnosciZPrzyszlosci):
+            self.rejestr.zapisz_rachunek(self.invoice(status="oplacony"), nadpisz_id=ident)
+        self.assertEqual(self.rejestr.rachunek(self.doc)["data_oplacenia"], "2099-01-01")
+        self.rejestr.zapisz_rachunek(
+            self.invoice(status="oplacony", data_oplacenia="2026-11-17"), nadpisz_id=ident,
+        )
+        self.assertEqual(self.rejestr.rachunek(self.doc)["data_oplacenia"], "2026-11-17")
+
     def test_edycja_legacy_przyjmuje_wylacznie_recznie_podana_date_platnosci(self):
         ident = self.rejestr.zapisz_rachunek(self.invoice())
         self.db.execute("UPDATE rachunki SET status='oplacony' WHERE id=?", (ident,))

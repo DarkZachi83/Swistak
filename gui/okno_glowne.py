@@ -2032,6 +2032,18 @@ class OknoGlowne(QMainWindow):
             data_oplacenia = self.ed_oplacono.text().strip() if status == "oplacony" else ""
             if status == "oplacony" and not data_oplacenia:
                 raise BrakDatyOplacenia("Wpisz datę opłacenia faktury")
+            wystawiono = self.ed_wystawiono.text().strip() or None
+            if data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono):
+                odpowiedz = QMessageBox.question(
+                    self, t("payment.confirm_title"),
+                    t("payment.before_issue", paid=data_oplacenia, issued=wystawiono),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if odpowiedz != QMessageBox.StandardButton.Yes:
+                    self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+                    self.ed_oplacono.setFocus()
+                    return
             # Nie nadpisuj daty, której użytkownik nie zmienił w otwartym formularzu.
             if self._zapisany_formularz[-2:] == (status, data_oplacenia):
                 data_oplacenia = ""
@@ -2050,18 +2062,6 @@ class OknoGlowne(QMainWindow):
                 uwagi=self.ed_uwagi.toPlainText(),
                 data_oplacenia=data_oplacenia,
             )
-            wystawiono = dane.data_wystawienia.strip() or None
-            if data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono):
-                odpowiedz = QMessageBox.question(
-                    self, t("payment.confirm_title"),
-                    t("payment.before_issue", paid=data_oplacenia, issued=wystawiono),
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No,
-                )
-                if odpowiedz != QMessageBox.StandardButton.Yes:
-                    self.karty.setCurrentIndex(self.ETAP_EDYCJA)
-                    self.ed_oplacono.setFocus()
-                    return
             zapisany_id = zapisz_z_potwierdzeniem(self, self.rejestr, dane)
             if zapisany_id is None:
                 self._status("invoice.overwrite_cancelled")

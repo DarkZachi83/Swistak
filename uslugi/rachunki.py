@@ -19,7 +19,7 @@ from uslugi.archiwum import MagazynDokumentow
 from uslugi.kategorie import PODSTAWOWE_KATEGORIE, klucz_kategorii, podobne_kategorie
 from uslugi.walidacja import zweryfikuj_numer_konta
 from uslugi.finanse import (
-    Finanse, cykl_faktury, _faktura_pola, zdarzenie, uniewaznij_kompletnosc,
+    Finanse, cykl_faktury, _faktura_pola, sprawdz_date_platnosci, zdarzenie, uniewaznij_kompletnosc,
 )
 
 
@@ -442,6 +442,10 @@ class RejestrRachunkow:
             if (dane.status == "oplacony" and dzien_platnosci is None
                     and (poprzedni is None or not poprzedni["data_oplacenia"])):
                 raise BrakDatyOplacenia("Wpisz datę opłacenia faktury")
+
+            if (dzien_platnosci is None and poprzedni is not None
+                    and poprzedni["status"] == "oplacony" and poprzedni["data_oplacenia"]):
+                sprawdz_date_platnosci(poprzedni["data_oplacenia"], wystawiono)
 
             wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
                        kwota, status, dane.uwagi.strip(), numer_konta)

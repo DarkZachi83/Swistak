@@ -365,6 +365,13 @@ class TestPulpit(unittest.TestCase):
             window.zapisz_przycisk.click()
         faktura = self.rejestr.rachunek(dokument_id)
         self.assertEqual((faktura["status"], faktura["data_oplacenia"]), ("oplacony", "2026-11-12"))
+        self.rejestr.db.execute(
+            "UPDATE rachunki SET data_oplacenia='2099-01-01' WHERE id=?", (faktura["id"],),
+        )
+        window._wyswietl_dokument(dokument_id)
+        with patch.object(QMessageBox, "warning") as ostrzezenie:
+            window._zapisz_rachunek()
+        self.assertIn("cannot be in the future", ostrzezenie.call_args.args[2])
         self.rejestr.db.execute("UPDATE rachunki SET data_oplacenia=NULL WHERE id=?", (faktura["id"],))
         window._wyswietl_dokument(dokument_id)
         self.assertTrue(window.ed_oplacono.isEnabled())
