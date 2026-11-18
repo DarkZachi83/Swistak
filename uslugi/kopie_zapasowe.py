@@ -290,6 +290,9 @@ def _sprawdz_powiazania(baza: Path, files: list[dict]) -> None:
     """Integralność SQLite i dowód zgodności każdego PDF z bazą."""
     try:
         with closing(polacz_tylko_odczyt(baza)) as db:
+            # Migracje 001–005 nie tworzą triggerów ani widoków. Jeśli
+            # przyszła migracja doda taki obiekt, dopuszczaj tutaj jego
+            # znaną definicję dla danej migracji, wraz z testem restore.
             if db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type IN ('trigger', 'view') LIMIT 1"
             ).fetchone() is not None:

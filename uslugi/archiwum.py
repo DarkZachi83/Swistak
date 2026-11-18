@@ -6,6 +6,7 @@ import hashlib
 import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -57,7 +58,10 @@ class MagazynDokumentow:
         self.katalog = self.katalog_danych / "dokumenty"
         self.katalog.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    def kopiuj(self, zrodlo: str | Path) -> PlikArchiwalny:
+    def kopiuj(
+        self, zrodlo: str | Path, *,
+        jest_w_bazie: Callable[[str, str], bool] | None = None,
+    ) -> PlikArchiwalny:
         """Kopiuj plik, nie dotykając źródła.
 
         Plik tymczasowy powstaje w magazynie. Osobna nazwa według SHA-256
@@ -91,8 +95,14 @@ class MagazynDokumentow:
             try:
                 _opublikuj_pdf(temp, cel)
             except FileExistsError as blad:
-                if not cel.is_file() or suma_pliku(cel) != skrot:
-                    raise BladArchiwum("Archiwalny PDF nie zgadza się z sumą SHA-256") from blad
+                if cel.is_symlink() or not cel.is_file():
+                    raise BladArchiwum("Nieprawidłowy plik w archiwum dokumentów") from blad
+                if suma_pliku(cel) != skrot:
+                    if jest_w_bazie is None or jest_w_bazie(skrot, wzgledna.as_posix()):
+                        raise BladArchiwum("Archiwalny PDF nie zgadza się z sumą SHA-256") from blad
+                    # Osierocona część po awarii. Temp jest już kompletny
+                    # i zsynchronizowany, więc podmiana nie kopiuje go ponownie.
+                    os.replace(temp, cel)
             return PlikArchiwalny(skrot, wzgledna.as_posix(), rozmiar, zrodlo.name)
         finally:
             temp.unlink(missing_ok=True)

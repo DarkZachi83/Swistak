@@ -41,6 +41,7 @@ class TestPulpit(unittest.TestCase):
         self.kategoria = self.rejestr.kategorie()[0]["id"]
         self.enterContext(patch.object(ustawienia, "path_settings",
                                        return_value=self.root / "config.json"))
+        self.enterContext(patch("uslugi.finanse.dzisiaj_platnosci", return_value="2026-12-31"))
         self.enterContext(patch("gui.pulpit.today_warsaw", return_value="2026-11-16"))
         self.enterContext(patch("gui.tabela_faktur.today_warsaw", return_value="2026-11-16"))
         self.enterContext(patch("gui.dialog_plan_historia.now_pl", return_value=datetime(2026, 11, 16)))
@@ -329,29 +330,38 @@ class TestPulpit(unittest.TestCase):
         window.ed_kwota.setText("12,34")
         window.wybor_kategoria.setCurrentIndex(1)
         self.assertFalse(window.ed_oplacono.isEnabled())
-        with patch("gui.okno_glowne.today_warsaw", return_value="2026-11-16"):
-            window.wybor_status.setCurrentIndex(1)
+        window.wybor_status.setCurrentIndex(1)
         self.assertTrue(window.ed_oplacono.isEnabled())
-        self.assertEqual(window.ed_oplacono.text(), "2026-11-16")
+        self.assertEqual(window.ed_oplacono.text(), "")
         with patch.object(QMessageBox, "warning") as ostrzezenie:
+            window.ed_oplacono.setText("2026-11-12")
             window._zapisz_rachunek()
             self.assertIn("Wpisz datę wystawienia", ostrzezenie.call_args.args[2])
             self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
             self.assertIsNone(self.rejestr.rachunek(dokument_id))
-            window.ed_wystawiono.setText("2026-10-30")
+            window.ed_wystawiono.setText("2026-11-13")
             window.ed_oplacono.clear()
             window._zapisz_rachunek()
             self.assertIn("Wpisz datę opłacenia", ostrzezenie.call_args.args[2])
             self.assertIsNone(self.rejestr.rachunek(dokument_id))
+            window.ed_oplacono.setText("2099-01-01")
+            window._zapisz_rachunek()
+            self.assertIn("nie może być w przyszłości", ostrzezenie.call_args.args[2])
+            self.assertIsNone(self.rejestr.rachunek(dokument_id))
 
         window.ed_oplacono.setText("2026-11-12")
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.No) as confirm:
+            window._zapisz_rachunek()
+        self.assertIn("wcześniejsza niż data wystawienia 2026-11-13", confirm.call_args.args[2])
+        self.assertIsNone(self.rejestr.rachunek(dokument_id))
         window.nawigacja_glowna["dashboard"].click()
         window.nawigacja_glowna["new_invoice"].click()
         window.change_language("en")
         self.assertEqual(window.ed_oplacono.text(), "2026-11-12")
         window.karty.setCurrentIndex(window.ETAP_FAKTURA)
         self.assertEqual(window.podsumowanie_wartosci["oplacono"].text(), "2026-11-12")
-        with patch.object(window, "_agent_submit"):
+        with (patch.object(window, "_agent_submit"),
+              patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes)):
             window.zapisz_przycisk.click()
         faktura = self.rejestr.rachunek(dokument_id)
         self.assertEqual((faktura["status"], faktura["data_oplacenia"]), ("oplacony", "2026-11-12"))

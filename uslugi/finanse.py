@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from baza.polaczenie import transakcja
 
@@ -23,6 +24,22 @@ def _data(wartosc: str) -> str:
     if date.fromisoformat(wartosc).isoformat() != wartosc:
         raise ValueError("Nieprawidłowa data")
     return wartosc
+
+
+class DataPlatnosciZPrzyszlosci(ValueError):
+    """Zapisana płatność musi już być zrealizowana."""
+
+
+def dzisiaj_platnosci() -> str:
+    return datetime.now(ZoneInfo("Europe/Warsaw")).date().isoformat()
+
+
+def sprawdz_date_platnosci(dzien: str, wystawiono: str | None) -> bool:
+    """Odrzuć przyszłą datę i zgłoś, czy płatność poprzedza wystawienie."""
+    dzien = _data(dzien)
+    if dzien > dzisiaj_platnosci():
+        raise DataPlatnosciZPrzyszlosci("Data opłacenia nie może być w przyszłości")
+    return bool(wystawiono and dzien < _data(wystawiono))
 
 
 def cykl_miesiaca(tekst: str) -> str:
@@ -145,6 +162,7 @@ class Finanse:
         ident = int(before["id"])
         if before["wycofano_utc"]:
             raise ValueError("Nie można opłacić wycofanej faktury")
+        sprawdz_date_platnosci(dzien, before["data_wystawienia"])
         if before["status"] == "oplacony" and before["data_oplacenia"] == dzien:
             return
         self.db.execute(

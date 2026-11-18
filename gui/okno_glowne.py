@@ -28,7 +28,7 @@ from gui.panel_agenta import PanelAgenta
 from gui.pulpit import Pulpit
 from gui.statystyki import Statystyki
 from gui.dialog_plan_historia import DialogPlanHistoria
-from ai_core.hybrid import AgentLog, MonitorReport, today_warsaw
+from ai_core.hybrid import AgentLog, MonitorReport
 from ai_core.errors import ExtractionContextExceeded
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
@@ -46,6 +46,7 @@ from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
 from gui.ikony import ikona_nawigacji
 from gui.uklad import Siatka
+from uslugi.finanse import DataPlatnosciZPrzyszlosci, sprawdz_date_platnosci
 from uslugi.rachunki import (
     BrakDatyOplacenia, BrakDatyWystawienia, DaneRachunku, RejestrRachunkow,
     grosze_na_kwote, kwota_na_grosze,
@@ -2173,8 +2174,6 @@ class OknoGlowne(QMainWindow):
     def _zmiana_statusu_platnosci(self) -> None:
         oplacony = self.wybor_status.currentData() == "oplacony"
         self.ed_oplacono.setEnabled(oplacony)
-        if oplacony and not self.ed_oplacono.text():
-            self.ed_oplacono.setText(today_warsaw())
 
     def _wczytaj_stan_platnosci(self, zapis: sqlite3.Row) -> None:
         with QSignalBlocker(self.wybor_status):
@@ -2330,6 +2329,18 @@ class OknoGlowne(QMainWindow):
                 uwagi=self.ed_uwagi.toPlainText(),
                 data_oplacenia=data_oplacenia,
             )
+            wystawiono = dane.data_wystawienia.strip() or None
+            if data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono):
+                odpowiedz = QMessageBox.question(
+                    self, t("payment.confirm_title"),
+                    t("payment.before_issue", paid=data_oplacenia, issued=wystawiono),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if odpowiedz != QMessageBox.StandardButton.Yes:
+                    self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+                    self.ed_oplacono.setFocus()
+                    return
             istniejaca = self.rejestr.znajdz_duplikat(dane)
             nadpisz_id = None
             wersja = None
@@ -2384,6 +2395,10 @@ class OknoGlowne(QMainWindow):
             self._aktualizuj_tekst_propozycji()
             self._message(self.info_faktury, "invoice.saved")
             self._status("msg.saved")
+        except DataPlatnosciZPrzyszlosci:
+            QMessageBox.warning(self, t("msg.bill_save_error"), t("payment.future"))
+            self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+            self.ed_oplacono.setFocus()
         except (BrakDatyWystawienia, BrakDatyOplacenia) as blad:
             wystawienia = isinstance(blad, BrakDatyWystawienia)
             klucz = "form.issued_required" if wystawienia else "form.paid_date_required"

@@ -25,6 +25,7 @@ LISTOPAD = ZakresDat(date(2026, 11, 1), date(2026, 11, 30))
 
 class BazaStatystyk(unittest.TestCase):
     def setUp(self):
+        self.enterContext(patch("uslugi.finanse.dzisiaj_platnosci", return_value="2026-12-31"))
         self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.rejestr = RejestrRachunkow(self.root / "dane")
         self.addCleanup(self.rejestr.zamknij)

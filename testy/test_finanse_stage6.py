@@ -10,7 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtCore import QDate
+from PySide6.QtWidgets import QApplication, QDateEdit, QDialog
 
 import ustawienia
 from gui.dialog_plan_historia import DialogPlanHistoria, FormularzProfilu, chosen_id
@@ -228,6 +229,28 @@ class TestGUIEtap6(FinanceStage6Fixture):
             "SELECT COUNT(*) FROM dziennik_zdarzen WHERE operacja='oplacenie'"
         ).fetchone()[0],0)
         dialog.close()
+
+    def test_historia_ostrzega_przed_wczesna_platnoscia(self):
+        dialog = DialogPlanHistoria(self.registry)
+        self.addCleanup(dialog.close)
+        dialog.month.setCurrentText("2026-10")
+        dialog.history_invoices.selectRow(0)
+        ident = dialog._invoice()["id"]
+
+        def ustaw_date(okno):
+            pole = okno.findChild(QDateEdit, "historyPaymentDate")
+            pole.setDate(QDate(2026, 10, 31))
+            return QDialog.DialogCode.Accepted
+
+        with (patch.object(QDialog, "exec", ustaw_date),
+              patch("gui.dialog_plan_historia.confirm", return_value=False) as dialog_zgody):
+            dialog._paid()
+        tekst = dialog_zgody.call_args.args[2]
+        self.assertIn("2026-10-31", tekst)
+        self.assertIn("2026-11-01", tekst)
+        self.assertIsNone(self.db.execute(
+            "SELECT data_oplacenia FROM rachunki WHERE id=?", (ident,),
+        ).fetchone()[0])
 
     def test_odmowa_potwierdzenia_miesiaca_nie_powoduje_zapisu(self):
         dialog=DialogPlanHistoria(self.registry)

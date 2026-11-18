@@ -91,6 +91,21 @@ class TestRejestr(unittest.TestCase):
             self.assertTrue(nowy)
             self.assertEqual(self.rejestr.sciezka_pdf(ident).read_bytes(), self.zrodlo.read_bytes())
 
+    def test_import_naprawia_osierocony_czesciowy_plik_po_naglej_awarii(self):
+        zawartosc = self.zrodlo.read_bytes()
+        skrot = hashlib.sha256(zawartosc).hexdigest()
+        cel = self.rejestr.magazyn.katalog / skrot[:2] / (skrot + ".pdf")
+        cel.parent.mkdir()
+        cel.write_bytes(zawartosc[:8])
+        self.assertEqual(self.rejestr.dokumenty(), [])
+        blad = OSError(errno.EOPNOTSUPP, "syntetyczny brak hardlinków")
+        with patch("uslugi.archiwum.os.link", side_effect=blad):
+            ident, nowy = self.rejestr.importuj_pdf(self.zrodlo)
+            self.assertTrue(nowy)
+            self.assertEqual(self.rejestr.sciezka_pdf(ident), cel)
+            self.assertEqual(cel.read_bytes(), zawartosc)
+            self.assertEqual(self.rejestr.importuj_pdf(self.zrodlo), (ident, False))
+
     @unittest.skipUnless(os.name == "posix", "Uprawnienia POSIX")
     def test_start_ogranicza_uprawnienia_nowej_i_istniejacej_bazy(self):
         katalog = self.rejestr.katalog

@@ -7,10 +7,11 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from baza.migracje import zastosuj_migracje
 from baza.polaczenie import polacz
-from uslugi.finanse import Finanse
+from uslugi.finanse import DataPlatnosciZPrzyszlosci, Finanse
 from uslugi.plan_rachunkow import PlanRachunkow
 from uslugi.historia import HistoriaRozliczen
 from uslugi.rachunki import (
@@ -110,6 +111,25 @@ class TestFinanseEtap3(unittest.TestCase):
         aktualna = self.rejestr.rachunek(self.doc)
         self.assertEqual((aktualna["kwota_grosze"], aktualna["status"]), (18000, "do_zaplaty"))
         self.assertEqual(len(self.finanse.dziennik("invoice", ident)), 1)
+
+    def test_zapis_i_historia_odrzucaja_platnosc_z_przyszlosci(self):
+        ident = self.rejestr.zapisz_rachunek(self.invoice())
+        with patch("uslugi.finanse.dzisiaj_platnosci", return_value="2026-11-18"):
+            with self.assertRaises(DataPlatnosciZPrzyszlosci):
+                self.finanse.ustaw_oplacona(ident, "2026-11-19")
+            with self.assertRaises(DataPlatnosciZPrzyszlosci):
+                self.rejestr.zapisz_rachunek(
+                    self.invoice(kwota="20,00", status="oplacony", data_oplacenia="2099-01-01"),
+                    nadpisz_id=ident,
+                )
+            faktura = self.rejestr.rachunek(self.doc)
+            self.assertEqual(faktura["kwota_grosze"], 18000)
+            self.assertEqual(faktura["status"], "do_zaplaty")
+            self.assertIsNone(faktura["data_oplacenia"])
+            self.assertEqual(len(self.finanse.dziennik("invoice", ident)), 1)
+
+            self.finanse.ustaw_oplacona(ident, "2026-11-18")
+        self.assertEqual(self.rejestr.rachunek(self.doc)["data_oplacenia"], "2026-11-18")
 
     def test_edycja_legacy_przyjmuje_wylacznie_recznie_podana_date_platnosci(self):
         ident = self.rejestr.zapisz_rachunek(self.invoice())

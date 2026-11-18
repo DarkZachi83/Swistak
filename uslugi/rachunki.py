@@ -172,7 +172,7 @@ class RejestrRachunkow:
         with transakcja(self.db):
             # Na dyskach bez hardlinków zapis odbywa się bezpośrednio do
             # pliku docelowego. Inny import zaczeka na zakończenie kopiowania.
-            plik = self.magazyn.kopiuj(sciezka)
+            plik = self.magazyn.kopiuj(sciezka, jest_w_bazie=self._czy_pdf_w_bazie)
             wiersz = self.db.execute(
                 "SELECT id FROM dokumenty WHERE sha256 = ?", (plik.sha256,)
             ).fetchone()
@@ -185,6 +185,12 @@ class RejestrRachunkow:
                 (plik.nazwa_zrodlowa, plik.sha256, plik.sciezka_wzgledna, plik.rozmiar_bajtow),
             )
             return int(kursor.lastrowid), True
+
+    def _czy_pdf_w_bazie(self, skrot: str, sciezka: str) -> bool:
+        return self.db.execute(
+            "SELECT 1 FROM dokumenty WHERE sha256=? OR sciezka_wzgledna=?",
+            (skrot, sciezka),
+        ).fetchone() is not None
 
     def dokumenty(self) -> list[sqlite3.Row]:
         return list(self.db.execute(

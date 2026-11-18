@@ -20,7 +20,9 @@ from PySide6.QtWidgets import (
 
 from i18n import category_name, t
 from gui.uklad import Siatka
-from uslugi.finanse import Finanse, cykl_miesiaca
+from uslugi.finanse import (
+    DataPlatnosciZPrzyszlosci, Finanse, cykl_miesiaca, sprawdz_date_platnosci,
+)
 from uslugi.historia import HistoriaRozliczen
 from uslugi.plan_rachunkow import PlanRachunkow
 from uslugi.rachunki import RejestrRachunkow, grosze_na_kwote
@@ -759,15 +761,21 @@ class DialogPlanHistoria(QDialog):
         if date_dialog.exec()!=QDialog.DialogCode.Accepted:
             return
         paid_date=chosen.date().toString("yyyy-MM-dd")
-        if not confirm(self,t("history.mark_paid"),
-                       t("history.mark_paid.confirm",date=paid_date)):
-            return
         try:
+            message = t("history.mark_paid.confirm", date=paid_date)
+            wystawiono = invoice["data_wystawienia"]
+            if sprawdz_date_platnosci(paid_date, wystawiono):
+                message = t("payment.before_issue", paid=paid_date, issued=wystawiono)
+            if not confirm(self, t("history.mark_paid"), message):
+                return
             self.finanse.ustaw_oplacona(
-                int(invoice["id"]),paid_date,
+                int(invoice["id"]), paid_date,
                 expected_version=int(invoice["wersja_rekordu"]),
             )
-        except (ValueError,sqlite3.Error) as error:
+        except DataPlatnosciZPrzyszlosci:
+            self._fail(t("payment.future"))
+            return
+        except (ValueError, sqlite3.Error) as error:
             self._fail(error)
             return
         self._mutated(int(invoice["id"]))

@@ -5,12 +5,14 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from uslugi.rachunki import DaneRachunku, RejestrRachunkow
 
 
 class TestRejestrFaktur(unittest.TestCase):
     def setUp(self):
+        self.enterContext(patch("uslugi.finanse.dzisiaj_platnosci", return_value="2026-12-31"))
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.db = RejestrRachunkow(self.root / "dane")
