@@ -83,6 +83,8 @@ ollama list
 
 Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działania zależą od komputera. Domyślny model można skonfigurować w menu **Ustawienia**.
 
+Przy krótszych fakturach Świstak używa okna do **8 192 tokenów**. Dla dłuższego tekstu może poprosić Ollamę o **16 384 tokenów**, jeśli model obsługuje taki kontekst. Przy tym samym modelu i ustawieniach podwojenie okna może wymagać około dwukrotnie więcej pamięci na samą pamięć podręczną kontekstu (KV cache). Całkowite użycie RAM i VRAM zależy też od rozmiaru modelu. Przy małym zapasie VRAM Ollama może przenieść część obliczeń na CPU, co wydłuża analizę. [Dokumentacja kontekstu Ollamy](https://docs.ollama.com/context-length)
+
 ## Analiza AI — DANE i AGENT
 
 **Wybór modelu w Ustawieniach:** otwórz **Ustawienia → Konfiguruj**.

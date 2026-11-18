@@ -1980,10 +1980,10 @@ class OknoGlowne(QMainWindow):
 
     def _stan_formularza(self) -> tuple:
         pola = (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota,
-                self.ed_wystawiono, self.ed_termin, self.ed_od, self.ed_do)
+                self.ed_termin, self.ed_od, self.ed_do)
         return (*[pole.text() for pole in pola], self.ed_uwagi.toPlainText(),
-                self.wybor_kategoria.currentData(), self.wybor_status.currentData(),
-                self.ed_oplacono.text())
+                self.wybor_kategoria.currentData(), self.ed_wystawiono.text(),
+                self.wybor_status.currentData(), self.ed_oplacono.text())
 
     def _zgoda_na_zmiane_dokumentu(self) -> bool:
         if self._zadanie_odczytu is not None or self._zadanie_ai is not None:
@@ -2033,7 +2033,13 @@ class OknoGlowne(QMainWindow):
             if status == "oplacony" and not data_oplacenia:
                 raise BrakDatyOplacenia("Wpisz datę opłacenia faktury")
             wystawiono = self.ed_wystawiono.text().strip() or None
-            if data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono):
+            platnosc_bez_zmian = self._zapisany_formularz[-2:] == (status, data_oplacenia)
+            daty_zmienione = (
+                not platnosc_bez_zmian
+                or self._zapisany_formularz[-3].strip() != (wystawiono or "")
+            )
+            if (data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono)
+                    and daty_zmienione):
                 odpowiedz = QMessageBox.question(
                     self, t("payment.confirm_title"),
                     t("payment.before_issue", paid=data_oplacenia, issued=wystawiono),
@@ -2045,7 +2051,7 @@ class OknoGlowne(QMainWindow):
                     self.ed_oplacono.setFocus()
                     return
             # Nie nadpisuj daty, której użytkownik nie zmienił w otwartym formularzu.
-            if self._zapisany_formularz[-2:] == (status, data_oplacenia):
+            if platnosc_bez_zmian:
                 data_oplacenia = ""
             dane = DaneRachunku(
                 dokument_id=self.aktualny_dokument_id,

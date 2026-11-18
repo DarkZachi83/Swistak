@@ -365,6 +365,26 @@ class TestPulpit(unittest.TestCase):
             window.zapisz_przycisk.click()
         faktura = self.rejestr.rachunek(dokument_id)
         self.assertEqual((faktura["status"], faktura["data_oplacenia"]), ("oplacony", "2026-11-12"))
+        window.ed_uwagi.setPlainText("Syntetyczna notatka")
+        with (patch.object(window, "_agent_submit"),
+              patch.object(QMessageBox, "question",
+                           return_value=QMessageBox.StandardButton.Yes) as confirm):
+            window.zapisz_przycisk.click()
+        confirm.assert_called_once()
+        self.assertEqual(self.rejestr.rachunek(dokument_id)["uwagi"], "Syntetyczna notatka")
+
+        for pole, data in ((window.ed_wystawiono, "2026-11-14"),
+                           (window.ed_oplacono, "2026-11-11")):
+            with self.subTest(data=data):
+                pole.setText(data)
+                with patch.object(QMessageBox, "question",
+                                  return_value=QMessageBox.StandardButton.No) as confirm:
+                    window.zapisz_przycisk.click()
+                confirm.assert_called_once()
+                self.assertIn("earlier than the issue date", confirm.call_args.args[2])
+                self.assertIn(data, confirm.call_args.args[2])
+                window._wyswietl_dokument(dokument_id)
+
         self.rejestr.db.execute(
             "UPDATE rachunki SET data_oplacenia='2099-01-01' WHERE id=?", (faktura["id"],),
         )
