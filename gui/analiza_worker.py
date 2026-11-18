@@ -7,6 +7,7 @@ import copy
 
 from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 
+from ai_core.errors import ExtractionContextExceeded
 from uslugi.analiza_ai_core import analizuj_przez_ai_core
 
 
@@ -67,7 +68,8 @@ class ZadanieAnalizy(QRunnable):
             if self.przerwij.is_set():
                 self.sygnaly.anulowano.emit(self.dokument_id)
             else:
-                self.sygnaly.blad.emit(self.dokument_id, str(blad))
+                komunikat = blad.code if isinstance(blad, ExtractionContextExceeded) else str(blad)
+                self.sygnaly.blad.emit(self.dokument_id, komunikat)
         else:
             if self.przerwij.is_set():
                 self.sygnaly.anulowano.emit(self.dokument_id)

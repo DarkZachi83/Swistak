@@ -37,7 +37,8 @@ class TestKopieZapasowe(unittest.TestCase):
         kat = int(self.db.kategorie()[0]["id"])
         self.db.zapisz_rachunek(DaneRachunku(
             dokument_id=doc_id, dostawca="Firma Fikcyjna",
-            numer="FAKE/2026/11", kwota="68,99", kategoria_id=kat
+            numer="FAKE/2026/11", kwota="68,99", kategoria_id=kat,
+            data_wystawienia="2026-11-02",
         ))
         return doc_id, data
 

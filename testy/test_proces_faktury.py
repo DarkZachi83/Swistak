@@ -63,6 +63,7 @@ class TestProcesFaktury(unittest.TestCase):
                     win.ed_dostawca.setText("DEMO Sp. z o.o.")
                     win.ed_numer.setText("FAKTURA-SZTUCZNA-2026")
                     win.ed_kwota.setText("98,76")
+                    win.ed_wystawiono.setText("2026-11-02")
                     win.ed_uwagi.setPlainText("Test korekty — bez danych klienta")
                     win.wybor_kategoria.setCurrentIndex(1)
 

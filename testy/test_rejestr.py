@@ -122,10 +122,10 @@ class TestRejestr(unittest.TestCase):
         pierwszy = self.rejestr.zapisz_rachunek(self.dane(dokument_id))
         with self.assertRaises(ValueError):  # bez zgody brak nadpisania
             self.rejestr.zapisz_rachunek(self.dane(
-                dokument_id, kwota="12,34", status="oplacony",
+                dokument_id, kwota="12,34", status="oplacony", data_oplacenia="2026-11-15",
             ))
         drugi = self.rejestr.zapisz_rachunek(self.dane(
-            dokument_id, kwota="12,34", status="oplacony",
+            dokument_id, kwota="12,34", status="oplacony", data_oplacenia="2026-11-15",
         ), nadpisz_id=pierwszy)
         self.assertEqual(pierwszy, drugi)
         self.assertEqual(self.rejestr.rachunek(dokument_id)["kwota_grosze"], 1234)

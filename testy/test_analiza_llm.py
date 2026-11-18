@@ -182,7 +182,7 @@ class TestMigracjaBank(unittest.TestCase):
                 dokument, _ = rejestr.importuj_pdf(pdf)
                 kategoria = int(rejestr.kategorie()[0]["id"])
                 dane = DaneRachunku(dokument, "Zakład", "FV-1", "189,50", kategoria,
-                                   numer_konta=KONTO)
+                                   numer_konta=KONTO, data_wystawienia="2026-11-02")
                 rejestr.zapisz_rachunek(dane)
                 self.assertEqual(rejestr.rachunek(dokument)["numer_konta"], KONTO)
             finally:

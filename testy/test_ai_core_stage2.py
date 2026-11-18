@@ -70,13 +70,16 @@ class TestToolGateway(unittest.TestCase):
             pdf = Path(self.temp.name) / f"synthetic-{nr}.pdf"
             pdf.write_bytes(f"%PDF-1.4\nTEST-NIEPRYWATNY-{nr}\n%%EOF\n".encode("utf-8"))
             document_id, _ = self.register.importuj_pdf(pdf)
-            self.register.zapisz_rachunek(DaneRachunku(
+            ident = self.register.zapisz_rachunek(DaneRachunku(
                 dokument_id=document_id, dostawca=f"Fikcyjny-{nr}",
                 numer=f"TEST/{nr}", kwota=amt,
                 kategoria_id=category, termin_platnosci=due,
                 okres_od="2026-10-01", okres_do="2026-10-31",
-                data_wystawienia="2026-11-02", status=paid,
+                data_wystawienia="2026-11-02",
             ))
+            if paid == "oplacony":
+                # Stan starszej bazy: status był zapisywany bez daty.
+                self.register.db.execute("UPDATE rachunki SET status=? WHERE id=?", (paid, ident))
         self.gateway = ToolGateway(self.root / "swistak.sqlite3")
         self.task = make_task(self.gateway)
 

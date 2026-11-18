@@ -51,7 +51,8 @@ class TestBezpieczneKategorie(unittest.TestCase):
         doc, _ = self.db.importuj_pdf(path)
         rachunek_id = self.db.zapisz_rachunek(DaneRachunku(
             dokument_id=doc, dostawca="Firma Testowa",
-            numer=number, kwota="125,55", kategoria_id=kat
+            numer=number, kwota="125,55", kategoria_id=kat,
+            data_wystawienia="2026-11-02",
         ))
         return rachunek_id, data
 

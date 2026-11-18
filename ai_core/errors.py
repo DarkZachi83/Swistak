@@ -17,6 +17,17 @@ class InvalidResponse(AICoreError):
     code = "invalid_response"
 
 
+class ExtractionContextExceeded(InvalidResponse):
+    code = "extraction_context_exceeded"
+
+    def __init__(self):
+        super().__init__(
+            "Tekst nie mieści się w kontekście modelu. "
+            "Zaznacz krótszy obszar PDF i wybierz „Odczytaj zaznaczenie”, "
+            "a następnie ponów analizę."
+        )
+
+
 class TaskCancelled(AICoreError):
     code = "cancelled"
 

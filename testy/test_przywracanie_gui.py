@@ -42,7 +42,8 @@ class TestPrzywracaniePrzezGUI(unittest.TestCase):
                     category = int(reg.kategorie()[0]["id"])
                     reg.zapisz_rachunek(DaneRachunku(
                         dokument_id=doc, dostawca="FIKCYJNY DOSTAWCA",
-                        numer="FAKE/2026/12", kwota="13,37", kategoria_id=category
+                        numer="FAKE/2026/12", kwota="13,37", kategoria_id=category,
+                        data_wystawienia="2026-12-02",
                     ))
                     archive = base / "bezpieczna-kopia.zip"
                     utworz_kopie(reg, archive, ustawienia=settings)

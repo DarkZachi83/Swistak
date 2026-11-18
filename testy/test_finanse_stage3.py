@@ -12,7 +12,10 @@ from baza.migracje import zastosuj_migracje
 from baza.polaczenie import polacz
 from uslugi.finanse import Finanse
 from uslugi.plan_rachunkow import PlanRachunkow
-from uslugi.rachunki import DaneRachunku, RejestrRachunkow
+from uslugi.historia import HistoriaRozliczen
+from uslugi.rachunki import (
+    BrakDatyOplacenia, BrakDatyWystawienia, DaneRachunku, RejestrRachunkow,
+)
 from uslugi.kopie_zapasowe import utworz_kopie, przygotuj_przywracanie
 from ai_core.gateway import ToolGateway
 
@@ -74,6 +77,52 @@ class TestFinanseEtap3(unittest.TestCase):
             self.assertIsNotNone(self.db.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name=?",(name,)
             ).fetchone())
+
+    def test_zapis_oplaconej_zasila_historie_i_dziennik(self):
+        ident = self.rejestr.zapisz_rachunek(self.invoice(
+            status="oplacony", data_oplacenia="2026-11-12",
+        ))
+        historia = HistoriaRozliczen(self.db)
+        self.assertEqual(historia.sumy_miesiaca("2026-11")["payments_in_month_grosze"], 18000)
+        self.assertEqual(historia.sumy_miesiaca("2026-10")["payments_in_month_grosze"], 0)
+        zdarzenia = self.finanse.dziennik("invoice", ident)
+        self.assertEqual([row["operacja"] for row in zdarzenia], ["oplacenie", "dodanie"])
+        platnosc = zdarzenia[0]
+        self.assertEqual(json.loads(platnosc["przed_json"])["status"], "do_zaplaty")
+        self.assertEqual(json.loads(platnosc["po_json"])["data_oplacenia"], "2026-11-12")
+
+    def test_formularz_odrzuca_brakujace_daty_i_nie_zapisuje_czesci_danych(self):
+        for blad, zmiany in (
+            (BrakDatyWystawienia, {"data_wystawienia": ""}),
+            (BrakDatyOplacenia, {"status": "oplacony"}),
+            (ValueError, {"status": "oplacony", "data_oplacenia": "2026-02-30"}),
+        ):
+            with self.subTest(zmiany=zmiany), self.assertRaises(blad):
+                self.rejestr.zapisz_rachunek(self.invoice(**zmiany))
+            self.assertIsNone(self.rejestr.rachunek(self.doc))
+            self.assertEqual(self.db.execute("SELECT COUNT(*) FROM dziennik_zdarzen").fetchone()[0], 0)
+
+        ident = self.rejestr.zapisz_rachunek(self.invoice())
+        with self.assertRaises(BrakDatyOplacenia):
+            self.rejestr.zapisz_rachunek(
+                self.invoice(kwota="200,00", status="oplacony"), nadpisz_id=ident,
+            )
+        aktualna = self.rejestr.rachunek(self.doc)
+        self.assertEqual((aktualna["kwota_grosze"], aktualna["status"]), (18000, "do_zaplaty"))
+        self.assertEqual(len(self.finanse.dziennik("invoice", ident)), 1)
+
+    def test_edycja_legacy_przyjmuje_wylacznie_recznie_podana_date_platnosci(self):
+        ident = self.rejestr.zapisz_rachunek(self.invoice())
+        self.db.execute("UPDATE rachunki SET status='oplacony' WHERE id=?", (ident,))
+        with self.assertRaises(BrakDatyOplacenia):
+            self.rejestr.zapisz_rachunek(self.invoice(status="oplacony"), nadpisz_id=ident)
+        self.assertIsNone(self.rejestr.rachunek(self.doc)["data_oplacenia"])
+        self.rejestr.zapisz_rachunek(
+            self.invoice(status="oplacony", data_oplacenia="2026-11-08"), nadpisz_id=ident,
+        )
+        self.assertEqual(self.rejestr.rachunek(self.doc)["data_oplacenia"], "2026-11-08")
+        self.assertEqual(self.finanse.dziennik("invoice", ident)[0]["operacja"],
+                         "korekta_daty_oplacenia")
 
     def test_oplacenie_dziennik_data_i_bez_nadpisania(self):
         ident = self.rejestr.zapisz_rachunek(self.invoice())

@@ -14,6 +14,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton, QScrollArea
 
 import ustawienia
+from ai_core.errors import ExtractionContextExceeded
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import MonitorReport
 from gui.okno_glowne import OknoGlowne
@@ -62,6 +63,7 @@ class TestPulpit(unittest.TestCase):
             dokument_id=dokument_id, dostawca="DEMO", numer=numer, kwota=kwota,
             kategoria_id=self.kategoria, termin_platnosci=termin, okres_do=okres_do,
             data_wystawienia=wystawiono, status=status,
+            data_oplacenia="2026-11-14" if status == "oplacony" else "",
         ))
 
     def test_pusta_baza_startuje_na_pulpicie_bez_ollamy(self):
@@ -130,8 +132,10 @@ class TestPulpit(unittest.TestCase):
         self.faktura("dzis", "2,02", termin="2026-11-16")
         self.faktura("granica", "3,03", termin="2026-11-23")
         self.faktura("za-pozno", "4,04", termin="2026-11-24")
-        self.faktura("bez-terminu", "5,05", okres_do="", wystawiono="")
-        self.faktura("oplacona-bez-daty", "6,06", termin="2026-11-14", status="oplacony")
+        bez_cyklu = self.faktura("bez-terminu", "5,05", okres_do="")
+        bez_daty = self.faktura("oplacona-bez-daty", "6,06", termin="2026-11-14")
+        self.rejestr.db.execute("UPDATE rachunki SET data_wystawienia=NULL WHERE id=?", (bez_cyklu,))
+        self.rejestr.db.execute("UPDATE rachunki SET status='oplacony' WHERE id=?", (bez_daty,))
         stara = self.faktura("stara", "7,07", okres_do="2026-10-31")
         nowa = self.faktura("nowa", "8,08", okres_do="")
         wycofana = self.faktura("wycofana", "99,99", termin="2026-11-15")
@@ -311,6 +315,80 @@ class TestPulpit(unittest.TestCase):
                 {table.item(i, 1).text() for i in range(table.rowCount()) if not table.isRowHidden(i)},
                 oczekiwane,
             )
+
+    def test_formularz_wymaga_dat_i_zachowuje_recznie_wpisana_date_platnosci(self):
+        window = self.okno()
+        pdf = self.root / "Syntetyczna platnosc.pdf"
+        writer = QPdfWriter(str(pdf))
+        painter = QPainter(writer)
+        painter.drawText(100, 100, "Syntetyczna platnosc")
+        self.assertTrue(painter.end())
+        window.otworz_pdf(pdf)
+        dokument_id = window.aktualny_dokument_id
+        window.ed_dostawca.setText("Dostawca DEMO")
+        window.ed_kwota.setText("12,34")
+        window.wybor_kategoria.setCurrentIndex(1)
+        self.assertFalse(window.ed_oplacono.isEnabled())
+        with patch("gui.okno_glowne.today_warsaw", return_value="2026-11-16"):
+            window.wybor_status.setCurrentIndex(1)
+        self.assertTrue(window.ed_oplacono.isEnabled())
+        self.assertEqual(window.ed_oplacono.text(), "2026-11-16")
+        with patch.object(QMessageBox, "warning") as ostrzezenie:
+            window._zapisz_rachunek()
+            self.assertIn("Wpisz datę wystawienia", ostrzezenie.call_args.args[2])
+            self.assertEqual(window.karty.currentIndex(), window.ETAP_EDYCJA)
+            self.assertIsNone(self.rejestr.rachunek(dokument_id))
+            window.ed_wystawiono.setText("2026-10-30")
+            window.ed_oplacono.clear()
+            window._zapisz_rachunek()
+            self.assertIn("Wpisz datę opłacenia", ostrzezenie.call_args.args[2])
+            self.assertIsNone(self.rejestr.rachunek(dokument_id))
+
+        window.ed_oplacono.setText("2026-11-12")
+        window.nawigacja_glowna["dashboard"].click()
+        window.nawigacja_glowna["new_invoice"].click()
+        window.change_language("en")
+        self.assertEqual(window.ed_oplacono.text(), "2026-11-12")
+        window.karty.setCurrentIndex(window.ETAP_FAKTURA)
+        self.assertEqual(window.podsumowanie_wartosci["oplacono"].text(), "2026-11-12")
+        with patch.object(window, "_agent_submit"):
+            window.zapisz_przycisk.click()
+        faktura = self.rejestr.rachunek(dokument_id)
+        self.assertEqual((faktura["status"], faktura["data_oplacenia"]), ("oplacony", "2026-11-12"))
+        self.rejestr.db.execute("UPDATE rachunki SET data_oplacenia=NULL WHERE id=?", (faktura["id"],))
+        window._wyswietl_dokument(dokument_id)
+        self.assertTrue(window.ed_oplacono.isEnabled())
+        self.assertEqual(window.ed_oplacono.text(), "")
+        self.assertEqual(window._stan_formularza(), window._zapisany_formularz)
+
+    def test_moje_faktury_pokazuja_legacy_z_brakujacymi_datami(self):
+        self.faktura("kompl", "10,00", status="oplacony")
+        bez_daty = self.faktura("bez-daty", "1,00")
+        bez_cyklu = self.faktura("bez-cyklu", "2,00", okres_do="")
+        self.rejestr.db.execute("UPDATE rachunki SET status='oplacony' WHERE id=?", (bez_daty,))
+        self.rejestr.db.execute("UPDATE rachunki SET data_wystawienia=NULL WHERE id=?", (bez_cyklu,))
+        window = self.okno()
+        window.nawigacja_glowna["invoices"].click()
+        widok = window.tabela_faktur
+        for filtr, numer in (("paid_without_date", "bez-daty"), ("unassigned_month", "bez-cyklu")):
+            with self.subTest(filtr=filtr):
+                widok.filtr_status.setCurrentIndex(widok.filtr_status.findData(filtr))
+                widoczne = [
+                    widok.tabela.item(i, 1).text() for i in range(widok.tabela.rowCount())
+                    if not widok.tabela.isRowHidden(i)
+                ]
+                self.assertEqual(widoczne, [numer])
+
+    def test_blad_kontekstu_kieruje_do_odczytu_zachowujac_tekst(self):
+        window = self.okno()
+        window.aktualny_dokument_id = 25
+        window.pole_odczytu.setPlainText("Pełny tekst DEMO")
+        window.karty.setCurrentIndex(window.ETAP_ANALIZA)
+        with patch.object(QMessageBox, "warning") as ostrzezenie:
+            window._analiza_blad(25, ExtractionContextExceeded.code)
+        self.assertIn("Odczytaj zaznaczenie", ostrzezenie.call_args.args[2])
+        self.assertEqual(window.karty.currentIndex(), window.ETAP_ODCZYT)
+        self.assertEqual(window.pole_odczytu.toPlainText(), "Pełny tekst DEMO")
 
     def test_otwarcie_faktury_agenta_nie_porzuca_formularza_bez_zgody(self):
         window = self.okno()

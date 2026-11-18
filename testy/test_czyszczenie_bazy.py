@@ -36,6 +36,7 @@ class TestCzyszczenieBazy(unittest.TestCase):
         self.reg.zapisz_rachunek(DaneRachunku(
             dokument_id=doc_id, dostawca="Fikcyjna spolka",
             numer="DEMO/1", kwota="10,00", kategoria_id=category,
+            data_wystawienia="2026-11-02",
         ))
         self.reg.dodaj_kategorie("Demonstracyjna")
         folder = self.root / "wzorce"

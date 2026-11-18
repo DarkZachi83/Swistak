@@ -160,6 +160,7 @@ class TestDuplikatWInterfejsie(unittest.TestCase):
                     win.ed_dostawca.setText("Operator DEMO")
                     win.ed_numer.setText("FV/01/2026")
                     win.ed_kwota.setText("42,00")
+                    win.ed_wystawiono.setText("2026-11-02")
                     win.wybor_kategoria.setCurrentIndex(1)
                     win.zapisz_przycisk.click()
                     original = db.rachunek(doc)

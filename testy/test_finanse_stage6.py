@@ -141,6 +141,7 @@ class TestHistoriaEtap6(FinanceStage6Fixture):
         invoice=self.registry.zapisz_rachunek(DaneRachunku(
             dokument_id=doc,dostawca="Firma TEST",numer="INNE/11",
             kwota="10,00",kategoria_id=self.category,
+            data_wystawienia="2026-12-01",
             okres_od="2026-11-01",okres_do="2026-11-30",
         ))
         with self.assertRaisesRegex(ValueError,"innym miesiącem"):

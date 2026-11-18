@@ -19,6 +19,8 @@ SORT_ROLE = Qt.ItemDataRole.UserRole + 1
 STATUS_ROLE = Qt.ItemDataRole.UserRole + 2
 AMOUNT_ROLE = Qt.ItemDataRole.UserRole + 3
 DUE_ROLE = Qt.ItemDataRole.UserRole + 4
+PAID_WITHOUT_DATE_ROLE = Qt.ItemDataRole.UserRole + 5
+UNASSIGNED_MONTH_ROLE = Qt.ItemDataRole.UserRole + 6
 
 
 class KomorkaFaktury(QTableWidgetItem):
@@ -68,6 +70,8 @@ class TabelaFaktur(QWidget):
         self.filtr_status.addItem("", None)
         self.filtr_status.addItem("", "do_zaplaty")
         self.filtr_status.addItem("", "oplacony")
+        self.filtr_status.addItem("", "paid_without_date")
+        self.filtr_status.addItem("", "unassigned_month")
         self.filtr_status.currentIndexChanged.connect(self._filtruj)
         filters.dodaj(self.filtr_status)
 
@@ -163,6 +167,10 @@ class TabelaFaktur(QWidget):
                     item.setData(STATUS_ROLE, status)
                     item.setData(AMOUNT_ROLE, amount)
                     item.setData(DUE_ROLE, invoice["termin_platnosci"])
+                    item.setData(PAID_WITHOUT_DATE_ROLE,
+                                 status == "oplacony" and not invoice["data_oplacenia"])
+                    item.setData(UNASSIGNED_MONTH_ROLE,
+                                 not (invoice["okres_do"] or invoice["data_wystawienia"]))
                 self.tabela.setItem(row, column, item)
         self.tabela.setSortingEnabled(True)
         if sort_column < 0 or sort_column >= len(self.KOLUMNY):
@@ -194,7 +202,13 @@ class TabelaFaktur(QWidget):
                 self.tabela.item(row, col).text().casefold()
                 for col in range(len(self.KOLUMNY))
             )
-            ok = (not status_filter or status_filter == status) and phrase in text
+            if status_filter == "paid_without_date":
+                matches = first.data(PAID_WITHOUT_DATE_ROLE)
+            elif status_filter == "unassigned_month":
+                matches = first.data(UNASSIGNED_MONTH_ROLE)
+            else:
+                matches = not status_filter or status_filter == status
+            ok = matches and phrase in text
             if termin:
                 termin_platnosci = first.data(DUE_ROLE)
                 w_terminie = bool(termin_platnosci and (
@@ -220,6 +234,8 @@ class TabelaFaktur(QWidget):
         self.filtr_status.setItemText(0, t("invoices.all_statuses"))
         self.filtr_status.setItemText(1, t("form.status_due"))
         self.filtr_status.setItemText(2, t("form.status_paid"))
+        self.filtr_status.setItemText(3, t("invoices.paid_without_date"))
+        self.filtr_status.setItemText(4, t("invoices.unassigned_month"))
         self.filtr_terminu.setItemText(0, t("invoices.all_due_dates"))
         self.filtr_terminu.setItemText(1, t("dashboard.overdue"))
         self.filtr_terminu.setItemText(2, t("dashboard.due_soon"))

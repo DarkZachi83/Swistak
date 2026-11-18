@@ -55,6 +55,7 @@ class TestTabelaFaktur(unittest.TestCase):
                     win.ed_numer.setText("FV/TEST/2026")
                     win.ed_kwota.setText("140,05")
                     win.wybor_kategoria.setCurrentIndex(1)
+                    win.ed_wystawiono.setText("2026-11-02")
                     win.zapisz_przycisk.click()
                     self.assertEqual(table.tabela.rowCount(), 1)
                     self.assertEqual(table.tabela.item(0, 4).text(), "140,05 zł")
@@ -112,7 +113,7 @@ class TestTabelaFaktur(unittest.TestCase):
                     doc = db.importuj_pdf(pdf)[0]
                     db.zapisz_rachunek(DaneRachunku(
                         dokument_id=doc, dostawca="DEMO", numer=number,
-                        kwota=amount, kategoria_id=category,
+                        kwota=amount, kategoria_id=category, data_wystawienia="2026-11-02",
                     ))
                 table = TabelaFaktur(db)
                 table.tabela.sortItems(4, Qt.SortOrder.AscendingOrder)
@@ -141,6 +142,7 @@ class TestTabelaFaktur(unittest.TestCase):
                     win.ed_numer.setText("FV/TEST/2026")
                     win.ed_kwota.setText("10,00")
                     win.wybor_kategoria.setCurrentIndex(1)
+                    win.ed_wystawiono.setText("2026-11-02")
                     win.zapisz_przycisk.click()
                     ident = db.faktury()[0]["id"]
                     win.ed_kwota.setText("25,00")

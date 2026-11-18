@@ -17,11 +17,70 @@ from urllib.request import ProxyHandler, Request, build_opener
 
 from .contracts import analysis_schema, sanitize_result, validate
 from .gateway import ToolSession
-from .errors import InvalidResponse, ModelUnavailable, TaskCancelled, TaskTimeout, ToolGatewayPending
+from .errors import (
+    ExtractionContextExceeded, InvalidResponse, ModelUnavailable,
+    TaskCancelled, TaskTimeout, ToolGatewayPending,
+)
 from .provider import StreamEvent
 
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_STREAM_LINE = 128 * 1024
+EXTRACTION_CONTEXT_TOKENS = 8192
+EXTRACTION_REPLY_RESERVE = 1536
+CHAT_TEMPLATE_RESERVE = 256
+
+
+def structured_chat_payload(
+    model_id: str, messages: list[dict[str, str]], schema: dict[str, Any],
+) -> dict[str, Any]:
+    # Użyj bajtów UTF-8 jako ostrożnego oszacowania kosztu tekstu OCR.
+    # Schemat służy jako gramatyka odpowiedzi; dolicz jego rozmiar do rezerwy.
+    schema_bytes = len(json.dumps(
+        schema, ensure_ascii=False, separators=(",", ":"),
+    ).encode("utf-8"))
+    message_bytes = sum(len(message["content"].encode("utf-8")) for message in messages)
+    if (message_bytes + schema_bytes + CHAT_TEMPLATE_RESERVE + EXTRACTION_REPLY_RESERVE
+            > EXTRACTION_CONTEXT_TOKENS):
+        raise ExtractionContextExceeded()
+    return {
+        "model": model_id, "stream": False, "format": schema,
+        "options": {"temperature": 0, "num_ctx": EXTRACTION_CONTEXT_TOKENS},
+        "truncate": False, "shift": False, "messages": messages,
+    }
+
+
+def check_structured_context_response(response: dict[str, Any]) -> None:
+    # Ollama raportuje prompt faktycznie przyjęty przez runner. Sama metryka
+    # nie gwarantuje, że starsza wersja nie skróciła tekstu przed pomiarem.
+    evaluated = response.get("prompt_eval_count")
+    if (type(evaluated) is int
+            and evaluated > EXTRACTION_CONTEXT_TOKENS - EXTRACTION_REPLY_RESERVE):
+        raise ExtractionContextExceeded()
+    if response.get("done_reason") == "length":
+        generated = response.get("eval_count")
+        if (type(evaluated) is int and type(generated) is int
+                and evaluated + generated >= EXTRACTION_CONTEXT_TOKENS - 1):
+            raise ExtractionContextExceeded()
+        raise InvalidResponse("Ollama osiągnęła limit długości odpowiedzi przed zakończeniem analizy")
+
+
+def is_ollama_context_error(error: HTTPError) -> bool:
+    # Rozpoznaj odmowę runnera, ale nie przekazuj treści HTTP do GUI ani logów.
+    with error:
+        if error.code not in (400, 413, 500):
+            return False
+        if error.code == 413:
+            return True
+        try:
+            body = error.read(4096).decode("utf-8", errors="replace").casefold()
+        except OSError:
+            return False
+    return "prompt too long" in body or (
+        "context" in body and any(
+            phrase in body for phrase in ("exceeds", "too long", "longer than")
+        )
+        and ("input" in body or "prompt" in body)
+    )
 
 
 class OllamaProvider:
@@ -87,6 +146,9 @@ class OllamaProvider:
         except (HTTPError, URLError, OSError, TimeoutError) as exc:
             if task_id and self._is_cancelled(task_id):
                 raise TaskCancelled("Zadanie zostało anulowane") from exc
+            if (isinstance(exc, HTTPError) and payload and payload.get("truncate") is False
+                    and is_ollama_context_error(exc)):
+                raise ExtractionContextExceeded() from exc
             if isinstance(exc, (socket.timeout, TimeoutError)):
                 raise TaskTimeout("Ollama nie odpowiedziała w ustalonym czasie") from exc
             raise ModelUnavailable("Nie można połączyć się z lokalną Ollamą") from exc
@@ -327,15 +389,12 @@ class OllamaProvider:
         limit = min(self.timeout, float(timeout) if timeout is not None else self.timeout)
         if limit <= 0:
             raise ValueError("Nieprawidłowy limit czasu")
-        payload = {
-            "model": model_id, "stream": False, "format": schema,
-            "options": {"temperature": 0, "num_ctx": 8192},
-            "messages": messages,
-        }
         try:
+            payload = structured_chat_payload(model_id, messages, schema)
             data = self._request("/api/chat", payload, task_id=task_id, timeout=limit)
             if self._is_cancelled(task_id):
                 raise TaskCancelled("Zadanie zostało anulowane")
+            check_structured_context_response(data)
             message = data.get("message")
             if not isinstance(message, dict) or message.get("tool_calls"):
                 raise InvalidResponse("Ekstrakcja nie pozwala na wywoływanie narzędzi")

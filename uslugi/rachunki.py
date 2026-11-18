@@ -18,7 +18,9 @@ from konfiguracja import katalog_danych
 from uslugi.archiwum import MagazynDokumentow
 from uslugi.kategorie import PODSTAWOWE_KATEGORIE, klucz_kategorii, podobne_kategorie
 from uslugi.walidacja import zweryfikuj_numer_konta
-from uslugi.finanse import cykl_faktury, _faktura_pola, zdarzenie, uniewaznij_kompletnosc
+from uslugi.finanse import (
+    Finanse, cykl_faktury, _faktura_pola, zdarzenie, uniewaznij_kompletnosc,
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,15 @@ class DaneRachunku:
     status: str = "do_zaplaty"
     uwagi: str = ""
     numer_konta: str = ""
+    data_oplacenia: str = ""
+
+
+class BrakDatyWystawienia(ValueError):
+    """Faktura musi mieć datę wystawienia, aby można ją było rozliczyć."""
+
+
+class BrakDatyOplacenia(ValueError):
+    """Potwierdzenie płatności wymaga daty."""
 
 
 class FakturaJuzIstnieje(ValueError):
@@ -183,7 +194,7 @@ class RejestrRachunkow:
         return list(self.db.execute(
             "SELECT r.id, r.dokument_id, r.dostawca, r.numer, "
             "r.data_wystawienia, r.termin_platnosci, r.kwota_grosze, r.status, "
-            "r.data_oplacenia, r.wersja_rekordu, "
+            "r.data_oplacenia, r.okres_do, r.wersja_rekordu, "
             "d.nazwa_zrodlowa, "
             "COALESCE((SELECT k.nazwa FROM pozycje_rachunku p "
             "JOIN kategorie k ON k.id = p.kategoria_id "
@@ -319,8 +330,8 @@ class RejestrRachunkow:
         firma = _klucz_faktury(dane.dostawca)
         numer = _klucz_faktury(dane.numer)
         rows = self.db.execute(
-            "SELECT r.id, r.dokument_id, r.dostawca, r.numer, "
-            "d.nazwa_zrodlowa FROM rachunki r "
+            "SELECT r.id, r.dokument_id, r.dostawca, r.numer, r.status, r.data_oplacenia, "
+            "r.wersja_rekordu, d.nazwa_zrodlowa FROM rachunki r "
             "JOIN dokumenty d ON d.id = r.dokument_id ORDER BY r.id"
         ).fetchall()
         return [
@@ -343,6 +354,7 @@ class RejestrRachunkow:
 
     def zapisz_rachunek(self, dane: DaneRachunku, *,
                         nadpisz_id: int | None = None,
+                        expected_version: int | None = None,
                         potwierdz_korekte_oplaconej: bool = False) -> int:
         """Nowy zapis bez zgody; zastąpienie tylko wskazanego ID po potwierdzeniu."""
         dostawca = " ".join(dane.dostawca.split())
@@ -355,6 +367,9 @@ class RejestrRachunkow:
         numer_konta = zweryfikuj_numer_konta(dane.numer_konta)
         kwota = kwota_na_grosze(dane.kwota)
         wystawiono = _data(dane.data_wystawienia)
+        if wystawiono is None:
+            raise BrakDatyWystawienia("Wpisz datę wystawienia faktury")
+        dzien_platnosci = _data(dane.data_oplacenia) if dane.status == "oplacony" else None
         termin = _data(dane.termin_platnosci)
         od = _data(dane.okres_od)
         do = _data(dane.okres_do)
@@ -387,12 +402,13 @@ class RejestrRachunkow:
                     "Odśwież dane przed zapisem."
                 )
             poprzedni = None
-            status = dane.status
+            status = "do_zaplaty"
             if istnieje:
                 rachunek_id = int(istnieje["id"])
                 poprzedni = self.db.execute(
                     "SELECT * FROM rachunki WHERE id=?", (rachunek_id,)
                 ).fetchone()
+                Finanse._wersja(poprzedni, expected_version)
                 if poprzedni["wycofano_utc"]:
                     raise ValueError("Faktura jest wycofana — najpierw ją przywróć")
                 if poprzedni["status"] == "oplacony":
@@ -403,6 +419,10 @@ class RejestrRachunkow:
                         raise ValueError(
                             "Zmiana kwoty opłaconej faktury wymaga osobnego potwierdzenia"
                         )
+            if (dane.status == "oplacony" and dzien_platnosci is None
+                    and (poprzedni is None or not poprzedni["data_oplacenia"])):
+                raise BrakDatyOplacenia("Wpisz datę opłacenia faktury")
+
             wartosci = (dostawca, dane.numer.strip(), wystawiono, termin, od, do,
                        kwota, status, dane.uwagi.strip(), numer_konta)
             if istnieje:
@@ -436,6 +456,8 @@ class RejestrRachunkow:
                       przed=_faktura_pola(poprzedni),
                       po=_faktura_pola(aktualny),
                       powod="Potwierdzony zapis formularza" if poprzedni else "")
+            if dzien_platnosci is not None:
+                Finanse(self.db)._ustaw_oplacona_w_transakcji(aktualny, dzien_platnosci)
             stare_cykl = cykl_faktury(poprzedni) if poprzedni else None
             nowe_cykl = cykl_faktury(aktualny)
             if poprzedni is None or (poprzedni["okres_do"] != aktualny["okres_do"] or

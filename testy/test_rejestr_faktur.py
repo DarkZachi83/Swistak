@@ -31,6 +31,7 @@ class TestRejestrFaktur(unittest.TestCase):
             dokument_id=document, dostawca="Operator Fikcyjny", numer=number,
             kwota=amount, kategoria_id=self.cat, status=status,
             data_wystawienia="2026-11-05", termin_platnosci="2026-11-20",
+            data_oplacenia="2026-11-20" if status == "oplacony" else "",
         )
 
     def test_pusty_rejestr_i_niezapisany_pdf(self):

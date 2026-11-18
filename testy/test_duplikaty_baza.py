@@ -29,7 +29,7 @@ class TestZabezpieczenieFaktury(unittest.TestCase):
              amount="25,00"):
         return DaneRachunku(
             dokument_id=doc, dostawca=supplier, numer=number, kwota=amount,
-            kategoria_id=self.category,
+            kategoria_id=self.category, data_wystawienia="2026-11-02",
         )
 
     def test_ponowny_zapis_odmowa_nie_zmienia_danych(self):

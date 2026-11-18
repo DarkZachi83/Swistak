@@ -5,6 +5,7 @@ Wyłącznie syntetyczne faktury, brak internetu, brak prawdziwej Ollamy.
 """
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
@@ -13,11 +14,12 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid import HybridAgent
-from ai_core.ollama import OllamaProvider
-from ai_core.errors import InvalidResponse
+from ai_core.ollama import EXTRACTION_CONTEXT_TOKENS, OllamaProvider
+from ai_core.errors import ExtractionContextExceeded, InvalidResponse
 from tools.audyt_ai_core import REQUIRED_RUNTIME, run_audit
 from tools.build_linux_beta import ARCHIVE_ROOT, build
 from tools.build_linux_binary import BINARY_DATA
@@ -117,7 +119,7 @@ class TestStage8Release(unittest.TestCase):
                 "sys.path.insert(0, sys.argv[1]); "
                 "from ai_core.contracts import analysis_schema; "
                 "from ai_core.gateway import ToolGateway; "
-                "from ai_core.ollama import OllamaProvider; "
+                "from ai_core.ollama import EXTRACTION_CONTEXT_TOKENS, OllamaProvider; "
                 "assert 'findings' in analysis_schema()['properties']; "
                 "g=ToolGateway(Path(sys.argv[1])/'missing.sqlite3'); "
                 "assert len(g.descriptors(['invoice.search']))==1; "
@@ -141,6 +143,69 @@ class TestStage8Release(unittest.TestCase):
                          "http://localhost:11434/evil", "http://x@127.0.0.1:11434"):
             with self.subTest(endpoint=endpoint), self.assertRaises(ValueError):
                 OllamaProvider(endpoint)
+
+
+class TestKontekstEkstrakcji(unittest.TestCase):
+    def setUp(self):
+        self.provider = OllamaProvider()
+
+    def test_budzet_odrzuca_dokument_przed_wyslaniem_i_uwzglednia_wzorzec(self):
+        tekst = "Zażółć gęślą jaźń. Syntetyczna pozycja dokumentu.\n" * 90
+        self.assertLess(len(tekst), 30000)
+        with patch.object(self.provider, "_request") as wyslij:
+            with self.assertRaises(ExtractionContextExceeded):
+                analizuj_przez_ai_core(tekst, ["Energia"], provider=self.provider)
+            with patch("uslugi.analiza_llm.wskazowki_dla_modelu", return_value="ą" * 2400):
+                with self.assertRaises(ExtractionContextExceeded):
+                    analizuj_przez_ai_core(
+                        FAKE_INVOICE_TEXT, ["Energia"], wzorzec={}, provider=self.provider,
+                    )
+            wyslij.assert_not_called()
+
+    def test_krotki_tekst_trafia_w_calosci_a_odpowiedz_przy_limicie_jest_odrzucona(self):
+        tresc = FakeExtraction().generate_structured(
+            task_id="syntetyczne", model_id="gemma3:4b", messages=[],
+            schema={"required": ["kwota_do_zaplaty"]}, timeout=10,
+        )
+        odpowiedz = {
+            "message": {"content": json.dumps(tresc)},
+            "prompt_eval_count": 750,
+            "done_reason": "stop",
+        }
+        with patch.object(self.provider, "_request", return_value=odpowiedz) as wyslij:
+            wynik = analizuj_przez_ai_core(
+                FAKE_INVOICE_TEXT, ["Energia"], provider=self.provider,
+            )
+            self.assertEqual(wynik.oceny["kwota_do_zaplaty"].wartosc, "174,80")
+            payload = wyslij.call_args.args[1]
+            self.assertTrue(payload["messages"][-1]["content"].endswith(FAKE_INVOICE_TEXT))
+            self.assertFalse(payload["truncate"])
+            self.assertFalse(payload["shift"])
+            self.assertEqual(payload["options"]["num_ctx"], EXTRACTION_CONTEXT_TOKENS)
+            odpowiedz["prompt_eval_count"] = EXTRACTION_CONTEXT_TOKENS - 1
+            with self.assertRaises(ExtractionContextExceeded):
+                analizuj_przez_ai_core(FAKE_INVOICE_TEXT, ["Energia"], provider=self.provider)
+            odpowiedz.update(prompt_eval_count=6500, eval_count=1692, done_reason="length")
+            with self.assertRaises(ExtractionContextExceeded):
+                analizuj_przez_ai_core(FAKE_INVOICE_TEXT, ["Energia"], provider=self.provider)
+            odpowiedz.update(prompt_eval_count=750, eval_count=128)
+            with self.assertRaisesRegex(InvalidResponse, "limit długości odpowiedzi"):
+                analizuj_przez_ai_core(FAKE_INVOICE_TEXT, ["Energia"], provider=self.provider)
+
+    def test_limit_z_http_nie_jest_awaria_modelu_i_nie_ujawnia_body(self):
+        blad = HTTPError(
+            self.provider.base_url + "/api/chat", 400, "Bad Request", {},
+            io.BytesIO(b'{"error":"the prompt is longer than the context length: DEMO-PRIVATE"}'),
+        )
+        with patch.object(self.provider._opener, "open", side_effect=blad) as wyslij:
+            with self.assertRaises(ExtractionContextExceeded) as wyjatek:
+                analizuj_przez_ai_core(
+                    FAKE_INVOICE_TEXT, ["Energia"], provider=self.provider,
+                    model_ekstrakcji="test:specjalista",
+                )
+            wyslij.assert_called_once()
+            self.assertNotIn("DEMO-PRIVATE", str(wyjatek.exception))
+            self.assertIn("Odczytaj zaznaczenie", str(wyjatek.exception))
 
 
 class TestStage8SyntheticEndToEnd(unittest.TestCase):
@@ -248,6 +313,7 @@ class TestStage8SyntheticEndToEnd(unittest.TestCase):
         invoice_id = self.register.zapisz_rachunek(DaneRachunku(
             dokument_id=self.document_id, dostawca="DEMO",
             numer="DEMO/10", kwota="37,40", kategoria_id=self.category,
+            data_wystawienia="2026-11-01",
             termin_platnosci="2026-11-06", status="do_zaplaty",
         ))
         gateway = ToolGateway(self.path)

@@ -8,7 +8,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QSize, Qt, QThreadPool, QTimer
+from PySide6.QtCore import QEvent, QSignalBlocker, QSize, Qt, QThreadPool, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QCursor, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QButtonGroup, QDialog, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QInputDialog, QLabel,
@@ -28,7 +28,8 @@ from gui.panel_agenta import PanelAgenta
 from gui.pulpit import Pulpit
 from gui.statystyki import Statystyki
 from gui.dialog_plan_historia import DialogPlanHistoria
-from ai_core.hybrid import AgentLog, MonitorReport
+from ai_core.hybrid import AgentLog, MonitorReport, today_warsaw
+from ai_core.errors import ExtractionContextExceeded
 from ai_core.gateway import ToolGateway
 from ai_core.hybrid_queue import MonitorJob, MonitorQueue
 from uslugi.geometria import Zaznaczenie
@@ -45,7 +46,10 @@ from gui.okno_wzorcow import OknoWzorcow
 from gui.tabela_faktur import TabelaFaktur
 from gui.ikony import ikona_nawigacji
 from gui.uklad import Siatka
-from uslugi.rachunki import DaneRachunku, RejestrRachunkow, grosze_na_kwote
+from uslugi.rachunki import (
+    BrakDatyOplacenia, BrakDatyWystawienia, DaneRachunku, RejestrRachunkow,
+    grosze_na_kwote,
+)
 from uslugi.kopie_zapasowe import (
     BladKopii, utworz_kopie, przygotuj_przywracanie, podmien_dane,
     cofnij_podmiane,
@@ -444,9 +448,10 @@ class OknoGlowne(QMainWindow):
         if self.aktualny_dokument_id is not None and isinstance(invoice_id, int):
             faktura = self.rejestr.rachunek(self.aktualny_dokument_id)
             if faktura is not None and faktura["id"] == invoice_id:
-                status = faktura["status"]
-                self.wybor_status.setCurrentIndex(self.wybor_status.findData(status))
-                self._zapisany_formularz = (*self._zapisany_formularz[:-1], status)
+                platnosc = (faktura["status"], faktura["data_oplacenia"] or "")
+                if platnosc != self._zapisany_formularz[-2:]:
+                    self._wczytaj_stan_platnosci(faktura)
+                    self._zapisany_formularz = (*self._zapisany_formularz[:-2], *platnosc)
                 self.zapisz_przycisk.setEnabled(faktura["wycofano_utc"] is None)
         self._aktualizuj_podsumowanie()
         if isinstance(invoice_id, int) and not isinstance(invoice_id, bool):
@@ -571,7 +576,7 @@ class OknoGlowne(QMainWindow):
     _FORM_KEYS = (
         "form.supplier", "form.invoice", "form.account", "form.amount",
         "form.category", "form.issued", "form.due", "form.period_from",
-        "form.period_to", "form.status", "form.notes",
+        "form.period_to", "form.status", "form.paid_date", "form.notes",
     )
     _VALIDATION_KEYS = {
         "Brak danych — uzupełnij ręcznie": "validation.missing",
@@ -1077,8 +1082,10 @@ class OknoGlowne(QMainWindow):
             label.setText(t(key))
         self.ed_konto.setPlaceholderText(t("form.placeholder_account"))
         self.ed_kwota.setPlaceholderText(t("form.placeholder_amount"))
-        for field in (self.ed_wystawiono, self.ed_termin, self.ed_od, self.ed_do):
+        for field in (self.ed_termin, self.ed_od, self.ed_do):
             field.setPlaceholderText(t("form.placeholder_date"))
+        for field in (self.ed_wystawiono, self.ed_oplacono):
+            field.setPlaceholderText(t("form.placeholder_required_date"))
         self.ed_uwagi.setPlaceholderText(t("form.placeholder_notes"))
         self.wybor_status.setItemText(0, t("form.status_due"))
         self.wybor_status.setItemText(1, t("form.status_paid"))
@@ -1175,9 +1182,6 @@ class OknoGlowne(QMainWindow):
         self.ed_termin = QLineEdit()
         self.ed_od = QLineEdit()
         self.ed_do = QLineEdit()
-        for pole in (self.ed_wystawiono, self.ed_termin, self.ed_od, self.ed_do):
-            pole.setPlaceholderText("RRRR-MM-DD (opcjonalnie)")
-
         self.wybor_kategoria = QComboBox()
         wybor_i_dodaj = QWidget()
         kategoria_uklad = QHBoxLayout(wybor_i_dodaj)
@@ -1192,6 +1196,9 @@ class OknoGlowne(QMainWindow):
         self.wybor_status = QComboBox()
         self.wybor_status.addItem("Do zapłaty", "do_zaplaty")
         self.wybor_status.addItem("Opłacony", "oplacony")
+        self.ed_oplacono = QLineEdit()
+        self.ed_oplacono.setEnabled(False)
+        self.wybor_status.currentIndexChanged.connect(self._zmiana_statusu_platnosci)
         self.ed_uwagi = QTextEdit()
         self.ed_uwagi.setPlaceholderText("Opcjonalna notatka")
         self.ed_uwagi.setMaximumHeight(86)
@@ -1203,11 +1210,12 @@ class OknoGlowne(QMainWindow):
             ("Konto bankowe", self.ed_konto),
             ("Kwota [zł] *", self.ed_kwota),
             ("Kategoria *", wybor_i_dodaj),
-            ("Wystawiono", self.ed_wystawiono),
+            ("Wystawiono *", self.ed_wystawiono),
             ("Termin płatności", self.ed_termin),
             ("Okres od", self.ed_od),
             ("Okres do", self.ed_do),
             ("Status", self.wybor_status),
+            ("Data opłacenia", self.ed_oplacono),
             ("Uwagi", self.ed_uwagi),
         ):
             forma.addRow(etykieta, element)
@@ -1254,7 +1262,7 @@ class OknoGlowne(QMainWindow):
             ("form.category", "kategoria"), ("form.issued", "wystawiono"),
             ("form.due", "termin"), ("form.period_from", "od"),
             ("form.period_to", "do"), ("form.status", "status"),
-            ("form.notes", "uwagi"),
+            ("form.paid_date", "oplacono"), ("form.notes", "uwagi"),
         )
         for klucz, pole in pola:
             etykieta = QLabel()
@@ -1307,6 +1315,7 @@ class OknoGlowne(QMainWindow):
             "od": self.ed_od.text(),
             "do": self.ed_do.text(),
             "status": self.wybor_status.currentText(),
+            "oplacono": self.ed_oplacono.text() if self.ed_oplacono.isEnabled() else "",
             "uwagi": self.ed_uwagi.toPlainText(),
         }
         for pole, wartosc in wartosci.items():
@@ -1765,10 +1774,15 @@ class OknoGlowne(QMainWindow):
     def _analiza_blad(self, dokument_id: int, komunikat: str) -> None:
         self._koniec_postepu_ai(False)
         self._zadanie_ai = None
-        self._message(self.info_ai, "ai.failed")
+        za_dlugi = komunikat == ExtractionContextExceeded.code
+        klucz = "ai.context_exceeded" if za_dlugi else "ai.failed"
+        self._message(self.info_ai, klucz)
         self._aktualizuj_odczyt()
         if dokument_id == self.aktualny_dokument_id:
-            QMessageBox.warning(self, t("msg.ai_error"), komunikat)
+            QMessageBox.warning(self, t("msg.ai_error"), t(klucz) if za_dlugi else komunikat)
+            if za_dlugi:
+                self.karty.setCurrentIndex(self.ETAP_ODCZYT)
+                self._message(self.info_odczytu, klucz)
 
     def _analiza_anulowana(self, dokument_id: int) -> None:
         self._koniec_postepu_ai(False)
@@ -2164,6 +2178,18 @@ class OknoGlowne(QMainWindow):
         elif self.moduly.currentWidget() is self.statystyki:
             self.statystyki.odswiez()
 
+    def _zmiana_statusu_platnosci(self) -> None:
+        oplacony = self.wybor_status.currentData() == "oplacony"
+        self.ed_oplacono.setEnabled(oplacony)
+        if oplacony and not self.ed_oplacono.text():
+            self.ed_oplacono.setText(today_warsaw())
+
+    def _wczytaj_stan_platnosci(self, zapis: sqlite3.Row) -> None:
+        with QSignalBlocker(self.wybor_status):
+            self.wybor_status.setCurrentIndex(self.wybor_status.findData(zapis["status"]))
+        self.ed_oplacono.setEnabled(zapis["status"] == "oplacony")
+        self.ed_oplacono.setText(zapis["data_oplacenia"] or "")
+
     def _wyczysc_formularz(self) -> None:
         self._message(self.nazwa_dokumentu, "doc.import_first")
         for pole in (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota, self.ed_wystawiono,
@@ -2171,6 +2197,7 @@ class OknoGlowne(QMainWindow):
             pole.clear()
         self.ed_uwagi.clear()
         self.wybor_status.setCurrentIndex(0)
+        self.ed_oplacono.clear()
         self._odswiez_kategorie()
         self.zapisz_przycisk.setEnabled(False)
 
@@ -2213,9 +2240,7 @@ class OknoGlowne(QMainWindow):
             self.ed_do.setText(zapis["okres_do"] or "")
             self.ed_uwagi.setPlainText(zapis["uwagi"])
             self._odswiez_kategorie(zapis["kategoria_id"])
-            idx = self.wybor_status.findData(zapis["status"])
-            if idx >= 0:
-                self.wybor_status.setCurrentIndex(idx)
+            self._wczytaj_stan_platnosci(zapis)
         self.zapisz_przycisk.setEnabled(zapis is None or zapis["wycofano_utc"] is None)
         self._zapisany_formularz = self._stan_formularza()
         self._aktualizuj_odczyt()
@@ -2246,7 +2271,8 @@ class OknoGlowne(QMainWindow):
         pola = (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota,
                 self.ed_wystawiono, self.ed_termin, self.ed_od, self.ed_do)
         return (*[pole.text() for pole in pola], self.ed_uwagi.toPlainText(),
-                self.wybor_kategoria.currentData(), self.wybor_status.currentData())
+                self.wybor_kategoria.currentData(), self.wybor_status.currentData(),
+                self.ed_oplacono.text())
 
     def _zgoda_na_zmiane_dokumentu(self) -> bool:
         if self._zadanie_odczytu is not None or self._zadanie_ai is not None:
@@ -2291,6 +2317,13 @@ class OknoGlowne(QMainWindow):
         if self.aktualny_dokument_id is None:
             return
         try:
+            status = self.wybor_status.currentData()
+            data_oplacenia = self.ed_oplacono.text().strip() if status == "oplacony" else ""
+            if status == "oplacony" and not data_oplacenia:
+                raise BrakDatyOplacenia("Wpisz datę opłacenia faktury")
+            # Nie nadpisuj daty, której użytkownik nie zmienił w otwartym formularzu.
+            if self._zapisany_formularz[-2:] == (status, data_oplacenia):
+                data_oplacenia = ""
             dane = DaneRachunku(
                 dokument_id=self.aktualny_dokument_id,
                 dostawca=self.ed_dostawca.text(),
@@ -2302,20 +2335,28 @@ class OknoGlowne(QMainWindow):
                 termin_platnosci=self.ed_termin.text(),
                 okres_od=self.ed_od.text(),
                 okres_do=self.ed_do.text(),
-                status=self.wybor_status.currentData(),
+                status=status,
                 uwagi=self.ed_uwagi.toPlainText(),
+                data_oplacenia=data_oplacenia,
             )
             istniejaca = self.rejestr.znajdz_duplikat(dane)
             nadpisz_id = None
+            wersja = None
             if istniejaca is not None:
+                potwierdzenie = t(
+                    "invoice.duplicate_confirm",
+                    supplier=istniejaca["dostawca"],
+                    number=istniejaca["numer"] or t("invoice.missing_number"),
+                    filename=istniejaca["nazwa_zrodlowa"],
+                )
+                if (istniejaca["status"] == "oplacony" and data_oplacenia
+                        and data_oplacenia != istniejaca["data_oplacenia"]):
+                    potwierdzenie += "\n\n" + t(
+                        "invoice.payment_date_change",
+                        old=istniejaca["data_oplacenia"] or "—", new=data_oplacenia,
+                    )
                 odpowiedz = QMessageBox.question(
-                    self, t("invoice.duplicate_title"),
-                    t(
-                        "invoice.duplicate_confirm",
-                        supplier=istniejaca["dostawca"],
-                        number=istniejaca["numer"] or t("invoice.missing_number"),
-                        filename=istniejaca["nazwa_zrodlowa"],
-                    ),
+                    self, t("invoice.duplicate_title"), potwierdzenie,
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No,
                 )
@@ -2323,7 +2364,11 @@ class OknoGlowne(QMainWindow):
                     self._status("invoice.overwrite_cancelled")
                     return
                 nadpisz_id = int(istniejaca["id"])
-            zapisany_id = self.rejestr.zapisz_rachunek(dane, nadpisz_id=nadpisz_id)
+                wersja = int(istniejaca["wersja_rekordu"])
+            zapisany_id = self.rejestr.zapisz_rachunek(
+                dane, nadpisz_id=nadpisz_id, expected_version=wersja,
+            )
+            self._wczytaj_stan_platnosci(self.rejestr.rachunek(self.aktualny_dokument_id))
             self._zapisany_formularz = self._stan_formularza()
             self._agent_submit("change", zapisany_id)
             self._odswiez_liste()
@@ -2333,6 +2378,13 @@ class OknoGlowne(QMainWindow):
             self._aktualizuj_tekst_propozycji()
             self.info_faktury.setText(t("invoice.saved"))
             self._status("msg.saved")
+        except (BrakDatyWystawienia, BrakDatyOplacenia) as blad:
+            wystawienia = isinstance(blad, BrakDatyWystawienia)
+            klucz = "form.issued_required" if wystawienia else "form.paid_date_required"
+            pole = self.ed_wystawiono if wystawienia else self.ed_oplacono
+            QMessageBox.warning(self, t("msg.bill_save_error"), t(klucz))
+            self.karty.setCurrentIndex(self.ETAP_EDYCJA)
+            pole.setFocus()
         except (ValueError, OSError, sqlite3.Error) as blad:
             QMessageBox.warning(self, t("msg.bill_save_error"), str(blad))
 

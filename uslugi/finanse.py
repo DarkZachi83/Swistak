@@ -138,20 +138,25 @@ class Finanse:
         with transakcja(self.db):
             before = self._faktura(ident)
             self._wersja(before, expected_version)
-            if before["wycofano_utc"]:
-                raise ValueError("Nie można opłacić wycofanej faktury")
-            if before["status"] == "oplacony" and before["data_oplacenia"] == dzien:
-                return
-            self.db.execute(
-                "UPDATE rachunki SET status='oplacony', data_oplacenia=?, "
-                "wersja_rekordu=wersja_rekordu+1, "
-                "zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
-                (dzien,ident),
-            )
-            after = self._faktura(ident)
-            zdarzenie(self.db, "invoice", ident,
-                      "korekta_daty_oplacenia" if before["status"] == "oplacony" else "oplacenie",
-                      przed=_faktura_pola(before), po=_faktura_pola(after))
+            self._ustaw_oplacona_w_transakcji(before, dzien)
+
+    def _ustaw_oplacona_w_transakcji(self, before: sqlite3.Row, dzien: str) -> None:
+        """Zapisz płatność w transakcji otwartej przez historię lub formularz."""
+        ident = int(before["id"])
+        if before["wycofano_utc"]:
+            raise ValueError("Nie można opłacić wycofanej faktury")
+        if before["status"] == "oplacony" and before["data_oplacenia"] == dzien:
+            return
+        self.db.execute(
+            "UPDATE rachunki SET status='oplacony', data_oplacenia=?, "
+            "wersja_rekordu=wersja_rekordu+1, "
+            "zmieniono_utc=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?",
+            (dzien,ident),
+        )
+        after = self._faktura(ident)
+        zdarzenie(self.db, "invoice", ident,
+                  "korekta_daty_oplacenia" if before["status"] == "oplacony" else "oplacenie",
+                  przed=_faktura_pola(before), po=_faktura_pola(after))
 
     def cofnij_oplacenie(
         self, ident: int, *, powod: str, expected_version: int | None = None,

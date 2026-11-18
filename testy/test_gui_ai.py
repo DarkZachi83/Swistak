@@ -89,6 +89,7 @@ class TestInterfejsAI(unittest.TestCase):
                 self.assertEqual(okno.ed_termin.text(), "2026-12-01")
                 self.assertEqual(okno.wybor_kategoria.currentData(), next(int(row["id"]) for row in rejestr.kategorie() if row["nazwa"] == "Gaz"))
                 self.assertIsNone(rejestr.rachunek(dokument_id))
+                okno.ed_wystawiono.setText("2026-11-02")
                 okno._zapisz_rachunek()  # odrębny, świadomy zapis
                 self.assertEqual(rejestr.rachunek(dokument_id)["kwota_grosze"], 18950)
                 okno.close()

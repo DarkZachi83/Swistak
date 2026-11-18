@@ -43,6 +43,7 @@ class BazaStatystyk(unittest.TestCase):
         return self.rejestr.zapisz_rachunek(DaneRachunku(
             dokument_id=dok, dostawca=dostawca, numer=numer, kwota=kwota,
             kategoria_id=self.gaz, okres_do=usluga, data_wystawienia=wystawiono, status=status,
+            data_oplacenia="2026-11-14" if status == "oplacony" else "",
         ))
 
 
@@ -50,10 +51,12 @@ class TestStatystyki(BazaStatystyk):
     def test_usluga_i_faktyczne_platnosci_maja_rozne_miesiace(self):
         pazdziernik = self.faktura("starsza", "15,01", usluga="2026-10-31")
         listopad = self.faktura("pozniejsza", "18,18")
-        self.faktura("brak-daty-oplacenia", "9,05", status="oplacony")
+        legacy_paid = self.faktura("brak-daty-oplacenia", "9,05")
+        self.db.execute("UPDATE rachunki SET status='oplacony' WHERE id=?", (legacy_paid,))
         nieoplacona = self.faktura("nieoplacona", "3,03")
         self.db.execute("UPDATE rachunki SET okres_do='' WHERE id=?", (nieoplacona,))
-        self.faktura("bez-dat", "77,77", wystawiono="")
+        legacy_undated = self.faktura("bez-dat", "77,77")
+        self.db.execute("UPDATE rachunki SET data_wystawienia=NULL WHERE id=?", (legacy_undated,))
         self.finanse.ustaw_oplacona(pazdziernik, "2026-11-01")
         self.finanse.ustaw_oplacona(listopad, "2026-12-01")
         wycofana = self.faktura("wycofana", "99,99")

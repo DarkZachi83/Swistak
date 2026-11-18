@@ -128,6 +128,7 @@ class TestInterfejsWzorcow(unittest.TestCase):
                     self.assertIsNone(win._aktywny_wzorzec)
                     win.ed_dostawca.setText("Operator Sieci DEMO")
                     win.ed_kwota.setText("42,00")
+                    win.ed_wystawiono.setText("2026-11-02")
                     win.wybor_kategoria.setCurrentIndex(
                         win.wybor_kategoria.findData(kat_id)
                     )

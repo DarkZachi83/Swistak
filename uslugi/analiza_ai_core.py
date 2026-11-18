@@ -10,7 +10,7 @@ import threading
 import uuid
 from typing import Callable
 
-from ai_core.errors import ModelUnavailable, TaskCancelled
+from ai_core.errors import ExtractionContextExceeded, ModelUnavailable, TaskCancelled
 from ai_core.ollama import OllamaProvider
 from ai_core.router import ModelBinding, ModelRouter
 from uslugi.analiza_llm import (
@@ -36,7 +36,7 @@ def analizuj_przez_ai_core(
     if not isinstance(tekst, str) or not tekst.strip():
         raise ValueError("Najpierw odczytaj tekst dokumentu")
     if len(tekst) > 30000:
-        raise ValueError("Tekst przekracza 30 000 znaków")
+        raise ExtractionContextExceeded()
     if not isinstance(model, str) or not 0 < len(model.strip()) <= 120:
         raise ValueError("Wybierz lokalny model Ollama")
     if model_ekstrakcji is not None and (

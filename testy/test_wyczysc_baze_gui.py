@@ -31,6 +31,7 @@ class TestWyczyscBazeGUI(unittest.TestCase):
         reg.zapisz_rachunek(DaneRachunku(
             dokument_id=doc, dostawca="DEMO", numer="TEST/2026",
             kwota="99,22", kategoria_id=int(reg.kategorie()[0]["id"]),
+            data_wystawienia="2026-11-02",
         ))
         return doc
 
