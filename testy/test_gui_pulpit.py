@@ -398,6 +398,38 @@ class TestPulpit(unittest.TestCase):
         self.assertEqual(window.ed_oplacono.text(), "")
         self.assertEqual(window._stan_formularza(), window._zapisany_formularz)
 
+    def test_platnosc_z_historii_zachowuje_niezapisana_notatke(self):
+        window = self.okno()
+        pdf = self.root / "Syntetyczna historia platnosci.pdf"
+        writer = QPdfWriter(str(pdf))
+        painter = QPainter(writer)
+        painter.drawText(100, 100, "Syntetyczna historia platnosci")
+        self.assertTrue(painter.end())
+        dokument_id, _ = self.rejestr.importuj_pdf(pdf)
+        ident = self.rejestr.zapisz_rachunek(DaneRachunku(
+            dokument_id=dokument_id, dostawca="DEMO", numer="HIST-1", kwota="12,34",
+            kategoria_id=self.kategoria, data_wystawienia="2026-11-13",
+        ))
+        window._wyswietl_dokument(dokument_id)
+        window.ed_uwagi.setPlainText("Niezapisana notatka")
+
+        self.finanse.ustaw_oplacona(ident, "2026-11-12")
+        with patch.object(window, "_agent_submit"):
+            window._plan_financial_change(ident)
+        self.assertEqual(window.wybor_status.currentData(), "oplacony")
+        self.assertEqual(window.ed_oplacono.text(), "2026-11-12")
+        self.assertEqual(window.ed_uwagi.toPlainText(), "Niezapisana notatka")
+        self.assertNotEqual(window._stan_formularza(), window._zapisany_formularz)
+
+        with (patch.object(window, "_agent_submit"),
+              patch.object(QMessageBox, "question",
+                           return_value=QMessageBox.StandardButton.Yes) as confirm):
+            window._zapisz_rachunek()
+        confirm.assert_called_once()
+        zapis = self.rejestr.rachunek(dokument_id)
+        self.assertEqual(zapis["data_oplacenia"], "2026-11-12")
+        self.assertEqual(zapis["uwagi"], "Niezapisana notatka")
+
     def test_korekta_kwoty_oplaconej_faktury_wymaga_drugiego_potwierdzenia(self):
         window = self.okno()
         pdf = self.root / "Syntetyczna korekta.pdf"

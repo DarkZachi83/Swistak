@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+from typing import NamedTuple
 
 from PySide6.QtCore import QEvent, QSignalBlocker, QSize, Qt, QThreadPool, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
@@ -54,6 +55,21 @@ from i18n import LANGUAGES, category_name, current_language, set_language, syste
 import ustawienia
 
 
+class _StanFormularza(NamedTuple):
+    dostawca: str
+    numer: str
+    numer_konta: str
+    kwota: str
+    kategoria_id: int | None
+    wystawiono: str
+    termin: str
+    okres_od: str
+    okres_do: str
+    status: str
+    uwagi: str
+    oplacono: str
+
+
 class OknoGlowne(QMainWindow):
     """Pulpit rachunków i zachowany proces OCR → AI → korekta → faktura."""
 
@@ -80,7 +96,7 @@ class OknoGlowne(QMainWindow):
         self._messages: dict[object, tuple[str, dict]] = {}
         self._status_message: tuple[str, dict] | None = None
         self.aktualny_dokument_id: int | None = None
-        self._zapisany_formularz = ()
+        self._zapisany_formularz: _StanFormularza | None = None
         self._wybrany_obszar: Zaznaczenie | None = None
         self._zadanie_odczytu: ZadanieOdczytu | None = None
         self._zadanie_ai: ZadanieAnalizy | None = None
@@ -441,10 +457,14 @@ class OknoGlowne(QMainWindow):
         if self.aktualny_dokument_id is not None and isinstance(invoice_id, int):
             faktura = self.rejestr.rachunek(self.aktualny_dokument_id)
             if faktura is not None and faktura["id"] == invoice_id:
-                platnosc = (faktura["status"], faktura["data_oplacenia"] or "")
-                if platnosc != self._zapisany_formularz[-2:]:
+                zapisany = self._zapisany_formularz
+                status = faktura["status"]
+                oplacono = faktura["data_oplacenia"] or ""
+                if zapisany is not None and (
+                    status != zapisany.status or oplacono != zapisany.oplacono
+                ):
                     self._wczytaj_stan_platnosci(faktura)
-                    self._zapisany_formularz = (*self._zapisany_formularz[:-2], *platnosc)
+                    self._zapisany_formularz = zapisany._replace(status=status, oplacono=oplacono)
                 self.zapisz_przycisk.setEnabled(faktura["wycofano_utc"] is None)
         self._aktualizuj_podsumowanie()
         if isinstance(invoice_id, int) and not isinstance(invoice_id, bool):
@@ -1978,12 +1998,21 @@ class OknoGlowne(QMainWindow):
         if dokument_id != self.aktualny_dokument_id:
             self._otworz_fakture_z_tabeli(dokument_id)
 
-    def _stan_formularza(self) -> tuple:
-        pola = (self.ed_dostawca, self.ed_numer, self.ed_konto, self.ed_kwota,
-                self.ed_termin, self.ed_od, self.ed_do)
-        return (*[pole.text() for pole in pola], self.ed_uwagi.toPlainText(),
-                self.wybor_kategoria.currentData(), self.ed_wystawiono.text(),
-                self.wybor_status.currentData(), self.ed_oplacono.text())
+    def _stan_formularza(self) -> _StanFormularza:
+        return _StanFormularza(
+            dostawca=self.ed_dostawca.text(),
+            numer=self.ed_numer.text(),
+            numer_konta=self.ed_konto.text(),
+            kwota=self.ed_kwota.text(),
+            kategoria_id=self.wybor_kategoria.currentData(),
+            wystawiono=self.ed_wystawiono.text(),
+            termin=self.ed_termin.text(),
+            okres_od=self.ed_od.text(),
+            okres_do=self.ed_do.text(),
+            status=self.wybor_status.currentData(),
+            uwagi=self.ed_uwagi.toPlainText(),
+            oplacono=self.ed_oplacono.text(),
+        )
 
     def _zgoda_na_zmiane_dokumentu(self) -> bool:
         if self._zadanie_odczytu is not None or self._zadanie_ai is not None:
@@ -2028,15 +2057,21 @@ class OknoGlowne(QMainWindow):
         if self.aktualny_dokument_id is None:
             return
         try:
-            status = self.wybor_status.currentData()
-            data_oplacenia = self.ed_oplacono.text().strip() if status == "oplacony" else ""
-            if status == "oplacony" and not data_oplacenia:
+            formularz = self._stan_formularza()
+            zapisany = self._zapisany_formularz
+            data_oplacenia = formularz.oplacono.strip() if formularz.status == "oplacony" else ""
+            if formularz.status == "oplacony" and not data_oplacenia:
                 raise BrakDatyOplacenia("Wpisz datę opłacenia faktury")
-            wystawiono = self.ed_wystawiono.text().strip() or None
-            platnosc_bez_zmian = self._zapisany_formularz[-2:] == (status, data_oplacenia)
+            wystawiono = formularz.wystawiono.strip() or None
+            platnosc_bez_zmian = (
+                zapisany is not None
+                and zapisany.status == formularz.status
+                and zapisany.oplacono == data_oplacenia
+            )
             daty_zmienione = (
-                not platnosc_bez_zmian
-                or self._zapisany_formularz[4].strip() != (wystawiono or "")
+                zapisany is None
+                or not platnosc_bez_zmian
+                or zapisany.wystawiono.strip() != (wystawiono or "")
             )
             if (data_oplacenia and sprawdz_date_platnosci(data_oplacenia, wystawiono)
                     and daty_zmienione):
@@ -2055,17 +2090,17 @@ class OknoGlowne(QMainWindow):
                 data_oplacenia = ""
             dane = DaneRachunku(
                 dokument_id=self.aktualny_dokument_id,
-                dostawca=self.ed_dostawca.text(),
-                numer=self.ed_numer.text(),
-                numer_konta=self.ed_konto.text(),
-                kwota=self.ed_kwota.text(),
-                kategoria_id=self.wybor_kategoria.currentData(),
-                data_wystawienia=self.ed_wystawiono.text(),
-                termin_platnosci=self.ed_termin.text(),
-                okres_od=self.ed_od.text(),
-                okres_do=self.ed_do.text(),
-                status=status,
-                uwagi=self.ed_uwagi.toPlainText(),
+                dostawca=formularz.dostawca,
+                numer=formularz.numer,
+                numer_konta=formularz.numer_konta,
+                kwota=formularz.kwota,
+                kategoria_id=formularz.kategoria_id,
+                data_wystawienia=formularz.wystawiono,
+                termin_platnosci=formularz.termin,
+                okres_od=formularz.okres_od,
+                okres_do=formularz.okres_do,
+                status=formularz.status,
+                uwagi=formularz.uwagi,
                 data_oplacenia=data_oplacenia,
             )
             zapisany_id = zapisz_z_potwierdzeniem(self, self.rejestr, dane)
