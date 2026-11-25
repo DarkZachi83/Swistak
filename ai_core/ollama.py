@@ -37,7 +37,10 @@ def structured_chat_payload(
 ) -> dict[str, Any]:
     return {
         "model": model_id, "stream": False, "format": schema,
-        "options": {"temperature": 0, "num_ctx": context_tokens},
+        # Limit odpowiedzi jest zgodny z rezerwą okna kontekstowego; bez
+        # niego lokalny model potrafi wygenerować niezamknięty obiekt JSON.
+        "options": {"temperature": 0, "num_ctx": context_tokens,
+                    "num_predict": _extraction_reply_reserve(context_tokens)},
         "truncate": False, "shift": False, "messages": messages,
     }
 
@@ -454,25 +457,77 @@ class OllamaProvider:
             remaining = limit - (time.monotonic() - start)
             if remaining <= 0:
                 raise TaskTimeout("Ollama nie odpowiedziała w ustalonym czasie")
-            data = self._request("/api/chat", payload, task_id=task_id, timeout=remaining)
-            if self._is_cancelled(task_id):
-                raise TaskCancelled("Zadanie zostało anulowane")
-            check_structured_context_response(data, context_tokens)
-            message = data.get("message")
-            if not isinstance(message, dict) or message.get("tool_calls"):
-                raise InvalidResponse("Ekstrakcja nie pozwala na wywoływanie narzędzi")
-            content = message.get("content")
-            if not isinstance(content, str):
-                raise InvalidResponse("Brak danych JSON ekstrakcji")
-            try:
-                parsed = json.loads(content)
-            except (UnicodeError, ValueError) as exc:
-                raise InvalidResponse("Model nie zwrócił poprawnego JSON pól") from exc
-            if not isinstance(parsed, dict):
-                raise InvalidResponse("Model nie zwrócił obiektu pól")
-            if not Draft202012Validator(schema, format_checker=FormatChecker()).is_valid(parsed):
-                raise InvalidResponse("Model nie zachował schematu pól faktury")
-            return parsed
+            validator = Draft202012Validator(schema, format_checker=FormatChecker())
+            # Multimodalne modele potrafią zwrócić opis lub częściowy JSON
+            # mimo zadania ze schematem. Próbę powtarzamy tylko raz, w trybie
+            # JSON (bez rozluźniania walidacji schematu w aplikacji).
+            # Nie dołączaj ani nie loguj surowych odpowiedzi: mogą zawierać
+            # dane finansowe z prywatnego dokumentu.
+            max_attempts = 2 if tryb_wizji else 1
+            for attempt in range(max_attempts):
+                remaining = limit - (time.monotonic() - start)
+                if remaining <= 0:
+                    raise TaskTimeout("Przekroczono czas analizy faktury")
+                data = self._request("/api/chat", payload, task_id=task_id,
+                                     timeout=remaining)
+                if self._is_cancelled(task_id):
+                    raise TaskCancelled("Zadanie zostało anulowane")
+                check_structured_context_response(data, context_tokens)
+                message = data.get("message")
+                if isinstance(message, dict) and message.get("tool_calls"):
+                    raise InvalidResponse("Ekstrakcja nie pozwala na wywoływanie narzędzi")
+                content = message.get("content") if isinstance(message, dict) else None
+                problem = None
+                if not isinstance(content, str) or not content.strip():
+                    problem = "Model zwrócił pustą odpowiedź zamiast JSON pól"
+                else:
+                    # Akceptujemy jedynie pełny JSON lub pojedynczy blok
+                    # `json` z identyczną treścią. Nigdy nie naprawiaj
+                    # zgadywaniem brakujących wartości lub nawiasów.
+                    prepared = content.strip()
+                    lines = prepared.splitlines()
+                    if (len(lines) >= 3 and lines[0].strip().lower() in
+                            ("\x60\x60\x60json", "\x60\x60\x60")
+                            and lines[-1].strip() == "\x60\x60\x60"):
+                        prepared = "\\n".join(lines[1:-1]).strip()
+                    try:
+                        parsed = json.loads(prepared)
+                    except (UnicodeError, ValueError):
+                        problem = "Model zwrócił niepoprawną składnię JSON pól"
+                    else:
+                        if not isinstance(parsed, dict):
+                            problem = "Model zwrócił JSON, ale nie obiekt pól"
+                        elif not validator.is_valid(parsed):
+                            problem = "Model zwrócił JSON niezgodny ze schematem pól"
+                        else:
+                            return parsed
+                if attempt == max_attempts - 1:
+                    # Użytkownik dostaje przyczynę bez surowego tekstu
+                    # wygenerowanego na podstawie prywatnej faktury.
+                    if tryb_wizji:
+                        raise InvalidResponse(
+                            f"{problem} (po dwóch próbach). "
+                            "Sprawdź model vision lub spróbuj ponownie; "
+                            "nie zapisano żadnej sugestii."
+                        )
+                    raise InvalidResponse(problem)
+                # Na drugiej próbie format 'json' jest mniej wymagający
+                # dla dekodera multimodalnego. Schemat nadal weryfikuje
+                # nasz walidator; brak wartości musi być oznaczony null.
+                payload = {
+                    **payload,
+                    "format": "json",
+                    "messages": [
+                        {**messages[0], "content": messages[0]["content"] +
+                         " Zwróć tylko JEDEN kompletny obiekt JSON. "
+                         "Każde z wymaganych pól musi zawierać obiekt "
+                         "z kluczami wartosc i dowod (string albo null). "
+                         "Wymagane pola: " + ", ".join(schema["required"]) + ". "
+                         "Bez Markdown, bez komentarza, bez zgadywania."},
+                        *messages[1:],
+                    ],
+                }
+            raise AssertionError("Nieosiągalny stan ekstrakcji")
         finally:
             self._forget(task_id)
 

@@ -153,5 +153,72 @@ class TestEkstrakcjaWizyjna(unittest.TestCase):
         self.assertNotIn("SECRET-INVOICE", str(ctx.exception))
 
 
+    def test_vision_retry_akceptuje_poprawny_json_po_blednej_skladni(self):
+        bad = {"message": {"content": '{"kwota_do_zaplaty":'},
+               "done_reason": "stop", "prompt_eval_count": 1800}
+        with (patch("uslugi.analiza_ai_core.przygotuj_obrazy_faktury",
+                    return_value=["ZmFrZQ=="]),
+              patch.object(self.provider, "_request",
+                           side_effect=[self.caps, bad, self.reply]) as request):
+            wynik = analizuj_przez_ai_core(
+                "", ["Energia"], provider=self.provider,
+                sciezka_pdf=Path("/syntetyczny.pdf"),
+            )
+        self.assertEqual(wynik.oceny["dostawca"].wartosc, "Syntetyczna Energia")
+        self.assertEqual(request.call_count, 3)  # show, schema, json
+        first = request.call_args_list[1].args[1]
+        second = request.call_args_list[2].args[1]
+        self.assertIsInstance(first["format"], dict)
+        self.assertEqual(second["format"], "json")
+        self.assertEqual(first["messages"][-1]["images"],
+                         second["messages"][-1]["images"])
+        self.assertEqual(first["options"]["num_predict"], 1536)
+
+    def test_vision_retry_po_json_niezgodnym_ze_schematem(self):
+        bad = {"message": {"content": '{"dostawca": "zgadywany"}'},
+               "done_reason": "stop", "prompt_eval_count": 1800}
+        with (patch("uslugi.analiza_ai_core.przygotuj_obrazy_faktury",
+                    return_value=["ZmFrZQ=="]),
+              patch.object(self.provider, "_request",
+                           side_effect=[self.caps, bad, self.reply]) as request):
+            wynik = analizuj_przez_ai_core(
+                "", ["Energia"], provider=self.provider,
+                sciezka_pdf=Path("/syntetyczny.pdf"),
+            )
+        self.assertEqual(wynik.zrodlo, "obraz")
+        self.assertEqual(request.call_count, 3)
+
+    def test_vision_akceptuje_pojedynczy_blok_json_bez_retry(self):
+        content = "\`\`\`json\\n" + json.dumps(pola()) + "\\n\`\`\`"
+        reply = {"message": {"content": content}, "prompt_eval_count": 1500}
+        with (patch("uslugi.analiza_ai_core.przygotuj_obrazy_faktury",
+                    return_value=["ZmFrZQ=="]),
+              patch.object(self.provider, "_request",
+                           side_effect=[self.caps, reply]) as request):
+            wynik = analizuj_przez_ai_core(
+                "", ["Energia"], provider=self.provider,
+                sciezka_pdf=Path("/syntetyczny.pdf"),
+            )
+        self.assertEqual(wynik.zrodlo, "obraz")
+        self.assertEqual(request.call_count, 2)
+
+    def test_vision_po_dwoch_blednych_odpowiedziach_nie_ujawnia_tresci(self):
+        bad = {"message": {"content": "PRIVATE_TEST_INVOICE_NOT_JSON"},
+               "done_reason": "stop", "prompt_eval_count": 1800}
+        with (patch("uslugi.analiza_ai_core.przygotuj_obrazy_faktury",
+                    return_value=["ZmFrZQ=="]),
+              patch.object(self.provider, "_request",
+                           side_effect=[self.caps, bad, bad]) as request):
+            from ai_core.errors import InvalidResponse
+            with self.assertRaisesRegex(InvalidResponse, "po dwóch próbach") as error:
+                analizuj_przez_ai_core(
+                    "", ["Energia"], provider=self.provider,
+                    sciezka_pdf=Path("/syntetyczny.pdf"),
+                )
+        self.assertNotIn("PRIVATE_TEST_INVOICE_NOT_JSON", str(error.exception))
+        self.assertEqual(request.call_count, 3)
+
+
+
 if __name__ == "__main__":
     unittest.main()
