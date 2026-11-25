@@ -98,7 +98,8 @@ class ZakladkaOdczytu(QWidget):
         self.btn_odczytaj_obszar.setEnabled(gotowy and obszar)
         self.btn_odczytaj_qr.setEnabled(gotowy)
         self.btn_anuluj.setEnabled(self.pracuje)
-        self.btn_analizuj_z_odczytu.setEnabled(gotowy and bool(self.tekst.strip()))
+        # Model widzi obraz PDF; odczyt OCR jest opcjonalny.
+        self.btn_analizuj_z_odczytu.setEnabled(gotowy)
 
     def resetuj_dokument(self) -> None:
         self.pole_odczytu.clear()

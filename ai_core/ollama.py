@@ -51,7 +51,9 @@ def _extraction_context(messages: list[dict[str, str]], model_limit: int | None)
     # Format jest gramatyką odpowiedzi. Instrukcja, OCR i wzorzec
     # w messages są liczone jako tekst wejściowy.
     chars = sum(len(message["content"]) for message in messages)
-    estimated_prompt = (5 * chars + 11) // 12 + CHAT_TEMPLATE_RESERVE
+    # Zakodowane base64 to nie tokeny obrazu. Rezerwuj osobny budżet wizji.
+    images = sum(len(message.get("images", ())) for message in messages)
+    estimated_prompt = (5 * chars + 11) // 12 + CHAT_TEMPLATE_RESERVE + images * 1024
     maximum = min(model_limit or EXTRACTION_CONTEXT_TOKENS, MAX_EXTRACTION_CONTEXT_TOKENS)
     base = min(EXTRACTION_CONTEXT_TOKENS, maximum)
     if estimated_prompt <= base - _extraction_reply_reserve(base):
@@ -401,6 +403,19 @@ class OllamaProvider:
             for msg in messages
         ):
             raise ValueError("Nieprawidłowe wiadomości ekstrakcji")
+        liczba_obrazow = 0
+        for msg in messages:
+            obrazy = msg.get("images", [])
+            if not isinstance(obrazy, list):
+                raise ValueError("Nieprawidłowe obrazy ekstrakcji")
+            if obrazy and msg["role"] != "user":
+                raise ValueError("Obrazy mogą być wyłącznie danymi użytkownika")
+            liczba_obrazow += len(obrazy)
+            if any(not isinstance(x, str) or not x or len(x) > 3_000_000 for x in obrazy):
+                raise ValueError("Zbyt duży lub nieprawidłowy obraz ekstrakcji")
+        if liczba_obrazow > 6:
+            raise ValueError("Przekroczono limit stron analizy wizualnej")
+        tryb_wizji = liczba_obrazow > 0
         Draft202012Validator.check_schema(schema)
         if self._is_cancelled(task_id):
             raise TaskCancelled("Zadanie zostało anulowane")
@@ -412,9 +427,18 @@ class OllamaProvider:
             try:
                 capabilities = self.get_capabilities(model_id, timeout=min(limit, 2.0))
                 model_limit = capabilities["declared"]["context_tokens"]
-            except (InvalidResponse, ModelUnavailable, TaskTimeout):
-                # Starszy serwer lub brak metadanych nie blokuje zwykłej analizy.
+            except (InvalidResponse, ModelUnavailable, TaskTimeout) as blad:
+                if tryb_wizji:
+                    raise ModelUnavailable(
+                        "Nie można sprawdzić obsługi obrazu przez lokalny model Ollama"
+                    ) from blad
+                # Starszy serwer nie blokuje legacy analizy tekstowej.
                 model_limit = None
+            if tryb_wizji and capabilities["declared"].get("vision") is not True:
+                raise ModelUnavailable(
+                    "Wybrany model Ollama nie obsługuje obrazów faktur. "
+                    "Wybierz model z funkcją vision (np. gemma3:4b)."
+                )
             if self._is_cancelled(task_id):
                 raise TaskCancelled("Zadanie zostało anulowane")
             context_tokens = _extraction_context(messages, model_limit)

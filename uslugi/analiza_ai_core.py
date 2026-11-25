@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import threading
 import uuid
+from pathlib import Path
 from typing import Callable
 
 from ai_core.errors import ExtractionContextExceeded, ModelUnavailable, TaskCancelled
@@ -17,6 +18,7 @@ from uslugi.analiza_llm import (
     AnalizaModelu, OcenaPola, ocena_json, przygotuj_zapytanie,
 )
 from uslugi.okres_rozliczeniowy import popraw_okres_modelu
+from uslugi.wizja_pdf import przygotuj_obrazy_faktury
 
 
 def analizuj_przez_ai_core(
@@ -27,14 +29,15 @@ def analizuj_przez_ai_core(
     przerwij: threading.Event | None = None,
     podlacz_provider: Callable[[OllamaProvider, str], None] | None = None,
     provider: OllamaProvider | None = None,
+    sciezka_pdf: str | Path | None = None,
 ) -> AnalizaModelu:
     """Ekstrakcja przez wymienny interfejs AI Core, bez Tool Gateway.
 
     Model ekstrakcji jest opcjonalny. Gdy go nie ma, używany jest model
     główny. Wybrany model musi należeć do lokalnego adaptera.
     """
-    if not isinstance(tekst, str) or not tekst.strip():
-        raise ValueError("Najpierw odczytaj tekst dokumentu")
+    if not isinstance(tekst, str) or (not tekst.strip() and sciezka_pdf is None):
+        raise ValueError("Wybierz PDF lub odczytaj tekst dokumentu")
     if len(tekst) > 30000:
         raise ExtractionContextExceeded()
     if not isinstance(model, str) or not 0 < len(model.strip()) <= 120:
@@ -58,9 +61,17 @@ def analizuj_przez_ai_core(
     )
     router = ModelRouter({"ollama": adapter}, primary, specialists)
     active_provider, binding = router.select("extractor")
-    # Model może być zmieniony przed analizą; instrukcja powstaje z aktualnych
-    # danych, nigdy nie przechowuje poprzedniej faktury.
-    request = przygotuj_zapytanie(tekst, list(kategorie), binding.model_id, wzorzec)
+    # Obrazy są źródłem pierwotnym; OCR może być pusty.
+    tryb_wizji = sciezka_pdf is not None
+    obrazy = (
+        przygotuj_obrazy_faktury(sciezka_pdf, przerwij=przerwij)
+        if tryb_wizji else []
+    )
+    request = przygotuj_zapytanie(
+        tekst, list(kategorie), binding.model_id, wzorzec, obraz=tryb_wizji,
+    )
+    if tryb_wizji:
+        request["messages"][-1]["images"] = obrazy
     task_id = "extract:" + uuid.uuid4().hex
     if podlacz_provider is not None:
         podlacz_provider(active_provider, task_id)
@@ -83,7 +94,11 @@ def analizuj_przez_ai_core(
             if fallback is None:
                 raise
             active_provider, binding = fallback
-            request = przygotuj_zapytanie(tekst, list(kategorie), binding.model_id, wzorzec)
+            request = przygotuj_zapytanie(
+                tekst, list(kategorie), binding.model_id, wzorzec, obraz=tryb_wizji,
+            )
+            if tryb_wizji:
+                request["messages"][-1]["images"] = obrazy
             # Po nieudanej próbie odśwież token i kontrolę anulowania.
             task_id = "extract:" + uuid.uuid4().hex
             if podlacz_provider is not None:
@@ -100,8 +115,12 @@ def analizuj_przez_ai_core(
             raise TaskCancelled("Anulowano analizę")
         if postep is not None:
             postep("validate")
-        values, changed = popraw_okres_modelu(values, tekst)
-        scores = ocena_json(values, tekst, list(kategorie))
+        # Interpretacja OCR nie może nadpisać odczytu z obrazu.
+        values, changed = (
+            (values, set()) if tryb_wizji
+            else popraw_okres_modelu(values, tekst)
+        )
+        scores = ocena_json(values, tekst, list(kategorie), obraz=tryb_wizji)
         for field in changed:
             previous = scores[field]
             if previous.poprawne:
@@ -111,7 +130,7 @@ def analizuj_przez_ai_core(
                 )
         if przerwij is not None and przerwij.is_set():
             raise TaskCancelled("Anulowano analizę")
-        return AnalizaModelu(binding.model_id, scores)
+        return AnalizaModelu(binding.model_id, scores, "obraz" if tryb_wizji else "tekst")
     finally:
         if podlacz_provider is not None:
             podlacz_provider(active_provider, "")

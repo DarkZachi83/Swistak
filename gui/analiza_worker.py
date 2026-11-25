@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import copy
+from pathlib import Path
 
 from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 
@@ -21,7 +22,8 @@ class SygnalyAnalizy(QObject):
 class ZadanieAnalizy(QRunnable):
     def __init__(self, dokument_id: int, tekst: str, kategorie: list[str],
                  model: str, wzorzec: dict | None = None,
-                 model_ekstrakcji: str | None = None):
+                 model_ekstrakcji: str | None = None,
+                 sciezka_pdf: Path | None = None):
         super().__init__()
         self.dokument_id = dokument_id
         self.tekst = tekst
@@ -29,6 +31,7 @@ class ZadanieAnalizy(QRunnable):
         self.model = model
         self.model_ekstrakcji = model_ekstrakcji
         self.wzorzec = copy.deepcopy(wzorzec)
+        self.sciezka_pdf = sciezka_pdf
         self.przerwij = threading.Event()
         self._lock = threading.Lock()
         self._provider = None
@@ -63,6 +66,7 @@ class ZadanieAnalizy(QRunnable):
                 model_ekstrakcji=self.model_ekstrakcji,
                 postep=lambda etap: self.sygnaly.etap.emit(self.dokument_id, etap),
                 przerwij=self.przerwij, podlacz_provider=self._podlacz_provider,
+                **({"sciezka_pdf": self.sciezka_pdf} if self.sciezka_pdf is not None else {}),
             )
         except Exception as blad:
             if self.przerwij.is_set():

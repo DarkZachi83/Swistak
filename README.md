@@ -85,6 +85,19 @@ Model `gemma3:4b` jest modelem testowym; wymagania pamięci i szybkość działa
 
 Przy krótszych fakturach Świstak używa okna do **8 192 tokenów**. Dla dłuższego tekstu może poprosić Ollamę o **16 384 tokenów**, jeśli model obsługuje taki kontekst. Przy tym samym modelu i ustawieniach podwojenie okna może wymagać około dwukrotnie więcej pamięci na samą pamięć podręczną kontekstu (KV cache). Całkowite użycie RAM i VRAM zależy też od rozmiaru modelu. Przy małym zapasie VRAM Ollama może przenieść część obliczeń na CPU, co wydłuża analizę. [Dokumentacja kontekstu Ollamy](https://docs.ollama.com/context-length)
 
+## Analiza faktury z obrazu (OCR jako dodatkowe źródło)
+
+Po imporcie PDF lokalny model z funkcją **vision** analizuje obrazy
+wszystkich stron faktury, uwzględniając układ tabel, nagłówki i wyróżnienia.
+**OCR jest opcjonalny** — można uruchomić analizę bez odczytu tekstu.
+Gdy OCR nie potwierdza dowodu wskazanego na obrazie, sugestia wymaga
+ręcznego potwierdzenia z oryginalnym PDF-em. Wybierz model Ollamy
+obsługujący obrazy, np. `gemma3:4b`; zwykły model tekstowy nie zastąpi
+automatycznie analizy obrazu. Obowiązuje limit **6 stron PDF**.
+Świstak nie pomija kolejnych stron po cichu i nie wysyła faktur do chmury.
+Obrazy powstają tymczasowo w pamięci operacyjnej. Analiza wizualna
+może zużywać więcej RAM/VRAM i trwać dłużej niż analiza samego tekstu.
+
 ## Analiza AI — DANE i AGENT
 
 **Wybór modelu w Ustawieniach:** otwórz **Ustawienia → Konfiguruj**.

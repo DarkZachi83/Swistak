@@ -39,6 +39,7 @@ class ZakladkaAnalizy(QWidget):
     _VALIDATION_KEYS = {
         "Brak danych — uzupełnij ręcznie": "validation.missing",
         "Brak potwierdzenia w tekście": "validation.evidence",
+        "Dowód z obrazu niepotwierdzony przez OCR — sprawdź w PDF": "validation.image_unverified",
         "Format poprawny — zweryfikuj z PDF": "validation.valid",
         "Potwierdzone ręcznie z PDF — sprawdź przed zapisem": "validation.manual",
         "Wartość niezgodna z fragmentem źródłowym": "validation.value_mismatch",
@@ -383,8 +384,9 @@ class ZakladkaAnalizy(QWidget):
             dane, self._tekst,
             [wiersz["nazwa"] for wiersz in self.rejestr.kategorie()],
             potwierdzone_recznie=self._pola_potwierdzone_recznie,
+            obraz=self._analiza.zrodlo == "obraz",
         )
-        self._analiza = AnalizaModelu(self._analiza.model, oceny)
+        self._analiza = AnalizaModelu(self._analiza.model, oceny, self._analiza.zrodlo)
         self._aktualizuje_tabele_ai = True
         try:
             for r, pole in enumerate(POLA):
@@ -441,8 +443,7 @@ class ZakladkaAnalizy(QWidget):
     def _aktualizuj_ai(self) -> None:
         zajete = self._zadanie_ai is not None or self._odczyt_trwa
         dokument = self._dokument_id is not None
-        tekst = bool(self._tekst.strip())
-        mozna = dokument and tekst and not zajete
+        mozna = dokument and not zajete
         self.btn_analizuj.setEnabled(mozna)
         self.btn_anuluj_ai.setEnabled(self._zadanie_ai is not None)
         analiza_dokumentu = (
@@ -464,11 +465,6 @@ class ZakladkaAnalizy(QWidget):
             QMessageBox.information(self.window(), t("tab.ai"), t("msg.no_pdf"))
             return
         tekst = self._tekst
-        if not tekst.strip():
-            QMessageBox.information(
-                self.window(), t("tab.ai"), t("msg.read_before_ai")
-            )
-            return
         model = self.ed_model.text().strip()
         if not model:
             QMessageBox.warning(self.window(), t("tab.ai"), t("msg.model_required"))
@@ -495,11 +491,17 @@ class ZakladkaAnalizy(QWidget):
             else:
                 self._wzorzec_pominiety = True
             self._aktualizuj_info_wzorca()
+        try:
+            sciezka = self.rejestr.sciezka_pdf(self._dokument_id)
+        except (ValueError, OSError) as blad:
+            QMessageBox.warning(self.window(), t("msg.ai_error"), str(blad))
+            return
         kategorie = [wiersz["nazwa"] for wiersz in self.rejestr.kategorie()]
         zadanie = ZadanieAnalizy(
             self._dokument_id, tekst, kategorie, model,
             wzorzec=self._aktywny_wzorzec,
             model_ekstrakcji=self._model_ekstrakcji,
+            sciezka_pdf=sciezka,
         )
         self.wyczysc_wynik()
         self._zadanie_ai = zadanie
