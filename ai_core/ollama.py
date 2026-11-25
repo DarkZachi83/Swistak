@@ -489,7 +489,7 @@ class OllamaProvider:
                     if (len(lines) >= 3 and lines[0].strip().lower() in
                             ("\x60\x60\x60json", "\x60\x60\x60")
                             and lines[-1].strip() == "\x60\x60\x60"):
-                        prepared = "\\n".join(lines[1:-1]).strip()
+                        prepared = "\n".join(lines[1:-1]).strip()
                     try:
                         parsed = json.loads(prepared)
                     except (UnicodeError, ValueError):

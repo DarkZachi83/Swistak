@@ -189,7 +189,7 @@ class TestEkstrakcjaWizyjna(unittest.TestCase):
         self.assertEqual(request.call_count, 3)
 
     def test_vision_akceptuje_pojedynczy_blok_json_bez_retry(self):
-        content = "\`\`\`json\\n" + json.dumps(pola()) + "\\n\`\`\`"
+        content = "```json\n" + json.dumps(pola()) + "\n```"
         reply = {"message": {"content": content}, "prompt_eval_count": 1500}
         with (patch("uslugi.analiza_ai_core.przygotuj_obrazy_faktury",
                     return_value=["ZmFrZQ=="]),
