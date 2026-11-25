@@ -220,5 +220,81 @@ class TestEkstrakcjaWizyjna(unittest.TestCase):
 
 
 
+class TestDiagnostykaPolaczeniaOllamy(unittest.TestCase):
+    """Nie ujawniamy treści faktury ani HTTP; sprawdzamy tylko klasę błędu."""
+
+    def setUp(self):
+        self.provider = OllamaProvider(timeout=5)
+        self.payload = {
+            "model": "gemma3:4b", "stream": False, "truncate": False,
+            "messages": [
+                {"role": "user", "content": "PRYWATNY_TEKST_FAKTURY",
+                 "images": ["ZmFrZQ=="]},
+            ],
+        }
+
+    def test_serwer_http_503_nie_jest_mylony_z_brakiem_polaczenia(self):
+        error = HTTPError(
+            self.provider.base_url + "/api/chat", 503, "Service Unavailable",
+            {}, BytesIO(b'{"error":"PRYWATNA_TRESC_FAKTURY"}'),
+        )
+        with patch.object(self.provider._opener, "open", side_effect=error):
+            with self.assertRaises(ModelUnavailable) as ctx:
+                self.provider._request("/api/chat", self.payload)
+        self.assertIn("HTTP 503", str(ctx.exception))
+        self.assertIn("RAM/VRAM", str(ctx.exception))
+        self.assertNotIn("PRYWATNA", str(ctx.exception))
+
+    def test_odmowa_polaczenia_daje_odrebny_komunikat(self):
+        from urllib.error import URLError
+        with patch.object(
+            self.provider._opener, "open",
+            side_effect=URLError(ConnectionRefusedError(111, "PRYWATNE")),
+        ):
+            with self.assertRaises(ModelUnavailable) as ctx:
+                self.provider._request("/api/chat", self.payload)
+        self.assertIn("odmówiła połączenia", str(ctx.exception))
+        self.assertNotIn("PRYWATNE", str(ctx.exception))
+
+    def test_zamkniecie_polaczenia_w_trakcie_wizji_ma_odrebny_komunikat(self):
+        from urllib.error import URLError
+        errors = [
+            ConnectionResetError(104, "PRYWATNE"),
+            URLError(ConnectionResetError(104, "PRYWATNE")),
+            BrokenPipeError(32, "PRYWATNE"),
+        ]
+        for error in errors:
+            with self.subTest(error=type(error).__name__):
+                with patch.object(self.provider._opener, "open", side_effect=error):
+                    with self.assertRaises(ModelUnavailable) as ctx:
+                        self.provider._request("/api/chat", self.payload)
+                self.assertIn("przerwane podczas analizy obrazu", str(ctx.exception))
+                self.assertNotIn("PRYWATNE", str(ctx.exception))
+
+    def test_timeout_opakowany_w_urlerror_pozostaje_timeoutem(self):
+        from urllib.error import URLError
+        from ai_core.errors import TaskTimeout
+        with patch.object(
+            self.provider._opener, "open",
+            side_effect=URLError(TimeoutError("PRYWATNE")),
+        ):
+            with self.assertRaises(TaskTimeout) as ctx:
+                self.provider._request("/api/chat", self.payload)
+        self.assertIn("nie odpowiedziała na czas", str(ctx.exception))
+        self.assertNotIn("PRYWATNE", str(ctx.exception))
+
+    def test_http_404_wskazuje_na_nazwe_modelu(self):
+        error = HTTPError(
+            self.provider.base_url + "/api/chat", 404, "Not Found",
+            {}, BytesIO(b'{"error":"PRYWATNE"}'),
+        )
+        with patch.object(self.provider._opener, "open", side_effect=error):
+            with self.assertRaises(ModelUnavailable) as ctx:
+                self.provider._request("/api/chat", self.payload)
+        self.assertIn("HTTP 404", str(ctx.exception))
+        self.assertIn("ekstrakcji", str(ctx.exception))
+        self.assertNotIn("PRYWATNE", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

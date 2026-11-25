@@ -6,6 +6,7 @@ Dotychczasowa uslugi/analiza_llm.py pozostaje niezależna do Etapu 4.
 """
 from __future__ import annotations
 
+import errno
 import json
 import socket
 import threading
@@ -100,6 +101,64 @@ def is_ollama_context_error(error: HTTPError) -> bool:
     )
 
 
+def _safe_ollama_transport_error(
+    exc: HTTPError | URLError | OSError, endpoint: str, payload: dict[str, Any] | None,
+) -> ModelUnavailable | TaskTimeout:
+    """Rozróżnia błędy transportu bez ujawniania treści odpowiedzi lub faktury."""
+    messages = payload.get("messages", []) if isinstance(payload, dict) else []
+    vision = endpoint == "/api/chat" and isinstance(messages, list) and any(
+        isinstance(item, dict) and item.get("images") for item in messages
+    )
+    phase = (
+        "analizy obrazu" if vision else
+        "analizy AI" if endpoint == "/api/chat" else
+        "odczytu informacji o modelu" if endpoint == "/api/show" else
+        "komunikacji z serwerem"
+    )
+    if isinstance(exc, HTTPError):
+        code = exc.code  # Wyłącznie kod; treść serwera może zawierać dane faktury.
+        if code == 404:
+            return ModelUnavailable(
+                f"Ollama zwróciła HTTP 404 podczas {phase}. "
+                "Sprawdź nazwę modelu, także modelu przypisanego do roli ekstrakcji."
+            )
+        if code in (500, 502, 503, 504):
+            return ModelUnavailable(
+                f"Serwer Ollama zwrócił HTTP {code} podczas {phase}. "
+                "Możliwy problem uruchomienia modelu lub zasobów RAM/VRAM. "
+                "Sprawdź stan usługi i jej logi."
+            )
+        return ModelUnavailable(
+            f"Serwer Ollama odrzucił żądanie podczas {phase} (HTTP {code}). "
+            "Sprawdź zgodność modelu, wersję Ollamy i ustawienia analizy."
+        )
+
+    cause = exc.reason if isinstance(exc, URLError) else exc
+    if isinstance(cause, (TimeoutError, socket.timeout)):
+        return TaskTimeout(
+            f"Ollama nie odpowiedziała na czas podczas {phase}. "
+            "Sprawdź obciążenie modelu i dostępne zasoby komputera."
+        )
+    error_number = getattr(cause, "errno", None)
+    if isinstance(cause, ConnectionRefusedError) or error_number == errno.ECONNREFUSED:
+        return ModelUnavailable(
+            "Lokalna Ollama odmówiła połączenia (127.0.0.1:11434). "
+            "Sprawdź, czy usługa jest uruchomiona."
+        )
+    if isinstance(cause, (ConnectionResetError, BrokenPipeError)) or error_number in (
+        errno.ECONNRESET, errno.EPIPE, errno.ECONNABORTED,
+    ):
+        return ModelUnavailable(
+            f"Połączenie z Ollamą zostało przerwane podczas {phase}. "
+            "Serwer lub proces modelu mógł się zatrzymać; sprawdź logi "
+            "i dostępność RAM/VRAM."
+        )
+    return ModelUnavailable(
+        f"Nie udało się skomunikować z lokalną Ollamą podczas {phase}. "
+        "Sprawdź stan usługi na 127.0.0.1:11434."
+    )
+
+
 class OllamaProvider:
     is_local = True
 
@@ -166,22 +225,7 @@ class OllamaProvider:
             if (isinstance(exc, HTTPError) and payload and payload.get("truncate") is False
                     and is_ollama_context_error(exc)):
                 raise ExtractionContextExceeded() from exc
-            # /api/show bywa niekompletne. Ostatecznym sprawdzeniem obsługi
-            # obrazu jest odpowiedź /api/chat. Nie ujawniaj treści błędu HTTP,
-            # który mógłby zawierać fragment nieprywatnej tu faktury.
-            if isinstance(exc, HTTPError) and payload and endpoint == "/api/chat":
-                messages = payload.get("messages", [])
-                if isinstance(messages, list) and any(
-                    isinstance(msg, dict) and msg.get("images") for msg in messages
-                ):
-                    raise ModelUnavailable(
-                        f"Ollama odrzuciła analizę obrazu (HTTP {exc.code}). "
-                        "Sprawdź, czy wybrany model przyjmuje obrazy oraz "
-                        "czy lokalna Ollama jest aktualna."
-                    ) from exc
-            if isinstance(exc, (socket.timeout, TimeoutError)):
-                raise TaskTimeout("Ollama nie odpowiedziała w ustalonym czasie") from exc
-            raise ModelUnavailable("Nie można połączyć się z lokalną Ollamą") from exc
+            raise _safe_ollama_transport_error(exc, endpoint, payload) from exc
 
     def _is_cancelled(self, task_id: str) -> bool:
         with self._lock:
