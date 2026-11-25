@@ -163,6 +163,19 @@ class OllamaProvider:
             if (isinstance(exc, HTTPError) and payload and payload.get("truncate") is False
                     and is_ollama_context_error(exc)):
                 raise ExtractionContextExceeded() from exc
+            # /api/show bywa niekompletne. Ostatecznym sprawdzeniem obsługi
+            # obrazu jest odpowiedź /api/chat. Nie ujawniaj treści błędu HTTP,
+            # który mógłby zawierać fragment nieprywatnej tu faktury.
+            if isinstance(exc, HTTPError) and payload and endpoint == "/api/chat":
+                messages = payload.get("messages", [])
+                if isinstance(messages, list) and any(
+                    isinstance(msg, dict) and msg.get("images") for msg in messages
+                ):
+                    raise ModelUnavailable(
+                        f"Ollama odrzuciła analizę obrazu (HTTP {exc.code}). "
+                        "Sprawdź, czy wybrany model przyjmuje obrazy oraz "
+                        "czy lokalna Ollama jest aktualna."
+                    ) from exc
             if isinstance(exc, (socket.timeout, TimeoutError)):
                 raise TaskTimeout("Ollama nie odpowiedziała w ustalonym czasie") from exc
             raise ModelUnavailable("Nie można połączyć się z lokalną Ollamą") from exc
@@ -427,18 +440,13 @@ class OllamaProvider:
             try:
                 capabilities = self.get_capabilities(model_id, timeout=min(limit, 2.0))
                 model_limit = capabilities["declared"]["context_tokens"]
-            except (InvalidResponse, ModelUnavailable, TaskTimeout) as blad:
-                if tryb_wizji:
-                    raise ModelUnavailable(
-                        "Nie można sprawdzić obsługi obrazu przez lokalny model Ollama"
-                    ) from blad
-                # Starszy serwer nie blokuje legacy analizy tekstowej.
+            except (InvalidResponse, ModelUnavailable, TaskTimeout):
+                # Metadane /api/show mogą być nieobecne lub niekompletne.
+                # Nie blokuj z tego powodu próby analizy rzeczywistego obrazu.
                 model_limit = None
-            if tryb_wizji and capabilities["declared"].get("vision") is not True:
-                raise ModelUnavailable(
-                    "Wybrany model Ollama nie obsługuje obrazów faktur. "
-                    "Wybierz model z funkcją vision (np. gemma3:4b)."
-                )
+            # Sama deklaracja capabilities nie rozstrzyga obsługi vision:
+            # niektóre wersje /api/show nie zgłaszają jej nawet dla gemma3.
+            # Obraz wysyłamy do /api/chat; serwer podejmuje ostateczną decyzję.
             if self._is_cancelled(task_id):
                 raise TaskCancelled("Zadanie zostało anulowane")
             context_tokens = _extraction_context(messages, model_limit)
