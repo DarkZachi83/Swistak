@@ -132,7 +132,7 @@
   "ai.none": "Brak aktualnej analizy. Odczytaj PDF i uruchom Ollamę.",
   "ai.table.field": "Pole",
   "ai.table.suggestion": "Sugestia AI",
-  "ai.table.evidence": "Dowód z tekstu",
+  "ai.table.evidence": "Dowód z dokumentu",
   "ai.table.verdict": "Ocena",
   "ai.label.supplier": "Dostawca",
   "ai.label.invoice": "Numer faktury",

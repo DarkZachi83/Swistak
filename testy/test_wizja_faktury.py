@@ -76,7 +76,7 @@ class TestEkstrakcjaWizyjna(unittest.TestCase):
         self.assertEqual(wynik.zrodlo, "obraz")
         self.assertEqual(wynik.oceny["kwota_do_zaplaty"].wartosc, "124,50")
         self.assertFalse(wynik.oceny["kwota_do_zaplaty"].poprawne)
-        self.assertIn("OCR", wynik.oceny["kwota_do_zaplaty"].komunikat)
+        self.assertIn("OCR", wynik.oceny["dostawca"].komunikat)
         payload = requests.call_args.args[1]
         self.assertEqual(payload["messages"][-1]["images"], ["ZmFrZQ=="])
         self.assertIn("OBRAZY", payload["messages"][-1]["content"])
@@ -87,12 +87,14 @@ class TestEkstrakcjaWizyjna(unittest.TestCase):
         with (patch("uslugi.analiza_ai_core.przygotuj_obrazy_faktury",
                     return_value=["ZmFrZQ=="]),
               patch.object(self.provider, "_request",
-                           side_effect=[self.caps, self.reply])):
+                           side_effect=[self.caps, self.reply]) as request):
             wynik = analizuj_przez_ai_core(
                 tekst, ["Energia"], provider=self.provider,
                 sciezka_pdf=Path("/syntetyczny.pdf"),
             )
         self.assertTrue(wynik.oceny["kwota_do_zaplaty"].poprawne)
+        # OCR weryfikuje lokalnie gotowy wynik; nie jest podpowiedzią dla VLM.
+        self.assertNotIn("124,50", request.call_args.args[1]["messages"][-1]["content"])
 
     def test_brak_vision_nie_oznacza_cichego_powrotu_do_ocr(self):
         caps = {"model_info": {"test.context_length": 32768},
